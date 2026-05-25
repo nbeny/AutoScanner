@@ -31,12 +31,27 @@ describe('EnvSchema', () => {
     expect(parsed.ACCESS_TOKEN_TTL_SECONDS).toBe(900);
   });
 
+  it('applies default for omitted numeric fields', () => {
+    const { API_PORT: _omitted, ...withoutPort } = validEnv;
+    const parsed = EnvSchema.parse(withoutPort);
+    expect(parsed.API_PORT).toBe(4000);
+  });
+
   it('rejects when JWT_SECRET is too short', () => {
     expect(() => EnvSchema.parse({ ...validEnv, JWT_SECRET: 'short' })).toThrow(/JWT_SECRET/);
   });
 
   it('rejects when MASTER_ENCRYPTION_KEY is not 32 bytes base64', () => {
     expect(() => EnvSchema.parse({ ...validEnv, MASTER_ENCRYPTION_KEY: 'abc' })).toThrow(
+      /MASTER_ENCRYPTION_KEY/,
+    );
+  });
+
+  it('rejects MASTER_ENCRYPTION_KEY with non-base64 characters even if decoded length is 32', () => {
+    // 32 'A's = 24 decoded bytes; padding wrong → rejected by length check. So construct
+    // a string with valid-length decoded bytes but illegal chars:
+    const bogus = '!'.repeat(44); // exclamation is not in base64 alphabet
+    expect(() => EnvSchema.parse({ ...validEnv, MASTER_ENCRYPTION_KEY: bogus })).toThrow(
       /MASTER_ENCRYPTION_KEY/,
     );
   });
