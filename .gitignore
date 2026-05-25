@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+out/
+tmp/
+.nx/cache/
+.nx/workspace-data/
+
+# IDE
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Prisma generated
+prisma/migrations/migration_lock.toml.bak
+
+# GraphQL generated (regenerated on serve)
+apps/*/src/schema.gql
+
+# Coverage / test artifacts
+coverage/
+.jest-cache/
+
+# MinIO local data (if mounted)
+docker/data/
