@@ -29,10 +29,9 @@
       }
     },
     "test": {
-      "executor": "nx:run-commands",
+      "executor": "@nx/vite:test",
       "options": {
-        "command": "vitest run",
-        "cwd": "apps/frontend"
+        "configFile": "apps/frontend/vitest.config.ts"
       },
       "cache": true
     },

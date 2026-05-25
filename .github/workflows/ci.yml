@@ -112,4 +112,4 @@ jobs:
         run: pnpm nx affected -t build --parallel=3
 
       - name: E2E (api-gateway)
-        run: pnpm nx run api-gateway:e2e
+        run: pnpm nx run api-gateway-e2e:e2e
