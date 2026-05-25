@@ -19,7 +19,7 @@ model User {
   email         String    @unique
   passwordHash  String
   displayName   String?
-  totpSecretEnc Bytes?    // AES-256-GCM ciphertext (Phase 0: schema only)
+  totpSecretEnc Bytes? // AES-256-GCM ciphertext (Phase 0: schema only)
   totpEnabled   Boolean   @default(false)
   isActive      Boolean   @default(true)
   lastLoginAt   DateTime?
@@ -27,8 +27,9 @@ model User {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  sessions    Session[]
-  engagements Engagement[]
+  sessions     Session[]
+  engagements  Engagement[]
+  scansCreated Scan[]
 
   @@index([deletedAt])
 }
@@ -79,6 +80,7 @@ model Engagement {
   owner      User        @relation(fields: [ownerId], references: [id])
   scopeRules ScopeRule[]
   assets     Asset[]
+  scans      Scan[]
 
   @@index([ownerId])
   @@index([status])
@@ -143,9 +145,147 @@ model Asset {
   deletedAt      DateTime?
 
   engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  ports      Port[]
+  findings   Finding[]
 
   // Real uniqueness applied via partial unique index in migration SQL
   @@index([engagementId, type, canonicalValue])
   @@index([type])
   @@index([deletedAt])
+}
+
+// =====================================================================
+// SCANS (Phase 1)
+// =====================================================================
+
+enum ScanStatus {
+  PENDING
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  TIMEOUT
+  CANCELLED
+}
+
+model Scan {
+  id           String     @id @default(cuid())
+  engagementId String
+  createdById  String
+  name         String?
+  status       ScanStatus @default(PENDING)
+  createdAt    DateTime   @default(now())
+  completedAt  DateTime?
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  createdBy  User       @relation(fields: [createdById], references: [id])
+  jobs       ScanJob[]
+
+  @@index([engagementId])
+  @@index([status])
+  @@index([createdById])
+}
+
+model ScanJob {
+  id           String     @id @default(cuid())
+  scanId       String
+  scannerName  String
+  target       String
+  input        Json
+  status       ScanStatus @default(PENDING)
+  queuedAt     DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  exitCode     Int?
+  durationMs   Int?
+  rawOutputKey String?
+  errorMessage String?
+  createdAt    DateTime   @default(now())
+
+  scan     Scan      @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  findings Finding[]
+
+  @@index([scanId])
+  @@index([status])
+  @@index([scannerName])
+}
+
+enum Protocol {
+  TCP
+  UDP
+  ICMP
+  SCTP
+}
+
+enum PortState {
+  OPEN
+  CLOSED
+  FILTERED
+  OPEN_FILTERED
+  CLOSED_FILTERED
+  UNFILTERED
+}
+
+model Port {
+  id          String    @id @default(cuid())
+  assetId     String
+  number      Int
+  protocol    Protocol
+  state       PortState
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+
+  asset    Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  services Service[]
+
+  @@unique([assetId, number, protocol])
+  @@index([assetId])
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  portId      String
+  name        String?
+  product     String?
+  version     String?
+  banner      String?
+  cpe         String[]
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  port Port @relation(fields: [portId], references: [id], onDelete: Cascade)
+
+  @@index([portId])
+}
+
+enum Severity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Finding {
+  id          String   @id @default(cuid())
+  assetId     String
+  scanJobId   String
+  dedupHash   String
+  title       String
+  severity    Severity
+  location    String?
+  cveId       String?
+  templateId  String?
+  evidence    Json?
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  asset   Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  scanJob ScanJob @relation(fields: [scanJobId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, dedupHash])
+  @@index([assetId])
+  @@index([scanJobId])
+  @@index([severity])
+  @@index([cveId])
 }
