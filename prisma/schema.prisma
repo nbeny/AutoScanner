@@ -1,0 +1,151 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres", "postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, citext, pg_trgm]
+}
+
+// =====================================================================
+// AUTH
+// =====================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  displayName   String?
+  totpSecretEnc Bytes?    // AES-256-GCM ciphertext (Phase 0: schema only)
+  totpEnabled   Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  sessions    Session[]
+  engagements Engagement[]
+
+  @@index([deletedAt])
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  userAgent        String?
+  ip               String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// =====================================================================
+// ENGAGEMENTS (minimal Phase 0 surface)
+// =====================================================================
+
+enum EngagementStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+model Engagement {
+  id          String           @id @default(cuid())
+  ownerId     String
+  name        String
+  clientName  String
+  description String?
+  scopeText   String?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      EngagementStatus @default(DRAFT)
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+
+  owner      User        @relation(fields: [ownerId], references: [id])
+  scopeRules ScopeRule[]
+  assets     Asset[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+enum ScopeRuleType {
+  INCLUDE
+  EXCLUDE
+}
+
+enum ScopeRuleTarget {
+  CIDR
+  IP
+  DOMAIN
+  WILDCARD_DOMAIN
+  URL
+}
+
+model ScopeRule {
+  id           String          @id @default(cuid())
+  engagementId String
+  ruleType     ScopeRuleType
+  targetType   ScopeRuleTarget
+  value        String
+  notes        String?
+  createdAt    DateTime        @default(now())
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@index([engagementId])
+}
+
+// =====================================================================
+// ASSETS (skeletal — Phase 1+ expands)
+// =====================================================================
+
+enum AssetType {
+  DOMAIN
+  SUBDOMAIN
+  IP_ADDRESS
+  URL
+  HOSTNAME
+  NETWORK
+  CLOUD_RESOURCE
+  CONTAINER
+  WIFI_AP
+}
+
+model Asset {
+  id             String    @id @default(cuid())
+  engagementId   String
+  type           AssetType
+  value          String
+  canonicalValue String
+  firstSeenAt    DateTime  @default(now())
+  lastSeenAt     DateTime  @default(now())
+  riskScore      Float     @default(0)
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  // Real uniqueness applied via partial unique index in migration SQL
+  @@index([engagementId, type, canonicalValue])
+  @@index([engagementId])
+  @@index([type])
+  @@index([deletedAt])
+}
