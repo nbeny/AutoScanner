@@ -32,6 +32,15 @@
           "buildTarget": "api-gateway:build:production"
         }
       }
+    },
+    "e2e": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "apps/api-gateway/test/jest-e2e.config.ts",
+        "passWithNoTests": true
+      },
+      "inputs": ["default", "^production"],
+      "cache": false
     }
   },
   "tags": ["scope:app"]
