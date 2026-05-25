@@ -31,6 +31,9 @@ import { UsersModule } from './users/users.module';
         playground: false,
         introspection: !cfg.isProd,
         path: '/graphql',
+        subscriptions: {
+          'graphql-ws': { path: '/graphql' },
+        },
         context: ({ req, res }: { req: unknown; res: unknown }) => ({ req, res }),
         formatError: formatGraphqlError,
       }),

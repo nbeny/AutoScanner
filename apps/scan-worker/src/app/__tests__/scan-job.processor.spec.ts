@@ -1,6 +1,7 @@
 import type { Job, Queue } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
 import type { DockerRunner, RunResult, RunSpec } from '@autoscanner/docker-runner';
+import type { LogStreamPublisher } from '@autoscanner/log-stream';
 import type { ParseJobPayload, ScanJobPayload } from '@autoscanner/queues';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { NmapScanner } from '@autoscanner/scanners-nmap';
@@ -16,6 +17,7 @@ describe('ScanJobProcessor', () => {
   let docker: jest.Mocked<DockerRunner>;
   let storage: jest.Mocked<ObjectStorage>;
   let parseQueue: jest.Mocked<Queue<ParseJobPayload>>;
+  let logStream: jest.Mocked<LogStreamPublisher>;
   let registry: ScannerRegistry;
   let processor: ScanJobProcessor;
 
@@ -63,10 +65,14 @@ describe('ScanJobProcessor', () => {
       Queue<ParseJobPayload>
     >;
 
+    logStream = {
+      publish: jest.fn().mockResolvedValue(undefined),
+    } as jest.Mocked<LogStreamPublisher>;
+
     registry = new ScannerRegistry();
     registry.register(NmapScanner);
 
-    processor = new ScanJobProcessor(prisma, registry, docker, storage, parseQueue);
+    processor = new ScanJobProcessor(prisma, registry, docker, storage, parseQueue, logStream);
   });
 
   const job = (payload: ScanJobPayload) =>

@@ -74,9 +74,15 @@ importers:
       graphql:
         specifier: 16.10.0
         version: 16.10.0
+      graphql-subscriptions:
+        specifier: ^3.0.0
+        version: 3.0.0(graphql@16.10.0)
       graphql-tag:
         specifier: 2.12.6
         version: 2.12.6(graphql@16.10.0)
+      graphql-ws:
+        specifier: ^6.0.1
+        version: 6.0.1(graphql@16.10.0)(ws@8.21.0)
       ioredis:
         specifier: 5.4.2
         version: 5.4.2
@@ -113,6 +119,9 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.1
+      ws:
+        specifier: ^8.18.0
+        version: 8.21.0
       zod:
         specifier: 3.24.1
         version: 3.24.1
@@ -186,6 +195,9 @@ importers:
       '@types/supertest':
         specifier: 6.0.2
         version: 6.0.2
+      '@types/ws':
+        specifier: ^8.5.0
+        version: 8.18.1
       '@typescript-eslint/eslint-plugin':
         specifier: 8.18.1
         version: 8.18.1(@typescript-eslint/parser@8.18.1(eslint@9.17.0(jiti@2.6.1))(typescript@5.7.2))(eslint@9.17.0(jiti@2.6.1))(typescript@5.7.2)
@@ -278,6 +290,12 @@ importers:
         version: 2.8.1
 
   libs/logging:
+    dependencies:
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+
+  libs/parsers:
     dependencies:
       tslib:
         specifier: ^2.3.0
@@ -4576,6 +4594,11 @@ packages:
 
   graphemer@1.4.0:
     resolution: {integrity: sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==}
+
+  graphql-subscriptions@3.0.0:
+    resolution: {integrity: sha512-kZCdevgmzDjGAOqH7GlDmQXYAkuHoKpMlJrqF40HMPhUhM5ZWSFSxCwD/nSi6AkaijmMfsFhoJRGJ27UseCvRA==}
+    peerDependencies:
+      graphql: ^15.7.2 || ^16.0.0
 
   graphql-tag@2.12.6:
     resolution: {integrity: sha512-FdSNcu2QQcWnM2VNvSCCDCVS5PpPqpzgFT8+GXzqJuoDd0CBncxCY278u4mhRO7tMgo2JjgJA5aZ+nWSQ/Z+xg==}
@@ -13177,6 +13200,10 @@ snapshots:
 
   graphemer@1.4.0: {}
 
+  graphql-subscriptions@3.0.0(graphql@16.10.0):
+    dependencies:
+      graphql: 16.10.0
+
   graphql-tag@2.12.6(graphql@16.10.0):
     dependencies:
       graphql: 16.10.0
@@ -13187,6 +13214,12 @@ snapshots:
       graphql: 16.10.0
     optionalDependencies:
       ws: 8.18.0
+
+  graphql-ws@6.0.1(graphql@16.10.0)(ws@8.21.0):
+    dependencies:
+      graphql: 16.10.0
+    optionalDependencies:
+      ws: 8.21.0
 
   graphql@16.10.0: {}
 
