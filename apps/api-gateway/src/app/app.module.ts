@@ -10,6 +10,7 @@ import { PrismaModule } from '@autoscanner/database';
 import { StorageModule } from '@autoscanner/storage';
 
 import { formatGraphqlError } from './graphql-error.formatter';
+import { AssetsModule } from './assets/assets.module';
 import { AuthModule } from './auth/auth.module';
 import { EngagementsModule } from './engagements/engagements.module';
 import { HealthModule } from './health/health.module';
@@ -40,6 +41,7 @@ import { UsersModule } from './users/users.module';
         formatError: formatGraphqlError,
       }),
     }),
+    AssetsModule,
     AuthModule,
     EngagementsModule,
     HealthModule,
