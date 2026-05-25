@@ -1,11 +1,39 @@
 import { Module } from '@nestjs/common';
-import { AppConfigModule } from '@autoscanner/config';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { GraphQLModule } from '@nestjs/graphql';
+import { join } from 'node:path';
+
+import { AppConfigModule, AppConfigService } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
+
+import { formatGraphqlError } from './graphql-error.formatter';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { SystemModule } from './system/system.module';
 
 @Module({
-  imports: [AppConfigModule, AppLoggingModule, PrismaModule, HealthModule, MetricsModule],
+  imports: [
+    AppConfigModule,
+    AppLoggingModule,
+    PrismaModule,
+    GraphQLModule.forRootAsync<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      imports: [AppConfigModule],
+      inject: [AppConfigService],
+      useFactory: (cfg: AppConfigService) => ({
+        autoSchemaFile: join(process.cwd(), 'apps/api-gateway/src/schema.gql'),
+        sortSchema: true,
+        playground: false,
+        introspection: !cfg.isProd,
+        path: '/graphql',
+        context: ({ req, res }: { req: unknown; res: unknown }) => ({ req, res }),
+        formatError: formatGraphqlError,
+      }),
+    }),
+    HealthModule,
+    MetricsModule,
+    SystemModule,
+  ],
 })
 export class AppModule {}

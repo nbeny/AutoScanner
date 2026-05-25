@@ -76,10 +76,13 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@apollo/server": "4.11.2",
     "@aws-sdk/client-s3": "3.717.0",
+    "@nestjs/apollo": "13.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "4.0.0",
     "@nestjs/core": "^11.0.0",
+    "@nestjs/graphql": "13.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@prisma/client": "6.1.0",
     "argon2": "0.41.1",
@@ -87,6 +90,8 @@
     "class-transformer": "0.5.1",
     "class-validator": "0.14.1",
     "dotenv": "16.4.7",
+    "graphql": "16.10.0",
+    "graphql-tag": "2.12.6",
     "ioredis": "5.4.2",
     "jsonwebtoken": "9.0.2",
     "nestjs-pino": "4.2.0",
