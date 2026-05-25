@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const numericString = (defaultValue?: number) =>
+const numericString = (defaultValue: number) =>
   z
     .string()
     .optional()
@@ -14,9 +14,12 @@ const booleanString = z
   .optional()
   .transform((v) => v === 'true' || v === '1');
 
+const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
+
 const base64Bytes = (length: number, field: string) =>
   z.string().refine(
     (v) => {
+      if (!BASE64_RE.test(v)) return false;
       try {
         return Buffer.from(v, 'base64').length === length;
       } catch {
