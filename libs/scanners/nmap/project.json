@@ -1,0 +1,22 @@
+{
+  "name": "scanners-nmap",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/nmap/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/nmap"],
+      "options": {
+        "jestConfig": "libs/scanners/nmap/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/nmap/tsconfig.lib.json"
+      }
+    }
+  }
+}
