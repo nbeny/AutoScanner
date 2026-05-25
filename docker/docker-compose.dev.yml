@@ -1,0 +1,84 @@
+name: autoscanner-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: autoscanner-postgres
+    environment:
+      POSTGRES_USER: autoscanner
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: autoscanner
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U autoscanner -d autoscanner']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: autoscanner-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mongo:
+    image: mongo:7
+    container_name: autoscanner-mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand({ ping: 1 }).ok']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: autoscanner-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: autoscanner
+      MINIO_ROOT_PASSWORD: devpassword
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio-bootstrap:
+    image: minio/mc:latest
+    container_name: autoscanner-minio-bootstrap
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mc alias set local http://minio:9000 autoscanner devpassword &&
+        mc mb --ignore-existing local/raw-outputs local/reports local/uploads local/pcap local/screenshots local/backups local/cve-mirror &&
+        echo "MinIO buckets ready"
+    restart: 'no'
+
+volumes:
+  pgdata:
+  redisdata:
+  mongodata:
+  miniodata:
