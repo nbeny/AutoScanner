@@ -7,6 +7,7 @@ import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { NmapScannerModule } from '@autoscanner/scanners-nmap';
 
 import { AuthModule } from '../auth/auth.module';
+import { ScansController } from './scans.controller';
 import { ScansResolver } from './scans.resolver';
 import { ScansService } from './scans.service';
 
@@ -22,6 +23,7 @@ import './dto/scan-log-chunk.object';
     NmapScannerModule,
     BullModule.registerQueue({ name: QueueName.SCAN_JOBS }),
   ],
+  controllers: [ScansController],
   providers: [ScansService, ScansResolver],
 })
 export class ScansModule {}

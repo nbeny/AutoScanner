@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { AppConfigModule, AppConfigService } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
+import { StorageModule } from '@autoscanner/storage';
 
 import { formatGraphqlError } from './graphql-error.formatter';
 import { AuthModule } from './auth/auth.module';
@@ -21,6 +22,7 @@ import { UsersModule } from './users/users.module';
     AppConfigModule,
     AppLoggingModule,
     PrismaModule,
+    StorageModule,
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
       imports: [AppConfigModule],
