@@ -60,4 +60,42 @@ describe('Auth (e2e)', () => {
       expect(res.status).toBe(400);
     });
   });
+
+  describe('GraphQL me with bearer', () => {
+    let accessToken: string;
+
+    beforeAll(async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: testEmail, password: testPassword });
+      accessToken = res.body.accessToken;
+    });
+
+    it('returns the current user when bearer is valid', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/graphql')
+        .set('authorization', `Bearer ${accessToken}`)
+        .send({ query: '{ me { id email displayName } }' });
+      expect(res.status).toBe(200);
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.me).not.toBeNull();
+      expect(res.body.data.me.email).toBe(testEmail);
+      expect(res.body.data.me.displayName).toBe('E2E User');
+    });
+
+    it('returns errors when bearer is missing', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/graphql')
+        .send({ query: '{ me { id email } }' });
+      expect(res.body.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+    });
+
+    it('returns errors when bearer is invalid', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/graphql')
+        .set('authorization', 'Bearer not-a-real-token')
+        .send({ query: '{ me { id email } }' });
+      expect(res.body.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+    });
+  });
 });

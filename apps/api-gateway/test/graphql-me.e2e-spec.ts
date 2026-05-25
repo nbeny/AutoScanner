@@ -16,13 +16,13 @@ describe('GraphQL me query (e2e)', () => {
     await app.close();
   });
 
-  it('me resolves to null when not authenticated', async () => {
+  it('me returns UNAUTHENTICATED when no bearer is provided', async () => {
     const res = await request(app.getHttpServer())
       .post('/graphql')
       .send({ query: '{ me { id email } }' });
     expect(res.status).toBe(200);
-    expect(res.body.errors).toBeUndefined();
-    expect(res.body.data.me).toBeNull();
+    expect(res.body.errors).toBeDefined();
+    expect(res.body.errors[0].extensions.code).toBe('UNAUTHENTICATED');
   });
 
   it('introspection exposes User type', async () => {
