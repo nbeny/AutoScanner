@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import type { Request } from 'express';
 import { AppConfigService } from '@autoscanner/config';
 import { PrismaService } from '@autoscanner/database';
 import type { User } from '@prisma/client';
@@ -23,10 +24,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ignoreExpiration: false,
       secretOrKey: cfg.env.JWT_SECRET,
       algorithms: ['HS512'],
+      passReqToCallback: true,
     });
   }
 
-  async validate(payload: JwtPayload): Promise<User> {
+  async validate(req: Request, payload: JwtPayload): Promise<User> {
     const [session, user] = await Promise.all([
       this.prisma.session.findUnique({ where: { id: payload.sessionId } }),
       this.prisma.user.findFirst({
@@ -41,6 +43,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('user not found');
     }
 
+    (req as Request & { sessionId?: string }).sessionId = payload.sessionId;
     return user;
   }
 }

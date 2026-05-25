@@ -1,7 +1,17 @@
-import { Body, Controller, HttpCode, HttpException, Ip, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpException,
+  Ip,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { InvalidCredentialsError } from '@autoscanner/common';
 import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthPayload, LoginDto, RefreshDto } from './dto/login.dto';
 
 @Controller('auth')
@@ -42,5 +52,16 @@ export class AuthController {
       }
       throw err;
     }
+  }
+
+  @Post('logout')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  async logout(@Req() req: Request): Promise<void> {
+    const sessionId = (req as Request & { sessionId?: string }).sessionId;
+    if (!sessionId) {
+      throw new HttpException('missing session context', 401);
+    }
+    await this.auth.logout(sessionId);
   }
 }

@@ -116,4 +116,11 @@ export class AuthService {
       expiresIn: this.cfg.env.ACCESS_TOKEN_TTL_SECONDS,
     };
   }
+
+  async logout(sessionId: string): Promise<void> {
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: { revokedAt: new Date() },
+    });
+  }
 }
