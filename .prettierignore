@@ -1,0 +1,8 @@
+node_modules
+dist
+build
+.nx
+coverage
+pnpm-lock.yaml
+prisma/migrations
+apps/*/src/schema.gql

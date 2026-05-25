@@ -1,0 +1,6 @@
+node_modules
+dist
+.nx
+coverage
+prisma/migrations
+apps/*/src/schema.gql
