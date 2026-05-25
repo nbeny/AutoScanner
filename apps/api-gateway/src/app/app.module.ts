@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Module, ValidationPipe } from '@nestjs/common';
+import { APP_PIPE } from '@nestjs/core';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { GraphQLModule } from '@nestjs/graphql';
 import { join } from 'node:path';
@@ -8,6 +9,7 @@ import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
 
 import { formatGraphqlError } from './graphql-error.formatter';
+import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { UsersModule } from './users/users.module';
@@ -31,9 +33,17 @@ import { UsersModule } from './users/users.module';
         formatError: formatGraphqlError,
       }),
     }),
+    AuthModule,
     HealthModule,
     MetricsModule,
     UsersModule,
+  ],
+  providers: [
+    {
+      provide: APP_PIPE,
+      useFactory: () =>
+        new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    },
   ],
 })
 export class AppModule {}

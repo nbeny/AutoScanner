@@ -2,7 +2,6 @@ import 'reflect-metadata';
 import { config as loadEnv } from 'dotenv';
 loadEnv();
 
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { AppConfigService } from '@autoscanner/config';
@@ -12,14 +11,6 @@ import { AppModule } from './app/app.module';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
 
   const cfg = app.get(AppConfigService);
   app.enableCors({ origin: cfg.env.FRONTEND_URL, credentials: true });
