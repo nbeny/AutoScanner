@@ -1,0 +1,36 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2023"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "baseUrl": ".",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@autoscanner/auth": ["libs/auth/src/index.ts"],
+      "@autoscanner/common": ["libs/common/src/index.ts"],
+      "@autoscanner/config": ["libs/config/src/index.ts"],
+      "@autoscanner/database": ["libs/database/src/index.ts"],
+      "@autoscanner/logging": ["libs/logging/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}
