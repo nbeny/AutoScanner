@@ -29,7 +29,8 @@
       "@autoscanner/common": ["libs/common/src/index.ts"],
       "@autoscanner/config": ["libs/config/src/index.ts"],
       "@autoscanner/database": ["libs/database/src/index.ts"],
-      "@autoscanner/logging": ["libs/logging/src/index.ts"]
+      "@autoscanner/logging": ["libs/logging/src/index.ts"],
+      "@autoscanner/queues": ["libs/queues/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
