@@ -392,13 +392,13 @@ Same as Phase 0:
 
 ---
 
-## Open questions to resolve before starting
+## Decisions
 
-1. **Docker socket on Windows dev:** the runner needs `//./pipe/docker_engine` on Windows or `/var/run/docker.sock` on *nix. Add an env var `DOCKER_HOST` and document.
-2. **WebSocket auth for subscriptions:** confirm we use `connectionParams.authorization` rather than cookies (matches the REST/GraphQL HTTP path).
-3. **nmap as root:** `instrumentisto/nmap` runs as root and needs `NET_RAW`/`NET_ADMIN` + `network: host`. Confirm this is acceptable for Phase 1 dev (sandboxed by Docker but not user-namespaced).
-4. **Frontend stack lock-in:** spec §18 already specifies Vite + React + Apollo + Tailwind + shadcn/ui. Confirm this is the choice or override before Task 15.
-5. **CI Docker-in-Docker:** confirm GitHub Actions runners can run `instrumentisto/nmap` (they can; just need to pull the image during the e2e step). Network type `host` works on Linux runners.
+1. **Docker socket:** `@autoscanner/docker-runner` reads `DOCKER_HOST` from env if set, otherwise falls back to platform default (`//./pipe/docker_engine` on Windows, `/var/run/docker.sock` on *nix). `DOCKER_HOST` added to `.env.example` (commented out by default).
+2. **WebSocket auth:** subscriptions authenticate via `connectionParams.authorization: 'Bearer <accessToken>'`. No cookie path. Matches the HTTP transport.
+3. **nmap privileges:** nmap container runs as root with `NET_RAW`/`NET_ADMIN`/`NET_BIND_SERVICE` and `network: host`, as per spec §8.3. The Docker sandbox is the trust boundary; user-namespacing is deferred to Phase 6 hardening.
+4. **Frontend stack:** Vite + React 18 + TypeScript + Apollo Client + React Router + Tailwind + shadcn/ui + Vitest + React Testing Library, per spec §18.1.
+5. **CI Docker:** GitHub Actions `ubuntu-latest` runners have Docker natively; pull `instrumentisto/nmap` during the full-stack e2e step. Network mode `host` works on Linux runners. No DinD sidecar needed.
 
 ## Suggested sequencing
 
