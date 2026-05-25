@@ -10,7 +10,7 @@ import { PrismaModule } from '@autoscanner/database';
 import { formatGraphqlError } from './graphql-error.formatter';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
-import { SystemModule } from './system/system.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -33,7 +33,7 @@ import { SystemModule } from './system/system.module';
     }),
     HealthModule,
     MetricsModule,
-    SystemModule,
+    UsersModule,
   ],
 })
 export class AppModule {}
