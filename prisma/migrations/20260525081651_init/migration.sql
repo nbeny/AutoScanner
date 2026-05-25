@@ -131,9 +131,6 @@ CREATE INDEX "ScopeRule_engagementId_idx" ON "ScopeRule"("engagementId");
 CREATE INDEX "Asset_engagementId_type_canonicalValue_idx" ON "Asset"("engagementId", "type", "canonicalValue");
 
 -- CreateIndex
-CREATE INDEX "Asset_engagementId_idx" ON "Asset"("engagementId");
-
--- CreateIndex
 CREATE INDEX "Asset_type_idx" ON "Asset"("type");
 
 -- CreateIndex
@@ -155,3 +152,7 @@ ALTER TABLE "Asset" ADD CONSTRAINT "Asset_engagementId_fkey" FOREIGN KEY ("engag
 CREATE UNIQUE INDEX "Asset_engagement_type_canonical_active_uq"
 ON "Asset" ("engagementId", "type", "canonicalValue")
 WHERE "deletedAt" IS NULL;
+
+-- TOTP coherence: must have an encrypted secret if TOTP is enabled
+ALTER TABLE "User" ADD CONSTRAINT "User_totp_coherence_ck"
+  CHECK ("totpEnabled" = false OR "totpSecretEnc" IS NOT NULL);
