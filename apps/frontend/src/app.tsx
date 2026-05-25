@@ -1,22 +1,37 @@
 import { useMemo } from 'react';
 import { ApolloProvider } from '@apollo/client';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth-context';
 import { createApolloClient } from './lib/apollo';
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      <p className="text-slate-400 mt-2">Coming in Task 16.</p>
-    </div>
-  );
-}
+import { LoginPage } from './features/auth/login-page';
+import { EngagementsListPage } from './features/engagements/engagements-list-page';
+import { ScanRunPage } from './features/scans/scan-run-page';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session } = useAuth();
   if (!session) return <Navigate to="/login" replace />;
   return children;
+}
+
+function TopBar() {
+  const { session, logout } = useAuth();
+  if (!session) return null;
+  return (
+    <nav className="bg-slate-900 px-6 py-3 flex items-center justify-between border-b border-slate-800">
+      <div className="flex items-center gap-6">
+        <span className="font-semibold">AutoScanner</span>
+        <Link to="/engagements" className="text-sm text-slate-300 hover:text-white">
+          Engagements
+        </Link>
+      </div>
+      <div className="text-sm text-slate-400 flex items-center gap-3">
+        <span>{session.email}</span>
+        <button onClick={logout} className="hover:underline">
+          Logout
+        </button>
+      </div>
+    </nav>
+  );
 }
 
 function AppShell() {
@@ -25,21 +40,22 @@ function AppShell() {
 
   return (
     <ApolloProvider client={client}>
+      <TopBar />
       <Routes>
-        <Route path="/login" element={<Placeholder title="Login" />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route
           path="/engagements"
           element={
             <RequireAuth>
-              <Placeholder title="Engagements" />
+              <EngagementsListPage />
             </RequireAuth>
           }
         />
         <Route
-          path="/scans/new"
+          path="/engagements/:engagementId/scans"
           element={
             <RequireAuth>
-              <Placeholder title="Run a scan" />
+              <ScanRunPage />
             </RequireAuth>
           }
         />
