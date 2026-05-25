@@ -1,0 +1,33 @@
+{
+  "name": "auth",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/auth/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/auth"],
+      "options": {
+        "jestConfig": "libs/auth/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/auth/tsconfig.lib.json"
+      }
+    },
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/auth",
+        "main": "libs/auth/src/index.ts",
+        "tsConfig": "libs/auth/tsconfig.lib.json",
+        "packageJson": "libs/auth/package.json",
+        "assets": ["libs/auth/*.md"]
+      }
+    }
+  }
+}
