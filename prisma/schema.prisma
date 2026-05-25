@@ -13,6 +13,7 @@ datasource db {
 // AUTH
 // =====================================================================
 
+// NOTE: Migration includes a CHECK constraint enforcing totpEnabled implies totpSecretEnc IS NOT NULL
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -145,7 +146,6 @@ model Asset {
 
   // Real uniqueness applied via partial unique index in migration SQL
   @@index([engagementId, type, canonicalValue])
-  @@index([engagementId])
   @@index([type])
   @@index([deletedAt])
 }
