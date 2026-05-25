@@ -99,6 +99,7 @@
     "date-fns": "4.1.0",
     "dockerode": "4.0.2",
     "dotenv": "16.4.7",
+    "fast-xml-parser": "4.5.0",
     "graphql": "16.10.0",
     "graphql-tag": "2.12.6",
     "ioredis": "5.4.2",

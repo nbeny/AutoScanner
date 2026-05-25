@@ -31,6 +31,7 @@
       "@autoscanner/database": ["libs/database/src/index.ts"],
       "@autoscanner/docker-runner": ["libs/docker-runner/src/index.ts"],
       "@autoscanner/logging": ["libs/logging/src/index.ts"],
+      "@autoscanner/parsers": ["libs/parsers/src/index.ts"],
       "@autoscanner/queues": ["libs/queues/src/index.ts"],
       "@autoscanner/scanner-sdk": ["libs/scanner-sdk/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"]
