@@ -138,4 +138,35 @@ describe('Auth (e2e)', () => {
       expect(res.status).toBe(400);
     });
   });
+
+  describe('POST /auth/logout', () => {
+    it('revokes the current session (subsequent access token rejected)', async () => {
+      const login = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: testEmail, password: testPassword });
+      const { accessToken, refreshToken } = login.body;
+
+      const logoutRes = await request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('authorization', `Bearer ${accessToken}`)
+        .send();
+      expect(logoutRes.status).toBe(204);
+
+      const meRes = await request(app.getHttpServer())
+        .post('/graphql')
+        .set('authorization', `Bearer ${accessToken}`)
+        .send({ query: '{ me { id } }' });
+      expect(meRes.body.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+
+      const refreshRes = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken });
+      expect(refreshRes.status).toBe(401);
+    });
+
+    it('returns 401 if no bearer is provided', async () => {
+      const res = await request(app.getHttpServer()).post('/auth/logout').send();
+      expect(res.status).toBe(401);
+    });
+  });
 });
