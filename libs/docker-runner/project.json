@@ -1,0 +1,22 @@
+{
+  "name": "docker-runner",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/docker-runner/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/docker-runner"],
+      "options": {
+        "jestConfig": "libs/docker-runner/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/docker-runner/tsconfig.lib.json"
+      }
+    }
+  }
+}
