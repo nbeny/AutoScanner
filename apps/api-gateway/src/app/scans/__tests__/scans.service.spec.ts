@@ -4,12 +4,14 @@ import { NmapScanner } from '@autoscanner/scanners-nmap';
 import type { PrismaService } from '@autoscanner/database';
 import type { ScanJobPayload } from '@autoscanner/queues';
 import { ValidationError, NotFoundError } from '@autoscanner/common';
+import type { ObjectStorage } from '@autoscanner/storage';
 
 import { ScansService } from '../scans.service';
 
 describe('ScansService.runScan', () => {
   let prisma: jest.Mocked<PrismaService>;
   let scanQueue: jest.Mocked<Queue<ScanJobPayload>>;
+  let storage: jest.Mocked<ObjectStorage>;
   let registry: ScannerRegistry;
   let svc: ScansService;
 
@@ -45,6 +47,7 @@ describe('ScansService.runScan', () => {
           queuedAt: new Date(),
           createdAt: new Date(),
         })),
+        findFirst: jest.fn(),
       },
     } as unknown as jest.Mocked<PrismaService>;
 
@@ -52,10 +55,20 @@ describe('ScansService.runScan', () => {
       Queue<ScanJobPayload>
     >;
 
+    storage = {
+      ensureBucket: jest.fn(),
+      putObject: jest.fn(),
+      getObject: jest.fn(),
+      headObject: jest.fn(),
+      deleteObject: jest.fn(),
+      presignGetUrl: jest.fn(),
+      presignPutUrl: jest.fn(),
+    } as unknown as jest.Mocked<ObjectStorage>;
+
     registry = new ScannerRegistry();
     registry.register(NmapScanner);
 
-    svc = new ScansService(prisma, registry, scanQueue);
+    svc = new ScansService(prisma, registry, scanQueue, storage);
   });
 
   it('creates Scan + ScanJob, enqueues payload, returns Scan', async () => {
@@ -135,5 +148,61 @@ describe('ScansService.runScan', () => {
         optionsJson: JSON.stringify({ timingTemplate: 99 }),
       }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  describe('getRawOutputPresignedUrl', () => {
+    const scanJobId = 'job_1';
+    const rawKey = 'eng_1/scan_1/job_1/nmap-xml.xml';
+
+    it('returns a presigned URL when the job is owned and has a raw output', async () => {
+      (prisma.scanJob.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: scanJobId,
+        rawOutputKey: rawKey,
+      });
+      (storage.presignGetUrl as jest.Mock).mockResolvedValueOnce(
+        'https://minio.local/raw-outputs/' + rawKey + '?sig=abc',
+      );
+
+      const result = await svc.getRawOutputPresignedUrl(userId, scanJobId);
+
+      expect(prisma.scanJob.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: scanJobId,
+          scan: { engagement: { ownerId: userId, deletedAt: null } },
+        },
+        select: { id: true, rawOutputKey: true },
+      });
+      expect(storage.presignGetUrl).toHaveBeenCalledWith({
+        bucket: 'raw-outputs',
+        key: rawKey,
+        expiresInSeconds: 3600,
+      });
+      expect(result).toEqual({
+        url: 'https://minio.local/raw-outputs/' + rawKey + '?sig=abc',
+        key: rawKey,
+        expiresInSeconds: 3600,
+      });
+    });
+
+    it('throws NotFoundError when the scan job does not belong to the user', async () => {
+      (prisma.scanJob.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(svc.getRawOutputPresignedUrl(userId, scanJobId)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+      expect(storage.presignGetUrl).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError when rawOutputKey has not been set yet', async () => {
+      (prisma.scanJob.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: scanJobId,
+        rawOutputKey: null,
+      });
+
+      await expect(svc.getRawOutputPresignedUrl(userId, scanJobId)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+      expect(storage.presignGetUrl).not.toHaveBeenCalled();
+    });
   });
 });

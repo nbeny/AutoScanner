@@ -7,8 +7,17 @@ import { NotFoundError, ValidationError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import { QueueName, type ScanJobPayload } from '@autoscanner/queues';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
+import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 
 import { RunScanInput } from './dto/run-scan.input';
+
+const RAW_OUTPUT_PRESIGN_TTL_SECONDS = 3600;
+
+export interface RawOutputPresignedUrl {
+  url: string;
+  key: string;
+  expiresInSeconds: number;
+}
 
 @Injectable()
 export class ScansService {
@@ -18,6 +27,7 @@ export class ScansService {
     private readonly prisma: PrismaService,
     @Inject(ScannerRegistry) private readonly registry: ScannerRegistry,
     @InjectQueue(QueueName.SCAN_JOBS) private readonly scanQueue: Queue<ScanJobPayload>,
+    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
   ) {}
 
   async runScan(userId: string, input: RunScanInput): Promise<Scan> {
@@ -88,6 +98,28 @@ export class ScansService {
     });
     if (!scan) throw new NotFoundError('Scan', id);
     return scan as Scan;
+  }
+
+  async getRawOutputPresignedUrl(
+    userId: string,
+    scanJobId: string,
+  ): Promise<RawOutputPresignedUrl> {
+    const job = await this.prisma.scanJob.findFirst({
+      where: {
+        id: scanJobId,
+        scan: { engagement: { ownerId: userId, deletedAt: null } },
+      },
+      select: { id: true, rawOutputKey: true },
+    });
+    if (!job) throw new NotFoundError('ScanJob', scanJobId);
+    if (!job.rawOutputKey) throw new NotFoundError('RawOutput', scanJobId);
+
+    const url = await this.storage.presignGetUrl({
+      bucket: 'raw-outputs',
+      key: job.rawOutputKey,
+      expiresInSeconds: RAW_OUTPUT_PRESIGN_TTL_SECONDS,
+    });
+    return { url, key: job.rawOutputKey, expiresInSeconds: RAW_OUTPUT_PRESIGN_TTL_SECONDS };
   }
 
   private parseOptions(optionsJson: string | undefined): unknown {
