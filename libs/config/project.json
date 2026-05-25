@@ -17,17 +17,6 @@
       "options": {
         "command": "tsc --noEmit -p libs/config/tsconfig.lib.json"
       }
-    },
-    "build": {
-      "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "outputPath": "dist/libs/config",
-        "tsConfig": "libs/config/tsconfig.lib.json",
-        "packageJson": "libs/config/package.json",
-        "main": "libs/config/src/index.ts",
-        "assets": ["libs/config/*.md"]
-      }
     }
   }
 }

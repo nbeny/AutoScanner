@@ -10,17 +10,6 @@
       "options": {
         "command": "tsc --noEmit -p libs/database/tsconfig.lib.json"
       }
-    },
-    "build": {
-      "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "outputPath": "dist/libs/database",
-        "tsConfig": "libs/database/tsconfig.lib.json",
-        "packageJson": "libs/database/package.json",
-        "main": "libs/database/src/index.ts",
-        "assets": ["libs/database/*.md"]
-      }
     }
   }
 }
