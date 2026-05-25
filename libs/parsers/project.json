@@ -1,0 +1,22 @@
+{
+  "name": "parsers",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/parsers/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/parsers"],
+      "options": {
+        "jestConfig": "libs/parsers/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/parsers/tsconfig.lib.json"
+      }
+    }
+  }
+}
