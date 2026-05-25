@@ -5,6 +5,7 @@ import { AppConfigModule } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
 import { DockerRunnerModule } from '@autoscanner/docker-runner';
+import { LogStreamModule } from '@autoscanner/log-stream';
 import { QueueName, QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { StorageModule } from '@autoscanner/storage';
@@ -20,6 +21,7 @@ import { ScanJobProcessor } from './scan-job.processor';
     QueuesModule,
     DockerRunnerModule,
     StorageModule,
+    LogStreamModule,
     ScannerSdkModule,
     NmapScannerModule,
     BullModule.registerQueue({ name: QueueName.PARSE_JOBS }),

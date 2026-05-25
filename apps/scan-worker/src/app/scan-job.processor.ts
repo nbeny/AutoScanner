@@ -8,6 +8,7 @@ import {
   type RunResult,
   type RunSpec,
 } from '@autoscanner/docker-runner';
+import { LOG_STREAM_PUBLISHER, type LogStreamPublisher } from '@autoscanner/log-stream';
 import { QueueName, type ParseJobPayload, type ScanJobPayload } from '@autoscanner/queues';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, rawOutputKey, type ObjectStorage } from '@autoscanner/storage';
@@ -22,6 +23,7 @@ export class ScanJobProcessor extends WorkerHost {
     @Inject(DOCKER_RUNNER) private readonly docker: DockerRunner,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @InjectQueue(QueueName.PARSE_JOBS) private readonly parseQueue: Queue<ParseJobPayload>,
+    @Inject(LOG_STREAM_PUBLISHER) private readonly logStream: LogStreamPublisher,
   ) {
     super();
   }
@@ -75,9 +77,29 @@ export class ScanJobProcessor extends WorkerHost {
         ...runSpec,
         onStdout: (chunk) => {
           stdoutBuffer += chunk;
+          void this.logStream
+            .publish({
+              scanJobId: payload.scanJobId,
+              stream: 'stdout',
+              ts: Date.now(),
+              chunk,
+            })
+            .catch((err) =>
+              this.logger.warn(`log stream publish failed: ${(err as Error).message}`),
+            );
         },
         onStderr: (chunk) => {
           stderrBuffer += chunk;
+          void this.logStream
+            .publish({
+              scanJobId: payload.scanJobId,
+              stream: 'stderr',
+              ts: Date.now(),
+              chunk,
+            })
+            .catch((err) =>
+              this.logger.warn(`log stream publish failed: ${(err as Error).message}`),
+            );
         },
       });
     } catch (err) {
