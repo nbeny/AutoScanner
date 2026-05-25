@@ -98,4 +98,44 @@ describe('Auth (e2e)', () => {
       expect(res.body.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
     });
   });
+
+  describe('POST /auth/refresh', () => {
+    let loginPayload: { accessToken: string; refreshToken: string };
+
+    beforeEach(async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: testEmail, password: testPassword });
+      loginPayload = res.body;
+    });
+
+    it('returns new tokens and rotates (old refresh becomes invalid)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: loginPayload.refreshToken });
+      expect(res.status).toBe(200);
+      expect(res.body.accessToken).toMatch(/^eyJ/);
+      expect(res.body.refreshToken).toMatch(/^[a-f0-9]{64}$/);
+      expect(res.body.refreshToken).not.toBe(loginPayload.refreshToken);
+
+      const replay = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: loginPayload.refreshToken });
+      expect(replay.status).toBe(401);
+    });
+
+    it('rejects an unknown refresh token with 401', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: 'f'.repeat(64) });
+      expect(res.status).toBe(401);
+    });
+
+    it('rejects a malformed refresh token with 400', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: 'bad' });
+      expect(res.status).toBe(400);
+    });
+  });
 });

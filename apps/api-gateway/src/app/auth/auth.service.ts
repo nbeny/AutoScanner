@@ -65,4 +65,55 @@ export class AuthService {
       expiresIn: this.cfg.env.ACCESS_TOKEN_TTL_SECONDS,
     };
   }
+
+  async refresh(
+    refreshToken: string,
+    ctx: { userAgent?: string; ip?: string },
+  ): Promise<AuthPayload> {
+    const hash = hashRefreshToken(refreshToken);
+
+    const session = await this.prisma.session.findUnique({
+      where: { refreshTokenHash: hash },
+      include: { user: true },
+    });
+
+    if (
+      !session ||
+      session.revokedAt ||
+      session.expiresAt < new Date() ||
+      !session.user.isActive ||
+      session.user.deletedAt !== null
+    ) {
+      throw new InvalidCredentialsError();
+    }
+
+    const newRefresh = generateRefreshToken();
+    const newSession = await this.prisma.$transaction(async (tx) => {
+      await tx.session.update({
+        where: { id: session.id },
+        data: { revokedAt: new Date() },
+      });
+      return tx.session.create({
+        data: {
+          userId: session.userId,
+          refreshTokenHash: hashRefreshToken(newRefresh),
+          userAgent: ctx.userAgent ?? null,
+          ip: ctx.ip ?? null,
+          expiresAt: addSeconds(new Date(), this.cfg.env.REFRESH_TOKEN_TTL_SECONDS),
+        },
+      });
+    });
+
+    const accessToken = signAccessToken(
+      { sub: session.userId, sessionId: newSession.id },
+      this.cfg.env.JWT_SECRET,
+      this.cfg.env.ACCESS_TOKEN_TTL_SECONDS,
+    );
+
+    return {
+      accessToken,
+      refreshToken: newRefresh,
+      expiresIn: this.cfg.env.ACCESS_TOKEN_TTL_SECONDS,
+    };
+  }
 }
