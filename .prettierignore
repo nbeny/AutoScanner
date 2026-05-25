@@ -6,3 +6,4 @@ coverage
 pnpm-lock.yaml
 prisma/migrations
 apps/*/src/schema.gql
+docs/
