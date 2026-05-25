@@ -1,0 +1,22 @@
+{
+  "name": "scanner-sdk",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanner-sdk/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanner-sdk"],
+      "options": {
+        "jestConfig": "libs/scanner-sdk/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanner-sdk/tsconfig.lib.json"
+      }
+    }
+  }
+}
