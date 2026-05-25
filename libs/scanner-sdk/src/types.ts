@@ -79,7 +79,7 @@ export interface ScannerDefinition<TInput = unknown, _TRawOutput = unknown> {
   category: ScannerCategory[];
   description: string;
   version?: string;
-  inputSchema: z.ZodType<TInput>;
+  inputSchema: z.ZodType<TInput, z.ZodTypeDef, unknown>;
   docker: ScannerDockerSpec;
   build(input: TInput, target: string, ctx: BuildContext): BuildResult;
   outputs: ScannerOutput[];
