@@ -12,10 +12,7 @@
       "!{projectRoot}/test/**/*",
       "!{projectRoot}/eslint.config.*"
     ],
-    "sharedGlobals": [
-      "{workspaceRoot}/tsconfig.base.json",
-      "{workspaceRoot}/.env.example"
-    ]
+    "sharedGlobals": ["{workspaceRoot}/tsconfig.base.json", "{workspaceRoot}/.env.example"]
   },
   "targetDefaults": {
     "build": {
