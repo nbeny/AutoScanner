@@ -17,17 +17,6 @@
       "options": {
         "command": "tsc --noEmit -p libs/logging/tsconfig.lib.json"
       }
-    },
-    "build": {
-      "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "outputPath": "dist/libs/logging",
-        "tsConfig": "libs/logging/tsconfig.lib.json",
-        "packageJson": "libs/logging/package.json",
-        "main": "libs/logging/src/index.ts",
-        "assets": ["libs/logging/*.md"]
-      }
     }
   }
 }
