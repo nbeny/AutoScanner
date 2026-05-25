@@ -1,0 +1,236 @@
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Inject, Logger } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import type { Readable } from 'node:stream';
+import type { Job } from 'bullmq';
+import { PrismaService } from '@autoscanner/database';
+import {
+  ParserRegistry,
+  type AssetType as NormalizedAssetType,
+  type NormalizedAsset,
+  type NormalizedFinding,
+  type NormalizedOutput,
+  type NormalizedPort,
+  type NormalizedService,
+} from '@autoscanner/parsers';
+import { QueueName, type ParseJobPayload } from '@autoscanner/queues';
+import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
+
+export interface ParseJobResult {
+  assetsPersisted: number;
+  portsPersisted: number;
+  servicesPersisted: number;
+  findingsPersisted: number;
+}
+
+const ASSET_TYPE_MAP: Record<
+  NormalizedAssetType,
+  'DOMAIN' | 'IP_ADDRESS' | 'URL' | 'NETWORK' | null
+> = {
+  IP: 'IP_ADDRESS',
+  DOMAIN: 'DOMAIN',
+  URL: 'URL',
+  NETBLOCK: 'NETWORK',
+  EMAIL: null,
+};
+
+@Processor(QueueName.PARSE_JOBS, { concurrency: 4 })
+export class ParseJobProcessor extends WorkerHost {
+  private readonly logger = new Logger(ParseJobProcessor.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly registry: ParserRegistry,
+    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+  ) {
+    super();
+  }
+
+  async process(job: Job<ParseJobPayload>): Promise<ParseJobResult> {
+    const payload = job.data;
+    this.logger.log(
+      `Processing parseJob scanJob=${payload.scanJobId} parser=${payload.parserName}`,
+    );
+
+    const parser = this.registry.get(payload.parserName);
+
+    const raw = await this.fetchRaw(payload.rawOutputKey);
+    if (!raw.length) {
+      throw new Error(`raw output at ${payload.rawOutputKey} is empty`);
+    }
+
+    const output = await parser.parse(raw, {
+      scanJobId: payload.scanJobId,
+      scannerName: payload.scannerName,
+      target: payload.target,
+      engagementId: payload.engagementId,
+    });
+
+    const result = await this.persist(payload, output);
+    this.logger.log(
+      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted}`,
+    );
+    return result;
+  }
+
+  private async fetchRaw(key: string): Promise<Buffer> {
+    const obj = await this.storage.getObject('raw-outputs', key);
+    return streamToBuffer(obj.body);
+  }
+
+  private async persist(payload: ParseJobPayload, out: NormalizedOutput): Promise<ParseJobResult> {
+    const assetIdByValue = new Map<string, string>();
+    let assetsPersisted = 0;
+
+    for (const asset of out.assets) {
+      const id = await this.upsertAsset(payload.engagementId, asset);
+      if (!id) continue;
+      assetIdByValue.set(asset.value.toLowerCase(), id);
+      assetsPersisted++;
+    }
+
+    const portIdByKey = new Map<string, string>();
+    let portsPersisted = 0;
+    for (const port of out.ports) {
+      const assetId = assetIdByValue.get(port.assetValue.toLowerCase());
+      if (!assetId) continue;
+      const id = await this.upsertPort(assetId, port);
+      portIdByKey.set(portKey(port), id);
+      portsPersisted++;
+    }
+
+    let servicesPersisted = 0;
+    for (const svc of out.services) {
+      const portId = portIdByKey.get(
+        portKey({ assetValue: svc.assetValue, number: svc.portNumber, protocol: svc.protocol }),
+      );
+      if (!portId) continue;
+      await this.upsertService(portId, svc);
+      servicesPersisted++;
+    }
+
+    let findingsPersisted = 0;
+    for (const finding of out.findings) {
+      const assetId = findFirstAssetId(assetIdByValue);
+      if (!assetId) continue;
+      await this.upsertFinding(payload.scanJobId, assetId, finding);
+      findingsPersisted++;
+    }
+
+    return { assetsPersisted, portsPersisted, servicesPersisted, findingsPersisted };
+  }
+
+  private async upsertAsset(engagementId: string, asset: NormalizedAsset): Promise<string | null> {
+    const type = ASSET_TYPE_MAP[asset.type];
+    if (!type) return null;
+    const canonicalValue = asset.value.toLowerCase();
+    const existing = await this.prisma.asset.findFirst({
+      where: { engagementId, type, canonicalValue, deletedAt: null },
+      select: { id: true },
+    });
+    if (existing) {
+      await this.prisma.asset.update({
+        where: { id: existing.id },
+        data: { lastSeenAt: new Date() },
+      });
+      return existing.id;
+    }
+    const created = await this.prisma.asset.create({
+      data: { engagementId, type, value: asset.value, canonicalValue },
+      select: { id: true },
+    });
+    return created.id;
+  }
+
+  private async upsertPort(assetId: string, port: NormalizedPort): Promise<string> {
+    const row = await this.prisma.port.upsert({
+      where: {
+        assetId_number_protocol: { assetId, number: port.number, protocol: port.protocol },
+      },
+      create: { assetId, number: port.number, protocol: port.protocol, state: port.state },
+      update: { state: port.state, lastSeenAt: new Date() },
+      select: { id: true },
+    });
+    return row.id;
+  }
+
+  private async upsertService(portId: string, svc: NormalizedService): Promise<void> {
+    const existing = await this.prisma.service.findFirst({
+      where: {
+        portId,
+        name: svc.name ?? null,
+        product: svc.product ?? null,
+        version: svc.version ?? null,
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      await this.prisma.service.update({
+        where: { id: existing.id },
+        data: { lastSeenAt: new Date(), banner: svc.extraInfo ?? undefined, cpe: svc.cpe ?? [] },
+      });
+      return;
+    }
+    await this.prisma.service.create({
+      data: {
+        portId,
+        name: svc.name,
+        product: svc.product,
+        version: svc.version,
+        banner: svc.extraInfo,
+        cpe: svc.cpe ?? [],
+      },
+    });
+  }
+
+  private async upsertFinding(
+    scanJobId: string,
+    assetId: string,
+    finding: NormalizedFinding,
+  ): Promise<void> {
+    const dedupHash = createHash('sha256')
+      .update(finding.scannerName)
+      .update('\0')
+      .update(finding.title)
+      .update('\0')
+      .update(finding.location ?? '')
+      .update('\0')
+      .update(finding.cveId ?? '')
+      .update('\0')
+      .update(finding.templateId ?? '')
+      .digest('hex');
+
+    await this.prisma.finding.upsert({
+      where: { assetId_dedupHash: { assetId, dedupHash } },
+      create: {
+        assetId,
+        scanJobId,
+        dedupHash,
+        title: finding.title,
+        severity: finding.severity,
+        location: finding.location,
+        cveId: finding.cveId,
+        templateId: finding.templateId,
+        evidence: finding.evidence as never,
+      },
+      update: { lastSeenAt: new Date() },
+    });
+  }
+}
+
+function portKey(p: { assetValue: string; number: number; protocol: string }): string {
+  return `${p.assetValue.toLowerCase()}|${p.number}|${p.protocol}`;
+}
+
+function findFirstAssetId(map: Map<string, string>): string | undefined {
+  for (const id of map.values()) return id;
+  return undefined;
+}
+
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
