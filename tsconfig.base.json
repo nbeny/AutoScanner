@@ -32,7 +32,8 @@
       "@autoscanner/docker-runner": ["libs/docker-runner/src/index.ts"],
       "@autoscanner/logging": ["libs/logging/src/index.ts"],
       "@autoscanner/queues": ["libs/queues/src/index.ts"],
-      "@autoscanner/scanner-sdk": ["libs/scanner-sdk/src/index.ts"]
+      "@autoscanner/scanner-sdk": ["libs/scanner-sdk/src/index.ts"],
+      "@autoscanner/storage": ["libs/storage/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
