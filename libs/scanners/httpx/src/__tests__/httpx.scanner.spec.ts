@@ -62,6 +62,8 @@ describe('HttpxScanner', () => {
       ]),
     );
     expect(stdin).toBe('example.com');
+    // Target MUST be piped via stdin only — httpx silently ignores stdin if a positional target is also passed.
+    expect(cmd).not.toContain('example.com');
   });
 
   it('build() omits -tech-detect when techDetect=false', () => {
@@ -91,8 +93,12 @@ describe('HttpxScanner', () => {
   it('build() preserves multiline target as stdin', () => {
     const input = HttpxScanner.inputSchema.parse({});
     const target = 'a.example.com\nb.example.com';
-    const { stdin } = HttpxScanner.build(input, target, ctx);
+    const { cmd, stdin } = HttpxScanner.build(input, target, ctx);
     expect(stdin).toBe(target);
+    // Neither the joined target nor any individual host should appear in cmd argv.
+    expect(cmd).not.toContain(target);
+    expect(cmd).not.toContain('a.example.com');
+    expect(cmd).not.toContain('b.example.com');
   });
 
   it('build() joins custom ports with commas', () => {
