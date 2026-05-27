@@ -17,7 +17,7 @@ export class AssetsService {
     return this.prisma.asset.findMany({
       where: { engagementId, deletedAt: null },
       orderBy: { lastSeenAt: 'desc' },
-      include: { ports: { include: { services: true } } },
+      include: { ports: { include: { services: true } }, technologies: true },
     }) as Promise<Asset[]>;
   }
 
@@ -28,7 +28,7 @@ export class AssetsService {
         deletedAt: null,
         engagement: { ownerId: userId, deletedAt: null },
       },
-      include: { ports: { include: { services: true } } },
+      include: { ports: { include: { services: true } }, technologies: true },
     });
     if (!asset) throw new NotFoundError('Asset', id);
     return asset as Asset;

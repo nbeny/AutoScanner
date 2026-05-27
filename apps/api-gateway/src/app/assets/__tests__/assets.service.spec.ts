@@ -41,7 +41,7 @@ describe('AssetsService', () => {
       expect(prisma.asset.findMany).toHaveBeenCalledWith({
         where: { engagementId, deletedAt: null },
         orderBy: { lastSeenAt: 'desc' },
-        include: { ports: { include: { services: true } } },
+        include: { ports: { include: { services: true } }, technologies: true },
       });
       expect(result).toBe(fixture);
     });
@@ -74,7 +74,7 @@ describe('AssetsService', () => {
           deletedAt: null,
           engagement: { ownerId: userId, deletedAt: null },
         },
-        include: { ports: { include: { services: true } } },
+        include: { ports: { include: { services: true } }, technologies: true },
       });
       expect(result).toBe(fixture);
     });
