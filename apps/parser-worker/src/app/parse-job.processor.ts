@@ -111,6 +111,23 @@ export class ParseJobProcessor extends WorkerHost {
       );
     }
 
+    // Correlation v1: cross-asset Finding dedup. The per-asset upsert key handles
+    // the common case; this catches the canonicalisation-drift case where two
+    // Asset rows end up with Findings sharing the same dedupHash.
+    try {
+      const { merged } = await this.correlation.dedupFindings(payload.engagementId);
+      if (merged > 0) {
+        this.logger.log(
+          `correlation deduped ${merged} duplicate Finding rows for engagement ${payload.engagementId}`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Finding dedup failed for engagement ${payload.engagementId}: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+    }
+
     return result;
   }
 
@@ -192,9 +209,33 @@ export class ParseJobProcessor extends WorkerHost {
 
     let findingsPersisted = 0;
     for (const finding of out.findings) {
-      const assetId = findFirstAssetId(assetIdByValue);
+      // Findings from URL-anchored scanners (e.g. nuclei) carry `location` as a
+      // full URL — resolve it to the canonical host so the Finding attaches to
+      // the matching SUBDOMAIN/DOMAIN/IP asset.
+      //
+      // Resolution order:
+      //   1. In-memory map (assets emitted by *this* parse job).
+      //   2. DB lookup by canonical host within the engagement (nuclei usually
+      //      runs after subfinder/httpx, so the Asset row already exists).
+      //   3. Fallback to the first asset in the map — covers the rare case of
+      //      non-URL findings (templates without `matched-at`).
+      const canonicalHost = urlToCanonicalHost(finding.location);
+      let assetId: string | undefined;
+      if (canonicalHost) {
+        assetId = assetIdByValue.get(canonicalHost);
+        if (!assetId) {
+          const existing = await this.prisma.asset.findFirst({
+            where: { engagementId: payload.engagementId, canonicalValue: canonicalHost },
+            select: { id: true },
+          });
+          assetId = existing?.id;
+        }
+      }
+      if (!assetId) {
+        assetId = findFirstAssetId(assetIdByValue);
+      }
       if (!assetId) continue;
-      await this.findingPersister.upsert(payload.scanJobId, assetId, finding);
+      await this.findingPersister.upsert(payload.scanJobId, assetId, finding, canonicalHost ?? '');
       findingsPersisted++;
     }
 
@@ -252,6 +293,23 @@ function portKey(p: { assetValue: string; number: number; protocol: string }): s
 function findFirstAssetId(map: Map<string, string>): string | undefined {
   for (const id of map.values()) return id;
   return undefined;
+}
+
+/**
+ * Extract the canonical host from a Finding.location URL. Returns `undefined`
+ * if `location` is missing or fails URL parsing (non-URL scanners may still
+ * emit findings without a location). Mirrors `canonicalize(host, { type: 'SUBDOMAIN' })`
+ * — lowercase + trim + strip trailing dot.
+ */
+function urlToCanonicalHost(location: string | undefined): string | undefined {
+  if (!location) return undefined;
+  try {
+    const url = new URL(location);
+    const host = url.hostname.trim().toLowerCase().replace(/\.$/, '');
+    return host.length > 0 ? host : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function streamToBuffer(stream: Readable): Promise<Buffer> {

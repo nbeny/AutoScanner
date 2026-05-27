@@ -7,19 +7,45 @@ import type { NormalizedFinding } from '@autoscanner/parsers';
 export class FindingPersister {
   constructor(private readonly prisma: PrismaService) {}
 
-  async upsert(scanJobId: string, assetId: string, finding: NormalizedFinding): Promise<void> {
+  /**
+   * Upsert a Finding for the given asset.
+   *
+   * `assetCanonical` is the host canonicalised by the caller (lowercased, trim,
+   * trailing-dot stripped — see {@link canonicalize} in correlation.service.ts).
+   * It's part of the dedupHash so two findings located at differently-cased URLs
+   * (`Https://API.example.com/path` vs `https://api.example.com/path`) collapse
+   * onto the same row.
+   *
+   * Hash recipe (Phase 2 plan, Task 16):
+   *
+   *   sig = cveId ?? templateId ?? title
+   *   dedupHash = sha256(`${scannerName}|${templateId ?? ''}|${assetCanonical}|${location ?? ''}|${sig}`)
+   *
+   * Title is intentionally excluded from the primary tuple — the `sig` fallback
+   * already covers it when neither cveId nor templateId is present. Field order
+   * is load-bearing: do not reorder without coordinating a re-hash of existing
+   * rows (today: Phase 2 hasn't deployed Findings to any real DB yet).
+   */
+  async upsert(
+    scanJobId: string,
+    assetId: string,
+    finding: NormalizedFinding,
+    assetCanonical: string,
+  ): Promise<void> {
+    const sig = finding.cveId ?? finding.templateId ?? finding.title;
     const dedupHash = createHash('sha256')
       .update(finding.scannerName)
-      .update('\0')
-      .update(finding.title)
-      .update('\0')
-      .update(finding.location ?? '')
-      .update('\0')
-      .update(finding.cveId ?? '')
-      .update('\0')
+      .update('|')
       .update(finding.templateId ?? '')
+      .update('|')
+      .update(assetCanonical)
+      .update('|')
+      .update(finding.location ?? '')
+      .update('|')
+      .update(sig)
       .digest('hex');
 
+    const now = new Date();
     await this.prisma.finding.upsert({
       where: { assetId_dedupHash: { assetId, dedupHash } },
       create: {
@@ -32,8 +58,10 @@ export class FindingPersister {
         cveId: finding.cveId,
         templateId: finding.templateId,
         evidence: finding.evidence as never,
+        firstSeenAt: now,
+        lastSeenAt: now,
       },
-      update: { lastSeenAt: new Date() },
+      update: { lastSeenAt: now },
     });
   }
 }

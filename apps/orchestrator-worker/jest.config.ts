@@ -11,6 +11,7 @@ export default {
     '^@autoscanner/scanners-httpx$': '<rootDir>/../../libs/scanners/httpx/src/index.ts',
     '^@autoscanner/scanners-dnsx$': '<rootDir>/../../libs/scanners/dnsx/src/index.ts',
     '^@autoscanner/scanners-naabu$': '<rootDir>/../../libs/scanners/naabu/src/index.ts',
+    '^@autoscanner/scanners-nuclei$': '<rootDir>/../../libs/scanners/nuclei/src/index.ts',
     '^@autoscanner/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
   },
   testMatch: ['**/*.spec.ts'],

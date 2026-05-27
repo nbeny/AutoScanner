@@ -5,6 +5,7 @@ import type { PrismaService } from '@autoscanner/database';
 import {
   DnsxJsonParser,
   HttpxJsonParser,
+  NucleiJsonParser,
   ParserRegistry,
   SubfinderJsonParser,
 } from '@autoscanner/parsers';
@@ -74,6 +75,7 @@ describe('ParseJobProcessor', () => {
       },
       finding: {
         upsert: jest.fn(async ({ create }) => ({ id: 'finding_1', ...create })),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       scanJob: {
         update: jest.fn().mockResolvedValue({}),
@@ -149,11 +151,13 @@ describe('ParseJobProcessor', () => {
     registry.register(new SubfinderJsonParser());
     registry.register(new HttpxJsonParser());
     registry.register(new DnsxJsonParser());
+    registry.register(new NucleiJsonParser());
 
     correlation = new CorrelationService(prisma);
     // Default: merges are no-ops. Individual tests override.
     jest.spyOn(correlation, 'mergeSubdomains').mockResolvedValue({ merged: 0 });
     jest.spyOn(correlation, 'mergeIpAddresses').mockResolvedValue({ merged: 0 });
+    jest.spyOn(correlation, 'dedupFindings').mockResolvedValue({ merged: 0 });
 
     processor = new ParseJobProcessor(
       registry,
@@ -803,6 +807,190 @@ describe('ParseJobProcessor', () => {
 
       expect(correlation.mergeIpAddresses).toHaveBeenCalledTimes(1);
       expect(correlation.mergeIpAddresses).toHaveBeenCalledWith('eng_1');
+    });
+  });
+
+  describe('Finding persistence (nuclei-json)', () => {
+    const NUCLEI_JSONL = [
+      JSON.stringify({
+        'template-id': 'CVE-2021-44228',
+        info: {
+          name: 'Apache Log4j RCE',
+          severity: 'critical',
+          tags: ['cve', 'rce'],
+          classification: { 'cve-id': ['CVE-2021-44228'] },
+        },
+        host: 'https://api.hackerone.com',
+        'matched-at': 'https://API.hackerone.com/login',
+        request: 'GET /login',
+        response: '200 OK',
+      }),
+      JSON.stringify({
+        'template-id': 'exposed-grafana',
+        info: { name: 'Grafana Panel', severity: 'info' },
+        'matched-at': 'https://api.hackerone.com/grafana/login',
+      }),
+      '',
+    ].join('\n');
+
+    const nucleiPayload: ParseJobPayload = {
+      scanJobId: 'job_5',
+      rawOutputKey: 'eng_1/scan_5/job_5/nuclei.jsonl',
+      parserName: 'nuclei-json',
+      scannerName: 'nuclei',
+      target: 'https://api.hackerone.com',
+      engagementId: 'eng_1',
+    };
+
+    beforeEach(() => {
+      storage.getObject.mockResolvedValue({
+        body: asStream(NUCLEI_JSONL),
+        contentLength: NUCLEI_JSONL.length,
+        contentType: 'application/x-ndjson',
+      });
+
+      // Simulate the SUBDOMAIN Asset existing from a prior scan (subfinder/httpx).
+      (prisma.asset.findFirst as jest.Mock).mockImplementation(
+        async ({ where }: { where: { canonicalValue?: string; engagementId?: string } }) => {
+          if (where.canonicalValue === 'api.hackerone.com') {
+            return { id: 'asset_api.hackerone.com' };
+          }
+          return null;
+        },
+      );
+    });
+
+    it('resolves the Finding to the Asset by canonical host extracted from location URL', async () => {
+      await processor.process(job(nucleiPayload));
+
+      const findingUpsert = prisma.finding as unknown as { upsert: jest.Mock };
+      // Both findings attach to the same asset (api.hackerone.com, regardless of URL casing).
+      expect(findingUpsert.upsert).toHaveBeenCalledTimes(2);
+      const calls = findingUpsert.upsert.mock.calls as Array<
+        [{ where: { assetId_dedupHash: { assetId: string } }; create: { assetId: string } }]
+      >;
+      for (const [arg] of calls) {
+        expect(arg.where.assetId_dedupHash.assetId).toBe('asset_api.hackerone.com');
+        expect(arg.create.assetId).toBe('asset_api.hackerone.com');
+      }
+    });
+
+    it('uses the plan dedupHash recipe: sha256(scanner|templateId|host|location|sig)', async () => {
+      await processor.process(job(nucleiPayload));
+
+      const findingUpsert = prisma.finding as unknown as { upsert: jest.Mock };
+      const calls = findingUpsert.upsert.mock.calls as Array<
+        [{ where: { assetId_dedupHash: { dedupHash: string } }; create: { dedupHash: string } }]
+      >;
+
+      // Recompute the expected hash for the log4j finding.
+      const { createHash } = await import('node:crypto');
+      const expected = createHash('sha256')
+        .update('nuclei')
+        .update('|')
+        .update('CVE-2021-44228') // templateId
+        .update('|')
+        .update('api.hackerone.com') // assetCanonical (canonical host)
+        .update('|')
+        .update('https://API.hackerone.com/login') // raw location preserved
+        .update('|')
+        .update('CVE-2021-44228') // sig = cveId
+        .digest('hex');
+
+      const log4jCall = calls.find(([arg]) => arg.create.dedupHash === expected);
+      expect(log4jCall).toBeDefined();
+    });
+
+    it('persists Finding with firstSeenAt and lastSeenAt set to now', async () => {
+      await processor.process(job(nucleiPayload));
+
+      const findingUpsert = prisma.finding as unknown as { upsert: jest.Mock };
+      const calls = findingUpsert.upsert.mock.calls as Array<
+        [{ create: { firstSeenAt: Date; lastSeenAt: Date } }]
+      >;
+      for (const [arg] of calls) {
+        expect(arg.create.firstSeenAt).toBeInstanceOf(Date);
+        expect(arg.create.lastSeenAt).toBeInstanceOf(Date);
+      }
+    });
+
+    it('returns findingsPersisted count', async () => {
+      const result = await processor.process(job(nucleiPayload));
+      expect(result.findingsPersisted).toBe(2);
+    });
+
+    it('calls correlation.dedupFindings after persistence', async () => {
+      await processor.process(job(nucleiPayload));
+
+      expect(correlation.dedupFindings).toHaveBeenCalledTimes(1);
+      expect(correlation.dedupFindings).toHaveBeenCalledWith('eng_1');
+    });
+
+    it('falls back to findFirstAssetId when no canonical host matches the engagement', async () => {
+      // No Asset rows exist in this engagement matching the host.
+      (prisma.asset.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const NUCLEI_WITHOUT_KNOWN_HOST = JSON.stringify({
+        'template-id': 'tmpl-no-host-known',
+        info: { name: 'Some Finding', severity: 'info' },
+        'matched-at': 'https://unknown.example.com/',
+      });
+      storage.getObject.mockResolvedValueOnce({
+        body: asStream(NUCLEI_WITHOUT_KNOWN_HOST),
+        contentLength: NUCLEI_WITHOUT_KNOWN_HOST.length,
+        contentType: 'application/x-ndjson',
+      });
+
+      const result = await processor.process(job(nucleiPayload));
+      // No assets exist and no findFirstAssetId fallback to draw from → finding dropped.
+      expect(result.findingsPersisted).toBe(0);
+    });
+
+    it('does not rethrow when correlation.dedupFindings fails — persistence already succeeded', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      (correlation.dedupFindings as jest.Mock).mockRejectedValueOnce(
+        new Error('boom: dedup error'),
+      );
+
+      await processor.process(job(nucleiPayload));
+
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringMatching(/Finding dedup failed for engagement eng_1.*boom: dedup error/),
+        expect.any(String),
+      );
+      warn.mockRestore();
+    });
+
+    it('processing the same fixture twice produces no duplicate Finding rows (upsert key collision)', async () => {
+      // Two passes; second uses the same nuclei output.
+      await processor.process(job(nucleiPayload));
+
+      // Set up identical second run.
+      storage.getObject.mockResolvedValueOnce({
+        body: asStream(NUCLEI_JSONL),
+        contentLength: NUCLEI_JSONL.length,
+        contentType: 'application/x-ndjson',
+      });
+      const findingUpsert = prisma.finding as unknown as { upsert: jest.Mock };
+      const firstRunDedupHashes = new Set(
+        (findingUpsert.upsert.mock.calls as Array<[{ create: { dedupHash: string } }]>).map(
+          ([arg]) => arg.create.dedupHash,
+        ),
+      );
+
+      await processor.process(job(nucleiPayload));
+
+      // Hashes from the second run must be a subset of the first — i.e. no new ones.
+      const secondRunDedupHashes = new Set(
+        (findingUpsert.upsert.mock.calls as Array<[{ create: { dedupHash: string } }]>).map(
+          ([arg]) => arg.create.dedupHash,
+        ),
+      );
+      for (const h of secondRunDedupHashes) {
+        expect(firstRunDedupHashes.has(h)).toBe(true);
+      }
+      // Upsert was called 4 total times across two runs (2 findings × 2 runs).
+      expect(findingUpsert.upsert).toHaveBeenCalledTimes(4);
     });
   });
 });

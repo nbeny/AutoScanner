@@ -8,6 +8,7 @@ import { QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { DnsxScannerModule } from '@autoscanner/scanners-dnsx';
 import { NaabuScannerModule } from '@autoscanner/scanners-naabu';
+import { NucleiScannerModule } from '@autoscanner/scanners-nuclei';
 import { SubfinderScannerModule } from '@autoscanner/scanners-subfinder';
 import { HttpxScannerModule } from '@autoscanner/scanners-httpx';
 import { TemplatesModule } from '@autoscanner/templates';
@@ -50,6 +51,7 @@ const redisSubscriber: Provider = {
     HttpxScannerModule,
     DnsxScannerModule,
     NaabuScannerModule,
+    NucleiScannerModule,
   ],
   providers: [redisSubscriber, ContextBuilder, StepExecutor, TemplateRunProcessor],
 })

@@ -1,0 +1,6 @@
+{"template-id":"CVE-2021-44228","info":{"name":"Apache Log4j RCE","severity":"critical","tags":["cve","rce","log4j"],"classification":{"cve-id":["CVE-2021-44228"],"cwe-id":["CWE-94"]}},"type":"http","host":"https://api.example.com","matched-at":"https://api.example.com/login","request":"GET /login HTTP/1.1\r\nHost: api.example.com\r\n\r\n","response":"HTTP/1.1 200 OK\r\n\r\nVULN","extracted-results":["sn4xkdh4j2"],"timestamp":"2026-05-27T10:15:00Z"}
+{"template-id":"exposed-panel-grafana","info":{"name":"Grafana Login Panel","severity":"info","tags":["panel","grafana"]},"type":"http","host":"https://api.example.com","matched-at":"https://api.example.com/grafana/login","request":"GET /grafana/login HTTP/1.1\r\n\r\n","response":"HTTP/1.1 200 OK\r\n\r\n<html>Grafana</html>"}
+{"template-id":"missing-host-header","info":{"name":"Missing CSP Header","severity":"LOW","tags":["misconfig","header"]},"type":"http","host":"https://API.example.com","matched-at":"https://API.example.com/"}
+not-valid-json
+{"template-id":"no-info-block"}
+{"template-id":"with-only-title-fallback","info":{"name":"Plain Finding"}}
