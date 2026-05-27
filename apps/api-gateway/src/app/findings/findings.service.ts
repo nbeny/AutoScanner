@@ -10,7 +10,7 @@ export class FindingsService {
   async listForOwner(
     userId: string,
     engagementId: string,
-    severities?: Severity[],
+    severities?: Severity[] | null,
   ): Promise<Finding[]> {
     const engagement = await this.prisma.engagement.findFirst({
       where: { id: engagementId, ownerId: userId, deletedAt: null },
@@ -18,15 +18,11 @@ export class FindingsService {
     });
     if (!engagement) throw new NotFoundError('Engagement', engagementId);
 
-    const where: { asset: { engagementId: string }; severity?: { in: Severity[] } } = {
-      asset: { engagementId },
-    };
-    if (severities && severities.length > 0) {
-      where.severity = { in: severities };
-    }
-
     return this.prisma.finding.findMany({
-      where,
+      where: {
+        asset: { engagementId, deletedAt: null },
+        ...(severities != null ? { severity: { in: severities } } : {}),
+      },
       orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }],
     }) as Promise<Finding[]>;
   }
