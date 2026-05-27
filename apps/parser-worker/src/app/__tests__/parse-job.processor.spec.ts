@@ -2,7 +2,12 @@ import { Readable } from 'node:stream';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
-import { HttpxJsonParser, ParserRegistry, SubfinderJsonParser } from '@autoscanner/parsers';
+import {
+  DnsxJsonParser,
+  HttpxJsonParser,
+  ParserRegistry,
+  SubfinderJsonParser,
+} from '@autoscanner/parsers';
 import { NmapXmlParser } from '@autoscanner/parsers';
 import type { ParseJobPayload } from '@autoscanner/queues';
 import type { ObjectStorage } from '@autoscanner/storage';
@@ -10,9 +15,12 @@ import type { ObjectStorage } from '@autoscanner/storage';
 import { CorrelationService } from '../correlation.service';
 import { ParseJobProcessor } from '../parse-job.processor';
 import { AssetPersister } from '../persisters/asset-persister';
+import { DnsRecordPersister } from '../persisters/dns-record-persister';
 import { FindingPersister } from '../persisters/finding-persister';
+import { IpAddressPersister } from '../persisters/ip-address-persister';
 import { PortPersister } from '../persisters/port-persister';
 import { ServicePersister } from '../persisters/service-persister';
+import { SubdomainIpPersister } from '../persisters/subdomain-ip-persister';
 import { TechnologyPersister } from '../persisters/technology-persister';
 
 const NMAP_XML = `<?xml version="1.0"?>
@@ -51,6 +59,7 @@ describe('ParseJobProcessor', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn(async ({ data }) => ({ id: `asset_${data.canonicalValue}`, ...data })),
         update: jest.fn(async ({ data, where }) => ({ id: where.id, ...data })),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       port: {
         upsert: jest.fn(async ({ create }) => ({
@@ -74,6 +83,7 @@ describe('ParseJobProcessor', () => {
           id: `domain_${where.engagementId_canonicalValue.canonicalValue}`,
           ...create,
         })),
+        findFirst: jest.fn().mockResolvedValue(null),
       },
       subdomain: {
         upsert: jest.fn(async ({ create, where }) => ({
@@ -81,13 +91,43 @@ describe('ParseJobProcessor', () => {
           ...create,
         })),
         update: jest.fn(async ({ data, where }) => ({ id: where.id, ...data })),
+        findFirst: jest.fn().mockResolvedValue(null),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       technology: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn(async ({ data }) => ({ id: `tech_${data.assetId}_${data.name}`, ...data })),
         update: jest.fn(async ({ data, where }) => ({ id: where.id, ...data })),
       },
-      $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown>) => cb(prisma)),
+      ipAddress: {
+        upsert: jest.fn(async ({ create, where }) => ({
+          id: `ip_${where.engagementId_canonicalValue.canonicalValue}`,
+          ...create,
+        })),
+        findFirst: jest.fn().mockResolvedValue(null),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      dnsRecord: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(async ({ data }) => ({
+          id: `dns_${data.name}_${data.type}_${data.value}`,
+          ...data,
+        })),
+        update: jest.fn(async ({ data, where }) => ({ id: where.id, ...data })),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      subdomainIp: {
+        upsert: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown> | unknown[]) => {
+        if (typeof cb === 'function') return cb(prisma);
+        // Array form: execute each operation
+        return Promise.all(cb as unknown[]);
+      }),
+      $queryRaw: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<PrismaService>;
 
     storage = {
@@ -108,10 +148,12 @@ describe('ParseJobProcessor', () => {
     registry.register(new NmapXmlParser());
     registry.register(new SubfinderJsonParser());
     registry.register(new HttpxJsonParser());
+    registry.register(new DnsxJsonParser());
 
     correlation = new CorrelationService(prisma);
-    // Default: merge is a no-op. Individual tests override.
+    // Default: merges are no-ops. Individual tests override.
     jest.spyOn(correlation, 'mergeSubdomains').mockResolvedValue({ merged: 0 });
+    jest.spyOn(correlation, 'mergeIpAddresses').mockResolvedValue({ merged: 0 });
 
     processor = new ParseJobProcessor(
       registry,
@@ -122,6 +164,10 @@ describe('ParseJobProcessor', () => {
       new ServicePersister(prisma),
       new TechnologyPersister(prisma),
       new FindingPersister(prisma),
+      new IpAddressPersister(prisma),
+      new DnsRecordPersister(prisma),
+      new SubdomainIpPersister(prisma),
+      prisma,
     );
   });
 
@@ -197,11 +243,14 @@ describe('ParseJobProcessor', () => {
     );
 
     expect(result).toEqual({
-      assetsPersisted: 2,
+      assetsPersisted: 1,
       portsPersisted: 2,
       servicesPersisted: 2,
       findingsPersisted: 0,
       technologiesPersisted: 0,
+      ipAddressesPersisted: 1,
+      dnsRecordsPersisted: 0,
+      subdomainIpsPersisted: 0,
     });
   });
 
@@ -542,6 +591,218 @@ describe('ParseJobProcessor', () => {
           data: expect.objectContaining({ lastSeenAt: expect.any(Date) }),
         }),
       );
+    });
+  });
+
+  describe('DNS persistence (dnsx-json)', () => {
+    const DNSX_JSONL = [
+      JSON.stringify({
+        host: 'www.hackerone.com',
+        a: ['104.16.99.52', '104.16.100.52'],
+        aaaa: ['2606:4700::6810:6334'],
+        cname: ['www.hackerone.com.cdn.cloudflare.net'],
+      }),
+      JSON.stringify({
+        host: 'api.hackerone.com',
+        a: ['104.16.99.52'],
+      }),
+      JSON.stringify({
+        host: 'smtp.hackerone.com',
+        mx: ['smtp.hackerone.com'],
+      }),
+      '',
+    ].join('\n');
+
+    const dnsxPayload: ParseJobPayload = {
+      scanJobId: 'job_4',
+      rawOutputKey: 'eng_1/scan_4/job_4/dnsx.jsonl',
+      parserName: 'dnsx-json',
+      scannerName: 'dnsx',
+      target: 'hackerone.com',
+      engagementId: 'eng_1',
+    };
+
+    beforeEach(() => {
+      storage.getObject.mockResolvedValue({
+        body: asStream(DNSX_JSONL),
+        contentLength: DNSX_JSONL.length,
+        contentType: 'application/x-ndjson',
+      });
+
+      // Simulate Subdomains existing for www and api (dnsx runs after subfinder).
+      (prisma.subdomain as unknown as { findFirst: jest.Mock }).findFirst.mockImplementation(
+        async ({ where }: { where: { canonicalValue?: string } }) => {
+          if (where.canonicalValue === 'www.hackerone.com') {
+            return { id: 'subdomain_www.hackerone.com', domainId: 'domain_hackerone.com' };
+          }
+          if (where.canonicalValue === 'api.hackerone.com') {
+            return { id: 'subdomain_api.hackerone.com', domainId: 'domain_hackerone.com' };
+          }
+          if (where.canonicalValue === 'smtp.hackerone.com') {
+            return { id: 'subdomain_smtp.hackerone.com', domainId: 'domain_hackerone.com' };
+          }
+          return null;
+        },
+      );
+
+      // Simulate IpAddress rows being found after upsert (for SubdomainIp join lookup).
+      (prisma.ipAddress as unknown as { findFirst: jest.Mock }).findFirst.mockImplementation(
+        async ({ where }: { where: { canonicalValue?: string } }) => {
+          if (where.canonicalValue) {
+            return { id: `ip_${where.canonicalValue}` };
+          }
+          return null;
+        },
+      );
+    });
+
+    it('upserts IpAddress rows with correct version for A (IPV4) and AAAA (IPV6) records', async () => {
+      await processor.process(job(dnsxPayload));
+
+      const ipUpsert = prisma.ipAddress as unknown as { upsert: jest.Mock };
+
+      // www: 2×A + 1×AAAA = 3; api: 1×A = 1 → total 4 IpAddress upserts.
+      expect(ipUpsert.upsert).toHaveBeenCalledTimes(4);
+
+      // IPV4 for an A record.
+      expect(ipUpsert.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            value: '104.16.99.52',
+            canonicalValue: '104.16.99.52',
+            version: 'IPV4',
+          }),
+        }),
+      );
+
+      // IPV6 for an AAAA record.
+      expect(ipUpsert.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            value: '2606:4700::6810:6334',
+            canonicalValue: '2606:4700::6810:6334',
+            version: 'IPV6',
+          }),
+        }),
+      );
+    });
+
+    it('creates Asset rows with type IP_ADDRESS and ipAddressId set', async () => {
+      await processor.process(job(dnsxPayload));
+
+      // Asset.create for each IP (within $transaction which uses prisma as tx).
+      expect(prisma.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'IP_ADDRESS',
+            canonicalValue: '104.16.99.52',
+            ipAddressId: 'ip_104.16.99.52',
+          }),
+        }),
+      );
+
+      // Ensure ipAddressId is set — CHECK constraint in DB requires this.
+      const createCalls = (prisma.asset.create as jest.Mock).mock.calls as Array<
+        [{ data: Record<string, unknown> }]
+      >;
+      for (const [arg] of createCalls) {
+        if (arg.data.type === 'IP_ADDRESS') {
+          expect(arg.data.ipAddressId).toBeDefined();
+        }
+      }
+    });
+
+    it('creates DnsRecord rows for each record type', async () => {
+      await processor.process(job(dnsxPayload));
+
+      // www: 2×A + 1×AAAA + 1×CNAME = 4; api: 1×A = 1; smtp: 1×MX = 1 → total 6.
+      const dnsCreate = prisma.dnsRecord as unknown as { create: jest.Mock };
+      expect(dnsCreate.create).toHaveBeenCalledTimes(6);
+
+      // Check one A record.
+      expect(dnsCreate.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'A',
+            name: 'www.hackerone.com',
+            value: '104.16.99.52',
+          }),
+        }),
+      );
+
+      // Check the CNAME record.
+      expect(dnsCreate.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'CNAME',
+            name: 'www.hackerone.com',
+            value: 'www.hackerone.com.cdn.cloudflare.net',
+          }),
+        }),
+      );
+
+      // Check the MX record.
+      expect(dnsCreate.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'MX',
+            name: 'smtp.hackerone.com',
+            value: 'smtp.hackerone.com',
+          }),
+        }),
+      );
+    });
+
+    it('creates SubdomainIp join rows for A/AAAA records where host is a known Subdomain', async () => {
+      await processor.process(job(dnsxPayload));
+
+      const subdomainIpUpsert = prisma.subdomainIp as unknown as { upsert: jest.Mock };
+
+      // www: 2×A + 1×AAAA = 3 joins; api: 1×A = 1 join; smtp has no A/AAAA → 0.
+      // total: 4 SubdomainIp upserts.
+      expect(subdomainIpUpsert.upsert).toHaveBeenCalledTimes(4);
+
+      expect(subdomainIpUpsert.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            subdomainId_ipAddressId: {
+              subdomainId: 'subdomain_www.hackerone.com',
+              ipAddressId: 'ip_104.16.99.52',
+            },
+          },
+        }),
+      );
+    });
+
+    it('returns correct result counts', async () => {
+      const result = await processor.process(job(dnsxPayload));
+
+      // No SUBDOMAIN assets emitted by dnsx parser → assetsPersisted = 0.
+      expect(result.assetsPersisted).toBe(0);
+      // 4 unique IPs (104.16.99.52 appears twice but deduplication is a DB concern;
+      // parser emits it twice so persister is called twice → 4 persisted).
+      expect(result.ipAddressesPersisted).toBe(4);
+      // www: 4 + api: 1 + smtp: 1 = 6
+      expect(result.dnsRecordsPersisted).toBe(6);
+      // www: 3 + api: 1 = 4
+      expect(result.subdomainIpsPersisted).toBe(4);
+    });
+
+    it('skips SubdomainIp join when host has no matching Subdomain in DB', async () => {
+      // Only smtp.hackerone.com is known (and smtp has only MX, no A/AAAA).
+      (prisma.subdomain as unknown as { findFirst: jest.Mock }).findFirst.mockResolvedValue(null);
+
+      await processor.process(job(dnsxPayload));
+
+      const subdomainIpUpsert = prisma.subdomainIp as unknown as { upsert: jest.Mock };
+      expect(subdomainIpUpsert.upsert).not.toHaveBeenCalled();
+    });
+
+    it('calls correlation.mergeIpAddresses after persistence', async () => {
+      await processor.process(job(dnsxPayload));
+
+      expect(correlation.mergeIpAddresses).toHaveBeenCalledTimes(1);
+      expect(correlation.mergeIpAddresses).toHaveBeenCalledWith('eng_1');
     });
   });
 });

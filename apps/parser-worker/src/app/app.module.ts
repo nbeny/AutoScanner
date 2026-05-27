@@ -10,9 +10,12 @@ import { StorageModule } from '@autoscanner/storage';
 import { CorrelationService } from './correlation.service';
 import { ParseJobProcessor } from './parse-job.processor';
 import { AssetPersister } from './persisters/asset-persister';
+import { DnsRecordPersister } from './persisters/dns-record-persister';
 import { FindingPersister } from './persisters/finding-persister';
+import { IpAddressPersister } from './persisters/ip-address-persister';
 import { PortPersister } from './persisters/port-persister';
 import { ServicePersister } from './persisters/service-persister';
+import { SubdomainIpPersister } from './persisters/subdomain-ip-persister';
 import { TechnologyPersister } from './persisters/technology-persister';
 
 @Module({
@@ -32,6 +35,9 @@ import { TechnologyPersister } from './persisters/technology-persister';
     ServicePersister,
     TechnologyPersister,
     FindingPersister,
+    IpAddressPersister,
+    DnsRecordPersister,
+    SubdomainIpPersister,
   ],
 })
 export class AppModule {}

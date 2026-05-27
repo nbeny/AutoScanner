@@ -9,12 +9,16 @@ import {
 } from '@autoscanner/parsers';
 import { QueueName, type ParseJobPayload } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
+import { PrismaService } from '@autoscanner/database';
 
-import { CorrelationService } from './correlation.service';
+import { CorrelationService, canonicalize } from './correlation.service';
 import { AssetPersister } from './persisters/asset-persister';
+import { DnsRecordPersister } from './persisters/dns-record-persister';
 import { FindingPersister } from './persisters/finding-persister';
+import { IpAddressPersister } from './persisters/ip-address-persister';
 import { PortPersister } from './persisters/port-persister';
 import { ServicePersister } from './persisters/service-persister';
+import { SubdomainIpPersister } from './persisters/subdomain-ip-persister';
 import { TechnologyPersister } from './persisters/technology-persister';
 
 export interface ParseJobResult {
@@ -23,6 +27,9 @@ export interface ParseJobResult {
   servicesPersisted: number;
   findingsPersisted: number;
   technologiesPersisted: number;
+  ipAddressesPersisted: number;
+  dnsRecordsPersisted: number;
+  subdomainIpsPersisted: number;
 }
 
 @Processor(QueueName.PARSE_JOBS, { concurrency: 4 })
@@ -38,6 +45,10 @@ export class ParseJobProcessor extends WorkerHost {
     private readonly servicePersister: ServicePersister,
     private readonly technologyPersister: TechnologyPersister,
     private readonly findingPersister: FindingPersister,
+    private readonly ipAddressPersister: IpAddressPersister,
+    private readonly dnsRecordPersister: DnsRecordPersister,
+    private readonly subdomainIpPersister: SubdomainIpPersister,
+    private readonly prisma: PrismaService,
   ) {
     super();
   }
@@ -64,7 +75,7 @@ export class ParseJobProcessor extends WorkerHost {
 
     const result = await this.persist(payload, output);
     this.logger.log(
-      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted}`,
+      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted}`,
     );
 
     // Correlation v1: defensive merge of duplicate subdomains within the engagement.
@@ -85,6 +96,21 @@ export class ParseJobProcessor extends WorkerHost {
       );
     }
 
+    // Correlation v1: same defensive merge for duplicate IpAddress rows.
+    try {
+      const { merged } = await this.correlation.mergeIpAddresses(payload.engagementId);
+      if (merged > 0) {
+        this.logger.log(
+          `correlation merged ${merged} duplicate IpAddress rows for engagement ${payload.engagementId}`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `IP correlation failed for engagement ${payload.engagementId}: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+    }
+
     return result;
   }
 
@@ -94,6 +120,9 @@ export class ParseJobProcessor extends WorkerHost {
   }
 
   private async persist(payload: ParseJobPayload, out: NormalizedOutput): Promise<ParseJobResult> {
+    // assetIdByValue maps lowercased asset value → Asset.id for all asset types.
+    // Both AssetPersister (non-IP) and IpAddressPersister (IP) contribute to this map,
+    // so that port/service/technology persisters can resolve any asset value to an Asset id.
     const assetIdByValue = new Map<string, string>();
     let assetsPersisted = 0;
 
@@ -105,12 +134,32 @@ export class ParseJobProcessor extends WorkerHost {
       httpProbeByValue.set(probe.assetValue.toLowerCase(), probe);
     }
 
+    // Non-IP assets: handled by AssetPersister. IP assets are owned by
+    // IpAddressPersister (which also creates the Asset pivot with ipAddressId set)
+    // — skipping them here avoids double-persistence.
     for (const asset of out.assets) {
+      if (asset.type === 'IP') continue;
       const probe = httpProbeByValue.get(asset.value.toLowerCase());
       const id = await this.assetPersister.upsert(payload.engagementId, asset, probe);
       if (!id) continue;
       assetIdByValue.set(asset.value.toLowerCase(), id);
       assetsPersisted++;
+    }
+
+    // IP assets: IpAddressPersister owns the IpAddress row + Asset pivot.
+    // Processed before ports so that assetIdByValue is fully populated when
+    // portPersister resolves IP assetValues (e.g. nmap emits IP + ports together).
+    const ipAssetIdByValue = new Map<string, string>();
+    let ipAddressesPersisted = 0;
+    for (const asset of out.assets) {
+      if (asset.type !== 'IP') continue;
+      const id = await this.ipAddressPersister.upsert(payload.engagementId, asset);
+      if (!id) continue;
+      const canonicalIpKey = canonicalize(asset.value, { type: 'IP_ADDRESS' });
+      ipAssetIdByValue.set(canonicalIpKey, id);
+      // Merge into assetIdByValue so ports/services can resolve the IP's Asset id.
+      assetIdByValue.set(asset.value.toLowerCase(), id);
+      ipAddressesPersisted++;
     }
 
     const portIdByKey = new Map<string, string>();
@@ -149,12 +198,49 @@ export class ParseJobProcessor extends WorkerHost {
       findingsPersisted++;
     }
 
+    // DNS records: look up Subdomain/Domain and create DnsRecord rows.
+    let dnsRecordsPersisted = 0;
+    for (const record of out.dnsRecords) {
+      await this.dnsRecordPersister.upsert(payload.engagementId, record);
+      dnsRecordsPersisted++;
+    }
+
+    // SubdomainIp joins: for each A/AAAA record whose host is a known Subdomain
+    // and whose IP was just persisted, create the join row.
+    let subdomainIpsPersisted = 0;
+    for (const record of out.dnsRecords) {
+      if (record.recordType !== 'A' && record.recordType !== 'AAAA') continue;
+      const canonicalIp = canonicalize(record.value, { type: 'IP_ADDRESS' });
+      if (!ipAssetIdByValue.has(canonicalIp)) continue;
+
+      // Look up Subdomain id for the host.
+      const canonicalHost = canonicalize(record.assetValue, { type: 'SUBDOMAIN' });
+      const subdomain = await this.prisma.subdomain.findFirst({
+        where: { engagementId: payload.engagementId, canonicalValue: canonicalHost },
+        select: { id: true },
+      });
+      if (!subdomain) continue;
+
+      // Look up IpAddress id (not the Asset id) for the SubdomainIp join.
+      const ipAddress = await this.prisma.ipAddress.findFirst({
+        where: { engagementId: payload.engagementId, canonicalValue: canonicalIp },
+        select: { id: true },
+      });
+      if (!ipAddress) continue;
+
+      await this.subdomainIpPersister.upsert(subdomain.id, ipAddress.id);
+      subdomainIpsPersisted++;
+    }
+
     return {
       assetsPersisted,
       portsPersisted,
       servicesPersisted,
       findingsPersisted,
       technologiesPersisted,
+      ipAddressesPersisted,
+      dnsRecordsPersisted,
+      subdomainIpsPersisted,
     };
   }
 }
