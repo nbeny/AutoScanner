@@ -1,0 +1,16 @@
+export default {
+  displayName: 'orchestrator-worker',
+  testEnvironment: 'node',
+  transform: {
+    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
+  },
+  moduleFileExtensions: ['ts', 'js', 'html'],
+  moduleNameMapper: {
+    '^@autoscanner/scanners-nmap$': '<rootDir>/../../libs/scanners/nmap/src/index.ts',
+    '^@autoscanner/scanners-subfinder$': '<rootDir>/../../libs/scanners/subfinder/src/index.ts',
+    '^@autoscanner/scanners-httpx$': '<rootDir>/../../libs/scanners/httpx/src/index.ts',
+    '^@autoscanner/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
+  },
+  testMatch: ['**/*.spec.ts'],
+  coverageDirectory: '../../coverage/apps/orchestrator-worker',
+};

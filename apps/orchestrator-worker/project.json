@@ -1,0 +1,52 @@
+{
+  "name": "orchestrator-worker",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/orchestrator-worker/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "webpack-cli build",
+        "args": ["node-env=production"],
+        "cwd": "apps/orchestrator-worker"
+      },
+      "configurations": {
+        "development": {
+          "args": ["node-env=development"]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "orchestrator-worker:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "orchestrator-worker:build:development"
+        },
+        "production": {
+          "buildTarget": "orchestrator-worker:build:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/orchestrator-worker"],
+      "options": {
+        "jestConfig": "apps/orchestrator-worker/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/orchestrator-worker/tsconfig.app.json --noEmit"
+      }
+    }
+  },
+  "tags": ["scope:app"]
+}
