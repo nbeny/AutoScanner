@@ -224,7 +224,9 @@ export class ParseJobProcessor extends WorkerHost {
       });
 
       // Apply httpx-derived HTTP fields onto the Subdomain row inside the same
-      // transaction so the row is consistent end-to-end.
+      // transaction so the row is consistent end-to-end. Partial probes are
+      // safe: Prisma treats `undefined` as "don't write this column," so a
+      // second httpx run that lacks a title won't clobber an existing one.
       if (
         httpProbe &&
         (httpProbe.status !== undefined ||
@@ -347,7 +349,7 @@ export class ParseJobProcessor extends WorkerHost {
         name: tech.name,
         version: tech.version,
         source: scannerName,
-        categories: tech.categories ?? [],
+        categories: tech.categories ?? undefined,
       },
     });
   }

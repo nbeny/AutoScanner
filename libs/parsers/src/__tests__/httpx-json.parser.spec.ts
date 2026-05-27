@@ -82,6 +82,8 @@ describe('HttpxJsonParser', () => {
   it('skips blank lines, malformed JSON, and lines missing `input` without throwing', async () => {
     await expect(parser.parse(FIXTURE, ctx)).resolves.toBeDefined();
     const out = await parser.parse(FIXTURE, ctx);
+    // Fixture has 4 valid lines + blank + malformed + empty-input → exactly 4 assets.
+    expect(out.assets.length).toBe(4);
     for (const a of out.assets) {
       expect(a.value.length).toBeGreaterThan(0);
     }
@@ -89,7 +91,7 @@ describe('HttpxJsonParser', () => {
 
   it('accepts Buffer input', async () => {
     const out = await parser.parse(Buffer.from(FIXTURE, 'utf8'), ctx);
-    expect(out.assets.length).toBeGreaterThanOrEqual(3);
+    expect(out.assets.length).toBe(4);
   });
 
   it('returns empty NormalizedOutput for empty input', async () => {
