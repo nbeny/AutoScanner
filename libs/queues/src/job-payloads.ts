@@ -17,9 +17,15 @@ export interface ParseJobPayload {
   engagementId: string;
 }
 
+export interface TemplateRunPayload {
+  templateRunId: string;
+  engagementId: string;
+}
+
 export interface QueuePayloadMap {
   [QueueName.SCAN_JOBS]: ScanJobPayload;
   [QueueName.PARSE_JOBS]: ParseJobPayload;
+  [QueueName.TEMPLATE_RUNS]: TemplateRunPayload;
 }
 
 export type PayloadFor<Q extends QueueName> = QueuePayloadMap[Q];
