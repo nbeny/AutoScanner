@@ -104,6 +104,7 @@ export class ParseJobProcessor extends WorkerHost {
     } catch (err) {
       this.logger.warn(
         `correlation failed for engagement ${payload.engagementId}: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
       );
     }
 

@@ -174,4 +174,41 @@ describe('CorrelationService.mergeSubdomains()', () => {
       data: { subdomainId: 'oldest' },
     });
   });
+
+  it('isolates per-group failures: P2002 on group A does not skip group B', async () => {
+    prisma.$queryRaw.mockResolvedValueOnce([
+      { canonicalValue: 'a.client.com', ids: ['a1', 'a2'] },
+      { canonicalValue: 'b.client.com', ids: ['b1', 'b2'] },
+    ]);
+    // First $transaction throws P2002, second succeeds.
+    const p2002 = Object.assign(new Error('Unique constraint failed on subdomainId'), {
+      code: 'P2002',
+    });
+    prisma.$transaction.mockRejectedValueOnce(p2002).mockResolvedValueOnce([{ count: 0 }]);
+    const warnSpy = jest
+      .spyOn(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        require('@nestjs/common').Logger.prototype as any,
+        'warn',
+      )
+      .mockImplementation(() => undefined);
+
+    const result = await service.mergeSubdomains('eng_1');
+
+    // Group B still merged → 1 row dropped.
+    expect(result).toEqual({ merged: 1 });
+    // $transaction called twice (one per group, no short-circuit).
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/merge group 'a\.client\.com' failed.*code=P2002/),
+      expect.any(String),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('propagates $queryRaw errors to the caller (processor try/catch handles them)', async () => {
+    prisma.$queryRaw.mockRejectedValueOnce(new Error('DB unreachable'));
+    await expect(service.mergeSubdomains('eng_1')).rejects.toThrow(/DB unreachable/);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
 });

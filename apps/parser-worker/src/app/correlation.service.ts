@@ -71,30 +71,43 @@ export class CorrelationService {
     }
 
     let merged = 0;
+    // Per-group try/catch: an expected P2002 from the Asset.subdomainId unique
+    // (see "Limitation" in the JSDoc above) on one group must not short-circuit
+    // the merge for the remaining groups. Concurrent workers racing on the same
+    // engagement are also benign here — repoint+delete of already-merged rows
+    // is a no-op because their FKs were already moved by the winning worker.
     for (const group of dupes) {
       const [keep, ...drop] = group.ids;
       if (drop.length === 0) continue;
 
-      await this.prisma.$transaction([
-        this.prisma.asset.updateMany({
-          where: { subdomainId: { in: drop } },
-          data: { subdomainId: keep },
-        }),
-        this.prisma.dnsRecord.updateMany({
-          where: { subdomainId: { in: drop } },
-          data: { subdomainId: keep },
-        }),
-        this.prisma.subdomainIp.updateMany({
-          where: { subdomainId: { in: drop } },
-          data: { subdomainId: keep },
-        }),
-        this.prisma.subdomain.deleteMany({ where: { id: { in: drop } } }),
-      ]);
-
-      merged += drop.length;
-      this.logger.debug(
-        `merged ${drop.length} duplicates of '${group.canonicalValue}' into ${keep} (engagement=${engagementId})`,
-      );
+      try {
+        await this.prisma.$transaction([
+          this.prisma.asset.updateMany({
+            where: { subdomainId: { in: drop } },
+            data: { subdomainId: keep },
+          }),
+          this.prisma.dnsRecord.updateMany({
+            where: { subdomainId: { in: drop } },
+            data: { subdomainId: keep },
+          }),
+          this.prisma.subdomainIp.updateMany({
+            where: { subdomainId: { in: drop } },
+            data: { subdomainId: keep },
+          }),
+          this.prisma.subdomain.deleteMany({ where: { id: { in: drop } } }),
+        ]);
+        merged += drop.length;
+        this.logger.debug(
+          `merged ${drop.length} duplicates of '${group.canonicalValue}' into ${keep} (engagement=${engagementId})`,
+        );
+      } catch (err) {
+        const code = (err as { code?: string }).code;
+        this.logger.warn(
+          `merge group '${group.canonicalValue}' failed (engagement=${engagementId}, code=${code ?? 'unknown'}): ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err.stack : undefined,
+        );
+        // Continue to next group — partial success is preferable to total failure.
+      }
     }
 
     return { merged };
