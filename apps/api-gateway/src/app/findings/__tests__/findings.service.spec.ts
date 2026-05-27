@@ -44,7 +44,7 @@ describe('FindingsService', () => {
         select: { id: true },
       });
       expect(prisma.finding.findMany).toHaveBeenCalledWith({
-        where: { asset: { engagementId } },
+        where: { asset: { engagementId, deletedAt: null } },
         orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }],
       });
       expect(result).toBe(fixture);
@@ -58,23 +58,54 @@ describe('FindingsService', () => {
 
       expect(prisma.finding.findMany).toHaveBeenCalledWith({
         where: {
-          asset: { engagementId },
+          asset: { engagementId, deletedAt: null },
           severity: { in: [Severity.HIGH, Severity.CRITICAL] },
         },
         orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }],
       });
     });
 
-    it('does not apply the severity filter when an empty array is passed', async () => {
+    it('applies an empty severity filter when an empty array is passed (so prisma returns zero rows)', async () => {
       (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
       (prisma.finding.findMany as jest.Mock).mockResolvedValueOnce([]);
 
-      await svc.listForOwner(userId, engagementId, []);
+      const result = await svc.listForOwner(userId, engagementId, []);
 
       expect(prisma.finding.findMany).toHaveBeenCalledWith({
-        where: { asset: { engagementId } },
+        where: {
+          asset: { engagementId, deletedAt: null },
+          severity: { in: [] },
+        },
         orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }],
       });
+      expect(result).toEqual([]);
+    });
+
+    it('does not apply the severity filter when null is passed', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (prisma.finding.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.listForOwner(userId, engagementId, null);
+
+      expect(prisma.finding.findMany).toHaveBeenCalledWith({
+        where: { asset: { engagementId, deletedAt: null } },
+        orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }],
+      });
+    });
+
+    it('excludes findings whose owning asset is soft-deleted (asset.deletedAt: null filter)', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (prisma.finding.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.listForOwner(userId, engagementId);
+
+      expect(prisma.finding.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            asset: expect.objectContaining({ engagementId, deletedAt: null }),
+          }),
+        }),
+      );
     });
 
     it('throws NotFoundError when the engagement is not owned by the user', async () => {
