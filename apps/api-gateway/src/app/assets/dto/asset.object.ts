@@ -1,6 +1,7 @@
 import { Field, Float, ID, ObjectType } from '@nestjs/graphql';
 import { AssetType } from './asset-type.enum';
 import { PortObject } from './port.object';
+import { TechnologyObject } from './technology.object';
 
 @ObjectType('Asset')
 export class AssetObject {
@@ -36,4 +37,7 @@ export class AssetObject {
 
   @Field(() => [PortObject], { nullable: 'items' })
   ports?: PortObject[];
+
+  @Field(() => [TechnologyObject], { nullable: 'items' })
+  technologies?: TechnologyObject[];
 }

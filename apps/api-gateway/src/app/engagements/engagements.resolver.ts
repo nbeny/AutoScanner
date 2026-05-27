@@ -4,7 +4,9 @@ import type { User } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateEngagementInput } from './dto/create-engagement.input';
+import { CreateScopeRuleInput } from './dto/create-scope-rule.input';
 import { EngagementObject } from './dto/engagement.object';
+import { ScopeRuleObject } from './dto/scope-rule.object';
 import { EngagementsService } from './engagements.service';
 
 @Resolver(() => EngagementObject)
@@ -18,6 +20,14 @@ export class EngagementsResolver {
     @Args('input') input: CreateEngagementInput,
   ): Promise<EngagementObject> {
     return this.svc.create(user.id, input) as Promise<EngagementObject>;
+  }
+
+  @Mutation(() => ScopeRuleObject)
+  createScopeRule(
+    @CurrentUser() user: User,
+    @Args('input') input: CreateScopeRuleInput,
+  ): Promise<ScopeRuleObject> {
+    return this.svc.createScopeRule(user.id, input) as Promise<ScopeRuleObject>;
   }
 
   @Query(() => [EngagementObject])
