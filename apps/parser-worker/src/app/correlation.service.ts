@@ -57,6 +57,62 @@ export class CorrelationService {
    * logs it as a warning and the BullMQ job still reports success (persistence
    * already completed). Phase 3+ correlation will handle the multi-Asset case.
    */
+  async mergeSubdomains(engagementId: string): Promise<{ merged: number }> {
+    const dupes: DuplicateGroup[] = await this.prisma.$queryRaw<DuplicateGroup[]>`
+      SELECT "canonicalValue", array_agg(id ORDER BY "firstSeenAt") AS ids
+      FROM "Subdomain"
+      WHERE "engagementId" = ${engagementId}
+      GROUP BY "canonicalValue"
+      HAVING count(*) > 1
+    `;
+
+    if (dupes.length === 0) {
+      return { merged: 0 };
+    }
+
+    let merged = 0;
+    // Per-group try/catch: an expected P2002 from the Asset.subdomainId unique
+    // (see "Limitation" in the JSDoc above) on one group must not short-circuit
+    // the merge for the remaining groups. Concurrent workers racing on the same
+    // engagement are also benign here — repoint+delete of already-merged rows
+    // is a no-op because their FKs were already moved by the winning worker.
+    for (const group of dupes) {
+      const [keep, ...drop] = group.ids;
+      if (drop.length === 0) continue;
+
+      try {
+        await this.prisma.$transaction([
+          this.prisma.asset.updateMany({
+            where: { subdomainId: { in: drop } },
+            data: { subdomainId: keep },
+          }),
+          this.prisma.dnsRecord.updateMany({
+            where: { subdomainId: { in: drop } },
+            data: { subdomainId: keep },
+          }),
+          this.prisma.subdomainIp.updateMany({
+            where: { subdomainId: { in: drop } },
+            data: { subdomainId: keep },
+          }),
+          this.prisma.subdomain.deleteMany({ where: { id: { in: drop } } }),
+        ]);
+        merged += drop.length;
+        this.logger.debug(
+          `merged ${drop.length} duplicates of '${group.canonicalValue}' into ${keep} (engagement=${engagementId})`,
+        );
+      } catch (err) {
+        const code = (err as { code?: string }).code;
+        this.logger.warn(
+          `merge group '${group.canonicalValue}' failed (engagement=${engagementId}, code=${code ?? 'unknown'}): ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err.stack : undefined,
+        );
+        // Continue to next group — partial success is preferable to total failure.
+      }
+    }
+
+    return { merged };
+  }
+
   /**
    * After persistence, merge duplicate IpAddress rows that share the same
    * canonicalValue within an engagement. The "winner" row is the one with the
@@ -107,62 +163,6 @@ export class CorrelationService {
         const code = (err as { code?: string }).code;
         this.logger.warn(
           `IpAddress merge group '${group.canonicalValue}' failed (engagement=${engagementId}, code=${code ?? 'unknown'}): ${err instanceof Error ? err.message : String(err)}`,
-          err instanceof Error ? err.stack : undefined,
-        );
-        // Continue to next group — partial success is preferable to total failure.
-      }
-    }
-
-    return { merged };
-  }
-
-  async mergeSubdomains(engagementId: string): Promise<{ merged: number }> {
-    const dupes: DuplicateGroup[] = await this.prisma.$queryRaw<DuplicateGroup[]>`
-      SELECT "canonicalValue", array_agg(id ORDER BY "firstSeenAt") AS ids
-      FROM "Subdomain"
-      WHERE "engagementId" = ${engagementId}
-      GROUP BY "canonicalValue"
-      HAVING count(*) > 1
-    `;
-
-    if (dupes.length === 0) {
-      return { merged: 0 };
-    }
-
-    let merged = 0;
-    // Per-group try/catch: an expected P2002 from the Asset.subdomainId unique
-    // (see "Limitation" in the JSDoc above) on one group must not short-circuit
-    // the merge for the remaining groups. Concurrent workers racing on the same
-    // engagement are also benign here — repoint+delete of already-merged rows
-    // is a no-op because their FKs were already moved by the winning worker.
-    for (const group of dupes) {
-      const [keep, ...drop] = group.ids;
-      if (drop.length === 0) continue;
-
-      try {
-        await this.prisma.$transaction([
-          this.prisma.asset.updateMany({
-            where: { subdomainId: { in: drop } },
-            data: { subdomainId: keep },
-          }),
-          this.prisma.dnsRecord.updateMany({
-            where: { subdomainId: { in: drop } },
-            data: { subdomainId: keep },
-          }),
-          this.prisma.subdomainIp.updateMany({
-            where: { subdomainId: { in: drop } },
-            data: { subdomainId: keep },
-          }),
-          this.prisma.subdomain.deleteMany({ where: { id: { in: drop } } }),
-        ]);
-        merged += drop.length;
-        this.logger.debug(
-          `merged ${drop.length} duplicates of '${group.canonicalValue}' into ${keep} (engagement=${engagementId})`,
-        );
-      } catch (err) {
-        const code = (err as { code?: string }).code;
-        this.logger.warn(
-          `merge group '${group.canonicalValue}' failed (engagement=${engagementId}, code=${code ?? 'unknown'}): ${err instanceof Error ? err.message : String(err)}`,
           err instanceof Error ? err.stack : undefined,
         );
         // Continue to next group — partial success is preferable to total failure.
