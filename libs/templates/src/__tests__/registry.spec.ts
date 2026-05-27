@@ -47,6 +47,13 @@ describe('TemplateRegistry', () => {
     expect(() => registry.get('does-not-exist')).toThrow(TemplateNotFoundError);
   });
 
+  it('reports membership via has()', () => {
+    expect(registry.has('alpha')).toBe(false);
+    registry.register(makeTemplate('alpha'));
+    expect(registry.has('alpha')).toBe(true);
+    expect(registry.has('beta')).toBe(false);
+  });
+
   it('lists all registered template definitions', () => {
     const a = makeTemplate('alpha');
     const b = makeTemplate('beta');

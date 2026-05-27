@@ -24,6 +24,10 @@ export class TemplateRegistry {
     this.templates.set(def.name, def);
   }
 
+  has(name: string): boolean {
+    return this.templates.has(name);
+  }
+
   get(name: string): TemplateDefinition {
     const def = this.templates.get(name);
     if (!def) throw new TemplateNotFoundError(name);
