@@ -59,6 +59,7 @@ export class ScanJobProcessor extends WorkerHost {
       cmd: build.cmd,
       env: build.env,
       binds: build.binds,
+      stdin: build.stdin,
       network: scanner.docker.network,
       capabilities: { add: scanner.docker.capabilities, drop: ['ALL'] },
       readonlyRootfs: scanner.docker.readonlyRootfs,

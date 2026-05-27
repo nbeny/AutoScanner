@@ -35,6 +35,7 @@
       "@autoscanner/parsers": ["libs/parsers/src/index.ts"],
       "@autoscanner/queues": ["libs/queues/src/index.ts"],
       "@autoscanner/scanner-sdk": ["libs/scanner-sdk/src/index.ts"],
+      "@autoscanner/scanners-httpx": ["libs/scanners/httpx/src/index.ts"],
       "@autoscanner/scanners-nmap": ["libs/scanners/nmap/src/index.ts"],
       "@autoscanner/scanners-subfinder": ["libs/scanners/subfinder/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
