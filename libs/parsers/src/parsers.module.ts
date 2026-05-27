@@ -3,6 +3,7 @@ import { DnsxJsonParser } from './dnsx-json';
 import { HttpxJsonParser } from './httpx-json';
 import { NaabuJsonParser } from './naabu-json';
 import { NmapXmlParser } from './nmap-xml.parser';
+import { NucleiJsonParser } from './nuclei-json';
 import { ParserRegistry } from './registry';
 import { SubfinderJsonParser } from './subfinder-json';
 
@@ -15,6 +16,7 @@ import { SubfinderJsonParser } from './subfinder-json';
     HttpxJsonParser,
     DnsxJsonParser,
     NaabuJsonParser,
+    NucleiJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -23,6 +25,7 @@ import { SubfinderJsonParser } from './subfinder-json';
     HttpxJsonParser,
     DnsxJsonParser,
     NaabuJsonParser,
+    NucleiJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -33,6 +36,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly httpxJson: HttpxJsonParser,
     private readonly dnsxJson: DnsxJsonParser,
     private readonly naabuJson: NaabuJsonParser,
+    private readonly nucleiJson: NucleiJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -41,5 +45,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.httpxJson);
     this.registry.register(this.dnsxJson);
     this.registry.register(this.naabuJson);
+    this.registry.register(this.nucleiJson);
   }
 }
