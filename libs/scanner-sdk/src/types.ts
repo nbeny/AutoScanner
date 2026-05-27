@@ -18,6 +18,7 @@ export enum ScannerCategory {
   NETWORK_ANALYSIS = 'network-analysis',
   PASSWORD = 'password',
   OSINT = 'osint',
+  PASSIVE_RECON = 'passive-recon',
   API_SECURITY = 'api-security',
   SMTP = 'smtp',
   SNMP = 'snmp',
@@ -28,6 +29,7 @@ export enum ScannerCategory {
 export type RawOutputFormat =
   | 'XML'
   | 'JSON'
+  | 'JSONL'
   | 'CSV'
   | 'TEXT'
   | 'HTML'
@@ -37,6 +39,8 @@ export type RawOutputFormat =
 
 export type ProducedEntity =
   | 'Asset'
+  | 'Subdomain'
+  | 'Domain'
   | 'Port'
   | 'Service'
   | 'Technology'

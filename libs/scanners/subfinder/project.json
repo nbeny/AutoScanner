@@ -1,0 +1,22 @@
+{
+  "name": "scanners-subfinder",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/subfinder/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/subfinder"],
+      "options": {
+        "jestConfig": "libs/scanners/subfinder/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/subfinder/tsconfig.lib.json"
+      }
+    }
+  }
+}
