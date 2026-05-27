@@ -1,5 +1,5 @@
 import { Field, ID, InputType } from '@nestjs/graphql';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { ScopeRuleType } from './scope-rule-type.enum';
 import { ScopeRuleTarget } from './scope-rule-target.enum';
 
@@ -10,9 +10,11 @@ export class CreateScopeRuleInput {
   engagementId!: string;
 
   @Field(() => ScopeRuleType)
+  @IsEnum(ScopeRuleType)
   ruleType!: ScopeRuleType;
 
   @Field(() => ScopeRuleTarget)
+  @IsEnum(ScopeRuleTarget)
   targetType!: ScopeRuleTarget;
 
   @Field()
