@@ -6,6 +6,7 @@ import { createApolloClient } from './lib/apollo';
 import { LoginPage } from './features/auth/login-page';
 import { EngagementsListPage } from './features/engagements/engagements-list-page';
 import { ScanRunPage } from './features/scans/scan-run-page';
+import { TemplateRunPage } from './features/template-runs/template-run-page';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session } = useAuth();
@@ -56,6 +57,14 @@ function AppShell() {
           element={
             <RequireAuth>
               <ScanRunPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/engagements/:engagementId/template-runs/:templateRunId"
+          element={
+            <RequireAuth>
+              <TemplateRunPage />
             </RequireAuth>
           }
         />

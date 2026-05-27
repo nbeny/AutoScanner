@@ -6,6 +6,7 @@ import { useAuth } from '../../lib/auth-context';
 import { rawOutputUrl } from '../../lib/api-rest';
 import { LiveLogsPane } from './live-logs-pane';
 import { AssetsTable } from './assets-table';
+import { NewTemplateRunForm } from '../template-runs/new-template-run-form';
 
 interface RunScanResult {
   runScan: {
@@ -107,6 +108,11 @@ export function ScanRunPage() {
         <h1 className="text-2xl font-semibold">Run a scan</h1>
         <code className="text-xs text-slate-400">engagement {engagementId}</code>
       </header>
+
+      <section className="space-y-2" aria-label="run-template-section">
+        <h2 className="text-sm font-semibold text-slate-300">Run a recon template</h2>
+        <NewTemplateRunForm engagementId={engagementId} />
+      </section>
 
       <form
         onSubmit={onRun}

@@ -106,3 +106,57 @@ export const SCAN_JOB_LOGS_SUBSCRIPTION = gql`
     }
   }
 `;
+
+export const SCAN_TEMPLATES_QUERY = gql`
+  query ScanTemplates {
+    scanTemplates {
+      id
+      name
+      displayName
+      description
+    }
+  }
+`;
+
+export const RUN_TEMPLATE_MUTATION = gql`
+  mutation RunTemplate($input: RunTemplateInput!) {
+    runTemplate(input: $input) {
+      id
+      templateName
+      target
+      status
+      currentStepIndex
+      startedAt
+      completedAt
+      errorMessage
+    }
+  }
+`;
+
+export const TEMPLATE_RUN_QUERY = gql`
+  query TemplateRun($id: ID!) {
+    templateRun(id: $id) {
+      id
+      templateName
+      target
+      status
+      currentStepIndex
+      startedAt
+      completedAt
+      errorMessage
+      scans {
+        id
+        status
+        createdAt
+        completedAt
+        jobs {
+          id
+          scannerName
+          target
+          status
+          rawOutputKey
+        }
+      }
+    }
+  }
+`;
