@@ -1,0 +1,22 @@
+{
+  "name": "scanners-dnsx",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/dnsx/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/dnsx"],
+      "options": {
+        "jestConfig": "libs/scanners/dnsx/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/dnsx/tsconfig.lib.json"
+      }
+    }
+  }
+}
