@@ -25,14 +25,26 @@ export interface ParseJobResult {
 
 const ASSET_TYPE_MAP: Record<
   NormalizedAssetType,
-  'DOMAIN' | 'IP_ADDRESS' | 'URL' | 'NETWORK' | null
+  'DOMAIN' | 'SUBDOMAIN' | 'IP_ADDRESS' | 'URL' | 'NETWORK' | null
 > = {
   IP: 'IP_ADDRESS',
   DOMAIN: 'DOMAIN',
+  SUBDOMAIN: 'SUBDOMAIN',
   URL: 'URL',
   NETBLOCK: 'NETWORK',
   EMAIL: null,
 };
+
+// TODO Phase 4: use psl lib for proper Public Suffix List handling.
+// Phase 2 simplification: take everything after the first dot, with an apex-domain guard
+// (single-dot hosts like `hackerone.com` resolve to themselves rather than `com`).
+function deriveParentDomain(host: string): string {
+  const lower = host.toLowerCase().replace(/\.$/, '');
+  const dotCount = (lower.match(/\./g) ?? []).length;
+  if (dotCount <= 1) return lower;
+  const firstDot = lower.indexOf('.');
+  return lower.slice(firstDot + 1);
+}
 
 @Processor(QueueName.PARSE_JOBS, { concurrency: 4 })
 export class ParseJobProcessor extends WorkerHost {
@@ -123,6 +135,13 @@ export class ParseJobProcessor extends WorkerHost {
   private async upsertAsset(engagementId: string, asset: NormalizedAsset): Promise<string | null> {
     const type = ASSET_TYPE_MAP[asset.type];
     if (!type) return null;
+
+    // SUBDOMAIN assets require recon-chain upserts (Domain + Subdomain rows) and
+    // a SUBDOMAIN pivot Asset that sets subdomainId (CHECK constraint enforces this).
+    if (type === 'SUBDOMAIN') {
+      return this.upsertSubdomainChain(engagementId, asset);
+    }
+
     const canonicalValue = asset.value.toLowerCase();
     const existing = await this.prisma.asset.findFirst({
       where: { engagementId, type, canonicalValue, deletedAt: null },
@@ -140,6 +159,69 @@ export class ParseJobProcessor extends WorkerHost {
       select: { id: true },
     });
     return created.id;
+  }
+
+  private async upsertSubdomainChain(
+    engagementId: string,
+    asset: NormalizedAsset,
+  ): Promise<string> {
+    const canonicalValue = asset.value.toLowerCase().replace(/\.$/, '');
+    const parentDomain = deriveParentDomain(canonicalValue);
+
+    return this.prisma.$transaction(async (tx) => {
+      const domain = await tx.domain.upsert({
+        where: {
+          engagementId_canonicalValue: { engagementId, canonicalValue: parentDomain },
+        },
+        create: { engagementId, value: parentDomain, canonicalValue: parentDomain },
+        update: { lastSeenAt: new Date() },
+        select: { id: true },
+      });
+
+      const subdomain = await tx.subdomain.upsert({
+        where: {
+          engagementId_canonicalValue: { engagementId, canonicalValue },
+        },
+        create: {
+          engagementId,
+          domainId: domain.id,
+          value: asset.value,
+          canonicalValue,
+        },
+        update: { lastSeenAt: new Date(), domainId: domain.id },
+        select: { id: true },
+      });
+
+      const existingAsset = await tx.asset.findFirst({
+        where: {
+          engagementId,
+          type: 'SUBDOMAIN',
+          canonicalValue,
+          subdomainId: subdomain.id,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (existingAsset) {
+        await tx.asset.update({
+          where: { id: existingAsset.id },
+          data: { lastSeenAt: new Date() },
+        });
+        return existingAsset.id;
+      }
+
+      const created = await tx.asset.create({
+        data: {
+          engagementId,
+          type: 'SUBDOMAIN',
+          value: asset.value,
+          canonicalValue,
+          subdomainId: subdomain.id,
+        },
+        select: { id: true },
+      });
+      return created.id;
+    });
   }
 
   private async upsertPort(assetId: string, port: NormalizedPort): Promise<string> {

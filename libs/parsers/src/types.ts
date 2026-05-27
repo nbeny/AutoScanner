@@ -1,7 +1,7 @@
 import type { RawOutputFormat } from '@autoscanner/scanner-sdk';
 
 export type Severity = 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-export type AssetType = 'IP' | 'DOMAIN' | 'URL' | 'NETBLOCK' | 'EMAIL';
+export type AssetType = 'IP' | 'DOMAIN' | 'SUBDOMAIN' | 'URL' | 'NETBLOCK' | 'EMAIL';
 export type Protocol = 'TCP' | 'UDP' | 'ICMP' | 'SCTP';
 export type PortState = 'OPEN' | 'CLOSED' | 'FILTERED' | 'OPEN_FILTERED' | 'UNFILTERED';
 

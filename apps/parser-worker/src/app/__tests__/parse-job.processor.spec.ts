@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
 import type { Job } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
-import { ParserRegistry } from '@autoscanner/parsers';
+import { ParserRegistry, SubfinderJsonParser } from '@autoscanner/parsers';
 import { NmapXmlParser } from '@autoscanner/parsers';
 import type { ParseJobPayload } from '@autoscanner/queues';
 import type { ObjectStorage } from '@autoscanner/storage';
@@ -61,6 +61,19 @@ describe('ParseJobProcessor', () => {
       scanJob: {
         update: jest.fn().mockResolvedValue({}),
       },
+      domain: {
+        upsert: jest.fn(async ({ create, where }) => ({
+          id: `domain_${where.engagementId_canonicalValue.canonicalValue}`,
+          ...create,
+        })),
+      },
+      subdomain: {
+        upsert: jest.fn(async ({ create, where }) => ({
+          id: `subdomain_${where.engagementId_canonicalValue.canonicalValue}`,
+          ...create,
+        })),
+      },
+      $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown>) => cb(prisma)),
     } as unknown as jest.Mocked<PrismaService>;
 
     storage = {
@@ -79,6 +92,7 @@ describe('ParseJobProcessor', () => {
 
     registry = new ParserRegistry();
     registry.register(new NmapXmlParser());
+    registry.register(new SubfinderJsonParser());
 
     processor = new ParseJobProcessor(prisma, registry, storage);
   });
@@ -203,5 +217,119 @@ describe('ParseJobProcessor', () => {
     });
 
     await expect(processor.process(job(payload))).rejects.toThrow(/empty/i);
+  });
+
+  describe('SUBDOMAIN persistence (subfinder-json)', () => {
+    const SUBFINDER_JSONL = [
+      '{"host":"www.hackerone.com","source":"crtsh"}',
+      '{"host":"api.hackerone.com","source":"crtsh"}',
+      '{"host":"hackerone.com","source":"shodan"}',
+      '',
+    ].join('\n');
+
+    const subfinderPayload: ParseJobPayload = {
+      scanJobId: 'job_2',
+      rawOutputKey: 'eng_1/scan_2/job_2/subfinder.jsonl',
+      parserName: 'subfinder-json',
+      scannerName: 'subfinder',
+      target: 'hackerone.com',
+      engagementId: 'eng_1',
+    };
+
+    beforeEach(() => {
+      storage.getObject.mockResolvedValue({
+        body: asStream(SUBFINDER_JSONL),
+        contentLength: SUBFINDER_JSONL.length,
+        contentType: 'application/x-ndjson',
+      });
+    });
+
+    it('upserts Domain, Subdomain, and Asset for each SUBDOMAIN normalized asset', async () => {
+      const result = await processor.process(job(subfinderPayload));
+
+      // Three subdomain hosts => three Subdomain upserts.
+      expect((prisma.subdomain as unknown as { upsert: jest.Mock }).upsert).toHaveBeenCalledTimes(
+        3,
+      );
+      expect((prisma.subdomain as unknown as { upsert: jest.Mock }).upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            engagementId_canonicalValue: {
+              engagementId: 'eng_1',
+              canonicalValue: 'www.hackerone.com',
+            },
+          },
+        }),
+      );
+
+      // Domain upserts: parent = hackerone.com for `www.hackerone.com` and `api.hackerone.com`
+      // (everything after first dot); apex `hackerone.com` => parent = itself (1-dot host).
+      const domainUpsert = prisma.domain as unknown as { upsert: jest.Mock };
+      const calls = domainUpsert.upsert.mock.calls.map(
+        (c: [{ where: { engagementId_canonicalValue: { canonicalValue: string } } }]) =>
+          c[0].where.engagementId_canonicalValue.canonicalValue,
+      );
+      // All three subdomains resolve to parent domain `hackerone.com`.
+      expect(calls).toEqual(['hackerone.com', 'hackerone.com', 'hackerone.com']);
+
+      // Asset must be created with type='SUBDOMAIN' and subdomainId set (CHECK constraint).
+      expect(prisma.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            engagementId: 'eng_1',
+            type: 'SUBDOMAIN',
+            value: 'www.hackerone.com',
+            canonicalValue: 'www.hackerone.com',
+            subdomainId: 'subdomain_www.hackerone.com',
+          }),
+        }),
+      );
+      // Polymorphic FKs we do not own must not be set on a SUBDOMAIN Asset.
+      const createCalls = (prisma.asset.create as jest.Mock).mock.calls as Array<
+        [{ data: Record<string, unknown> }]
+      >;
+      for (const [arg] of createCalls) {
+        if (arg.data.type === 'SUBDOMAIN') {
+          expect(arg.data.domainId).toBeUndefined();
+          expect(arg.data.ipAddressId).toBeUndefined();
+        }
+      }
+
+      // Wrapped in $transaction.
+      expect(prisma.$transaction as unknown as jest.Mock).toHaveBeenCalled();
+
+      expect(result.assetsPersisted).toBe(3);
+    });
+
+    it('derives parent domain correctly: ≥2 dots → after first dot; 1 dot → host itself', async () => {
+      await processor.process(job(subfinderPayload));
+
+      const domainUpsert = prisma.domain as unknown as { upsert: jest.Mock };
+      const calls = domainUpsert.upsert.mock.calls.map(
+        (c: [{ create: { canonicalValue: string }; where: unknown }]) => c[0].create.canonicalValue,
+      );
+      // For sub.foo.example.com → foo.example.com pattern (here all hosts in *.hackerone.com).
+      expect(calls).toContain('hackerone.com');
+      // Apex (hackerone.com → hackerone.com) must NOT erroneously produce just `com`.
+      expect(calls).not.toContain('com');
+    });
+
+    it('updates existing Asset row instead of creating a new one for repeat subdomains', async () => {
+      (prisma.asset.findFirst as jest.Mock).mockImplementation(async ({ where }) => {
+        if (where.canonicalValue === 'www.hackerone.com' && where.type === 'SUBDOMAIN') {
+          return { id: 'existing_sub_asset', subdomainId: 'subdomain_www.hackerone.com' };
+        }
+        return null;
+      });
+
+      await processor.process(job(subfinderPayload));
+
+      expect(prisma.asset.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'existing_sub_asset' },
+          data: expect.objectContaining({ lastSeenAt: expect.any(Date) }),
+        }),
+      );
+    });
   });
 });
