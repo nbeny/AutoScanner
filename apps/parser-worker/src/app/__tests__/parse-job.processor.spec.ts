@@ -9,6 +9,11 @@ import type { ObjectStorage } from '@autoscanner/storage';
 
 import { CorrelationService } from '../correlation.service';
 import { ParseJobProcessor } from '../parse-job.processor';
+import { AssetPersister } from '../persisters/asset-persister';
+import { FindingPersister } from '../persisters/finding-persister';
+import { PortPersister } from '../persisters/port-persister';
+import { ServicePersister } from '../persisters/service-persister';
+import { TechnologyPersister } from '../persisters/technology-persister';
 
 const NMAP_XML = `<?xml version="1.0"?>
 <nmaprun>
@@ -108,7 +113,16 @@ describe('ParseJobProcessor', () => {
     // Default: merge is a no-op. Individual tests override.
     jest.spyOn(correlation, 'mergeSubdomains').mockResolvedValue({ merged: 0 });
 
-    processor = new ParseJobProcessor(prisma, registry, storage, correlation);
+    processor = new ParseJobProcessor(
+      registry,
+      storage,
+      correlation,
+      new AssetPersister(prisma),
+      new PortPersister(prisma),
+      new ServicePersister(prisma),
+      new TechnologyPersister(prisma),
+      new FindingPersister(prisma),
+    );
   });
 
   const job = (payload: ParseJobPayload) =>

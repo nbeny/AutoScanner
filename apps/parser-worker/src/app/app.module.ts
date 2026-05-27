@@ -9,6 +9,11 @@ import { StorageModule } from '@autoscanner/storage';
 
 import { CorrelationService } from './correlation.service';
 import { ParseJobProcessor } from './parse-job.processor';
+import { AssetPersister } from './persisters/asset-persister';
+import { FindingPersister } from './persisters/finding-persister';
+import { PortPersister } from './persisters/port-persister';
+import { ServicePersister } from './persisters/service-persister';
+import { TechnologyPersister } from './persisters/technology-persister';
 
 @Module({
   imports: [
@@ -19,6 +24,14 @@ import { ParseJobProcessor } from './parse-job.processor';
     StorageModule,
     ParsersModule,
   ],
-  providers: [ParseJobProcessor, CorrelationService],
+  providers: [
+    ParseJobProcessor,
+    CorrelationService,
+    AssetPersister,
+    PortPersister,
+    ServicePersister,
+    TechnologyPersister,
+    FindingPersister,
+  ],
 })
 export class AppModule {}

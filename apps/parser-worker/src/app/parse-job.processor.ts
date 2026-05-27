@@ -1,24 +1,21 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
-import { createHash } from 'node:crypto';
 import type { Readable } from 'node:stream';
 import type { Job } from 'bullmq';
-import { PrismaService } from '@autoscanner/database';
 import {
   ParserRegistry,
-  type AssetType as NormalizedAssetType,
-  type NormalizedAsset,
-  type NormalizedFinding,
   type NormalizedHttpProbe,
   type NormalizedOutput,
-  type NormalizedPort,
-  type NormalizedService,
-  type NormalizedTechnology,
 } from '@autoscanner/parsers';
 import { QueueName, type ParseJobPayload } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 
-import { canonicalize, CorrelationService } from './correlation.service';
+import { CorrelationService } from './correlation.service';
+import { AssetPersister } from './persisters/asset-persister';
+import { FindingPersister } from './persisters/finding-persister';
+import { PortPersister } from './persisters/port-persister';
+import { ServicePersister } from './persisters/service-persister';
+import { TechnologyPersister } from './persisters/technology-persister';
 
 export interface ParseJobResult {
   assetsPersisted: number;
@@ -28,39 +25,19 @@ export interface ParseJobResult {
   technologiesPersisted: number;
 }
 
-const ASSET_TYPE_MAP: Record<
-  NormalizedAssetType,
-  'DOMAIN' | 'SUBDOMAIN' | 'IP_ADDRESS' | 'URL' | 'NETWORK' | null
-> = {
-  IP: 'IP_ADDRESS',
-  DOMAIN: 'DOMAIN',
-  SUBDOMAIN: 'SUBDOMAIN',
-  URL: 'URL',
-  NETBLOCK: 'NETWORK',
-  EMAIL: null,
-};
-
-// TODO Phase 4: use psl lib for proper Public Suffix List handling.
-// Phase 2 simplification: take everything after the first dot, with an apex-domain guard
-// (single-dot hosts like `hackerone.com` resolve to themselves rather than `com`).
-// Pre-condition: caller passes an already-canonicalized SUBDOMAIN value. The result
-// must still be wrapped with canonicalize(..., { type: 'DOMAIN' }) before persisting.
-function deriveParentDomain(host: string): string {
-  const dotCount = (host.match(/\./g) ?? []).length;
-  if (dotCount <= 1) return host;
-  const firstDot = host.indexOf('.');
-  return host.slice(firstDot + 1);
-}
-
 @Processor(QueueName.PARSE_JOBS, { concurrency: 4 })
 export class ParseJobProcessor extends WorkerHost {
   private readonly logger = new Logger(ParseJobProcessor.name);
 
   constructor(
-    private readonly prisma: PrismaService,
     private readonly registry: ParserRegistry,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly correlation: CorrelationService,
+    private readonly assetPersister: AssetPersister,
+    private readonly portPersister: PortPersister,
+    private readonly servicePersister: ServicePersister,
+    private readonly technologyPersister: TechnologyPersister,
+    private readonly findingPersister: FindingPersister,
   ) {
     super();
   }
@@ -130,7 +107,7 @@ export class ParseJobProcessor extends WorkerHost {
 
     for (const asset of out.assets) {
       const probe = httpProbeByValue.get(asset.value.toLowerCase());
-      const id = await this.upsertAsset(payload.engagementId, asset, probe);
+      const id = await this.assetPersister.upsert(payload.engagementId, asset, probe);
       if (!id) continue;
       assetIdByValue.set(asset.value.toLowerCase(), id);
       assetsPersisted++;
@@ -141,7 +118,7 @@ export class ParseJobProcessor extends WorkerHost {
     for (const port of out.ports) {
       const assetId = assetIdByValue.get(port.assetValue.toLowerCase());
       if (!assetId) continue;
-      const id = await this.upsertPort(assetId, port);
+      const id = await this.portPersister.upsert(assetId, port);
       portIdByKey.set(portKey(port), id);
       portsPersisted++;
     }
@@ -152,7 +129,7 @@ export class ParseJobProcessor extends WorkerHost {
         portKey({ assetValue: svc.assetValue, number: svc.portNumber, protocol: svc.protocol }),
       );
       if (!portId) continue;
-      await this.upsertService(portId, svc);
+      await this.servicePersister.upsert(portId, svc);
       servicesPersisted++;
     }
 
@@ -160,7 +137,7 @@ export class ParseJobProcessor extends WorkerHost {
     for (const tech of out.technologies) {
       const assetId = assetIdByValue.get(tech.assetValue.toLowerCase());
       if (!assetId) continue;
-      await this.upsertTechnology(assetId, tech, payload.scannerName);
+      await this.technologyPersister.upsert(assetId, tech, payload.scannerName);
       technologiesPersisted++;
     }
 
@@ -168,7 +145,7 @@ export class ParseJobProcessor extends WorkerHost {
     for (const finding of out.findings) {
       const assetId = findFirstAssetId(assetIdByValue);
       if (!assetId) continue;
-      await this.upsertFinding(payload.scanJobId, assetId, finding);
+      await this.findingPersister.upsert(payload.scanJobId, assetId, finding);
       findingsPersisted++;
     }
 
@@ -179,244 +156,6 @@ export class ParseJobProcessor extends WorkerHost {
       findingsPersisted,
       technologiesPersisted,
     };
-  }
-
-  private async upsertAsset(
-    engagementId: string,
-    asset: NormalizedAsset,
-    httpProbe?: NormalizedHttpProbe,
-  ): Promise<string | null> {
-    const type = ASSET_TYPE_MAP[asset.type];
-    if (!type) return null;
-
-    // SUBDOMAIN assets require recon-chain upserts (Domain + Subdomain rows) and
-    // a SUBDOMAIN pivot Asset that sets subdomainId (CHECK constraint enforces this).
-    if (type === 'SUBDOMAIN') {
-      return this.upsertSubdomainChain(engagementId, asset, httpProbe);
-    }
-
-    // type ∈ { DOMAIN, IP_ADDRESS, URL, NETWORK }. We canonicalize DOMAIN and
-    // IP_ADDRESS with the matching canonicalize() variant; URL and NETWORK
-    // fall through to a trim-only default (lowercase would mangle URL paths).
-    const canonicalValue =
-      type === 'DOMAIN'
-        ? canonicalize(asset.value, { type: 'DOMAIN' })
-        : type === 'IP_ADDRESS'
-          ? canonicalize(asset.value, { type: 'IP_ADDRESS' })
-          : asset.value.trim();
-    const existing = await this.prisma.asset.findFirst({
-      where: { engagementId, type, canonicalValue, deletedAt: null },
-      select: { id: true },
-    });
-    if (existing) {
-      await this.prisma.asset.update({
-        where: { id: existing.id },
-        data: { lastSeenAt: new Date() },
-      });
-      return existing.id;
-    }
-    const created = await this.prisma.asset.create({
-      data: { engagementId, type, value: asset.value, canonicalValue },
-      select: { id: true },
-    });
-    return created.id;
-  }
-
-  private async upsertSubdomainChain(
-    engagementId: string,
-    asset: NormalizedAsset,
-    httpProbe?: NormalizedHttpProbe,
-  ): Promise<string> {
-    const canonicalValue = canonicalize(asset.value, { type: 'SUBDOMAIN' });
-    const parentDomain = canonicalize(deriveParentDomain(canonicalValue), { type: 'DOMAIN' });
-
-    return this.prisma.$transaction(async (tx) => {
-      const domain = await tx.domain.upsert({
-        where: {
-          engagementId_canonicalValue: { engagementId, canonicalValue: parentDomain },
-        },
-        create: { engagementId, value: parentDomain, canonicalValue: parentDomain },
-        update: { lastSeenAt: new Date() },
-        select: { id: true },
-      });
-
-      const subdomain = await tx.subdomain.upsert({
-        where: {
-          engagementId_canonicalValue: { engagementId, canonicalValue },
-        },
-        create: {
-          engagementId,
-          domainId: domain.id,
-          value: asset.value,
-          canonicalValue,
-        },
-        update: { lastSeenAt: new Date(), domainId: domain.id },
-        select: { id: true },
-      });
-
-      // Apply httpx-derived HTTP fields onto the Subdomain row inside the same
-      // transaction so the row is consistent end-to-end. Partial probes are
-      // safe: Prisma treats `undefined` as "don't write this column," so a
-      // second httpx run that lacks a title won't clobber an existing one.
-      if (
-        httpProbe &&
-        (httpProbe.status !== undefined ||
-          httpProbe.title !== undefined ||
-          httpProbe.server !== undefined)
-      ) {
-        await tx.subdomain.update({
-          where: { id: subdomain.id },
-          data: {
-            httpStatus: httpProbe.status,
-            httpTitle: httpProbe.title,
-            httpServer: httpProbe.server,
-          },
-        });
-      }
-
-      const existingAsset = await tx.asset.findFirst({
-        where: {
-          engagementId,
-          type: 'SUBDOMAIN',
-          canonicalValue,
-          subdomainId: subdomain.id,
-          deletedAt: null,
-        },
-        select: { id: true },
-      });
-      if (existingAsset) {
-        await tx.asset.update({
-          where: { id: existingAsset.id },
-          data: { lastSeenAt: new Date() },
-        });
-        return existingAsset.id;
-      }
-
-      const created = await tx.asset.create({
-        data: {
-          engagementId,
-          type: 'SUBDOMAIN',
-          value: asset.value,
-          canonicalValue,
-          subdomainId: subdomain.id,
-        },
-        select: { id: true },
-      });
-      return created.id;
-    });
-  }
-
-  private async upsertPort(assetId: string, port: NormalizedPort): Promise<string> {
-    const row = await this.prisma.port.upsert({
-      where: {
-        assetId_number_protocol: { assetId, number: port.number, protocol: port.protocol },
-      },
-      create: { assetId, number: port.number, protocol: port.protocol, state: port.state },
-      update: { state: port.state, lastSeenAt: new Date() },
-      select: { id: true },
-    });
-    return row.id;
-  }
-
-  private async upsertService(portId: string, svc: NormalizedService): Promise<void> {
-    const existing = await this.prisma.service.findFirst({
-      where: {
-        portId,
-        name: svc.name ?? null,
-        product: svc.product ?? null,
-        version: svc.version ?? null,
-      },
-      select: { id: true },
-    });
-    if (existing) {
-      await this.prisma.service.update({
-        where: { id: existing.id },
-        data: { lastSeenAt: new Date(), banner: svc.extraInfo ?? undefined, cpe: svc.cpe ?? [] },
-      });
-      return;
-    }
-    await this.prisma.service.create({
-      data: {
-        portId,
-        name: svc.name,
-        product: svc.product,
-        version: svc.version,
-        banner: svc.extraInfo,
-        cpe: svc.cpe ?? [],
-      },
-    });
-  }
-
-  // Technology has a nullable `version` column in its composite unique index.
-  // Postgres treats NULLs as distinct in unique indexes, so prisma.upsert via
-  // the (assetId, name, version) compound key fails when version is undefined.
-  // We use findFirst + create/update instead (mirroring upsertService).
-  private async upsertTechnology(
-    assetId: string,
-    tech: NormalizedTechnology,
-    scannerName: string,
-  ): Promise<void> {
-    const existing = await this.prisma.technology.findFirst({
-      where: {
-        assetId,
-        name: tech.name,
-        version: tech.version ?? null,
-      },
-      select: { id: true },
-    });
-    if (existing) {
-      await this.prisma.technology.update({
-        where: { id: existing.id },
-        data: {
-          lastSeenAt: new Date(),
-          categories: tech.categories ?? undefined,
-        },
-      });
-      return;
-    }
-    await this.prisma.technology.create({
-      data: {
-        assetId,
-        name: tech.name,
-        version: tech.version,
-        source: scannerName,
-        categories: tech.categories ?? undefined,
-      },
-    });
-  }
-
-  private async upsertFinding(
-    scanJobId: string,
-    assetId: string,
-    finding: NormalizedFinding,
-  ): Promise<void> {
-    const dedupHash = createHash('sha256')
-      .update(finding.scannerName)
-      .update('\0')
-      .update(finding.title)
-      .update('\0')
-      .update(finding.location ?? '')
-      .update('\0')
-      .update(finding.cveId ?? '')
-      .update('\0')
-      .update(finding.templateId ?? '')
-      .digest('hex');
-
-    await this.prisma.finding.upsert({
-      where: { assetId_dedupHash: { assetId, dedupHash } },
-      create: {
-        assetId,
-        scanJobId,
-        dedupHash,
-        title: finding.title,
-        severity: finding.severity,
-        location: finding.location,
-        cveId: finding.cveId,
-        templateId: finding.templateId,
-        evidence: finding.evidence as never,
-      },
-      update: { lastSeenAt: new Date() },
-    });
   }
 }
 
