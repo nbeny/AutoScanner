@@ -1,4 +1,5 @@
 import { Readable } from 'node:stream';
+import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
 import { HttpxJsonParser, ParserRegistry, SubfinderJsonParser } from '@autoscanner/parsers';
@@ -6,6 +7,7 @@ import { NmapXmlParser } from '@autoscanner/parsers';
 import type { ParseJobPayload } from '@autoscanner/queues';
 import type { ObjectStorage } from '@autoscanner/storage';
 
+import { CorrelationService } from '../correlation.service';
 import { ParseJobProcessor } from '../parse-job.processor';
 
 const NMAP_XML = `<?xml version="1.0"?>
@@ -35,6 +37,7 @@ describe('ParseJobProcessor', () => {
   let prisma: jest.Mocked<PrismaService>;
   let storage: jest.Mocked<ObjectStorage>;
   let registry: ParserRegistry;
+  let correlation: CorrelationService;
   let processor: ParseJobProcessor;
 
   beforeEach(() => {
@@ -101,7 +104,11 @@ describe('ParseJobProcessor', () => {
     registry.register(new SubfinderJsonParser());
     registry.register(new HttpxJsonParser());
 
-    processor = new ParseJobProcessor(prisma, registry, storage);
+    correlation = new CorrelationService(prisma);
+    // Default: merge is a no-op. Individual tests override.
+    jest.spyOn(correlation, 'mergeSubdomains').mockResolvedValue({ merged: 0 });
+
+    processor = new ParseJobProcessor(prisma, registry, storage, correlation);
   });
 
   const job = (payload: ParseJobPayload) =>
@@ -225,6 +232,32 @@ describe('ParseJobProcessor', () => {
     });
 
     await expect(processor.process(job(payload))).rejects.toThrow(/empty/i);
+  });
+
+  describe('correlation merge after persist', () => {
+    it('invokes correlation.mergeSubdomains with the engagement id after persistence', async () => {
+      await processor.process(job(payload));
+
+      expect(correlation.mergeSubdomains).toHaveBeenCalledTimes(1);
+      expect(correlation.mergeSubdomains).toHaveBeenCalledWith('eng_1');
+    });
+
+    it('does not rethrow when correlation.mergeSubdomains fails — persistence already succeeded', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      (correlation.mergeSubdomains as jest.Mock).mockRejectedValueOnce(
+        new Error('boom: unique violation'),
+      );
+
+      const result = await processor.process(job(payload));
+
+      // Job still reports success since persistence completed.
+      expect(result.assetsPersisted).toBeGreaterThan(0);
+      // And the error is surfaced as a warning, not swallowed silently.
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringMatching(/correlation failed for engagement eng_1.*boom: unique violation/),
+      );
+      warn.mockRestore();
+    });
   });
 
   describe('SUBDOMAIN persistence (subfinder-json)', () => {
