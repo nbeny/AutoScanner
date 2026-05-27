@@ -41,6 +41,7 @@ export type ProducedEntity =
   | 'Asset'
   | 'Subdomain'
   | 'Domain'
+  | 'IpAddress'
   | 'Port'
   | 'Service'
   | 'Technology'

@@ -9,6 +9,7 @@ export default {
     '^@autoscanner/scanners-nmap$': '<rootDir>/../../libs/scanners/nmap/src/index.ts',
     '^@autoscanner/scanners-subfinder$': '<rootDir>/../../libs/scanners/subfinder/src/index.ts',
     '^@autoscanner/scanners-httpx$': '<rootDir>/../../libs/scanners/httpx/src/index.ts',
+    '^@autoscanner/scanners-dnsx$': '<rootDir>/../../libs/scanners/dnsx/src/index.ts',
     '^@autoscanner/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
   },
   testMatch: ['**/*.spec.ts'],
