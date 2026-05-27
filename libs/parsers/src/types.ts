@@ -64,6 +64,13 @@ export interface NormalizedCredential {
   evidence?: unknown;
 }
 
+export interface NormalizedHttpProbe {
+  assetValue: string; // host (matches SUBDOMAIN asset value)
+  status?: number;
+  title?: string;
+  server?: string;
+}
+
 export interface NormalizedOutput {
   assets: NormalizedAsset[];
   ports: NormalizedPort[];
@@ -72,6 +79,7 @@ export interface NormalizedOutput {
   dnsRecords: NormalizedDnsRecord[];
   findings: NormalizedFinding[];
   credentials: NormalizedCredential[];
+  httpProbes: NormalizedHttpProbe[];
   raw?: unknown;
 }
 
@@ -99,5 +107,6 @@ export function emptyNormalizedOutput(): NormalizedOutput {
     dnsRecords: [],
     findings: [],
     credentials: [],
+    httpProbes: [],
   };
 }

@@ -9,9 +9,11 @@ import {
   type AssetType as NormalizedAssetType,
   type NormalizedAsset,
   type NormalizedFinding,
+  type NormalizedHttpProbe,
   type NormalizedOutput,
   type NormalizedPort,
   type NormalizedService,
+  type NormalizedTechnology,
 } from '@autoscanner/parsers';
 import { QueueName, type ParseJobPayload } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
@@ -21,6 +23,7 @@ export interface ParseJobResult {
   portsPersisted: number;
   servicesPersisted: number;
   findingsPersisted: number;
+  technologiesPersisted: number;
 }
 
 const ASSET_TYPE_MAP: Record<
@@ -80,7 +83,7 @@ export class ParseJobProcessor extends WorkerHost {
 
     const result = await this.persist(payload, output);
     this.logger.log(
-      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted}`,
+      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted}`,
     );
     return result;
   }
@@ -94,8 +97,17 @@ export class ParseJobProcessor extends WorkerHost {
     const assetIdByValue = new Map<string, string>();
     let assetsPersisted = 0;
 
+    // Index HTTP probes by canonical assetValue so SUBDOMAIN upserts can
+    // atomically update Subdomain.httpStatus/httpTitle/httpServer inside the
+    // same transaction as the Domain/Subdomain/Asset upserts.
+    const httpProbeByValue = new Map<string, NormalizedHttpProbe>();
+    for (const probe of out.httpProbes) {
+      httpProbeByValue.set(probe.assetValue.toLowerCase(), probe);
+    }
+
     for (const asset of out.assets) {
-      const id = await this.upsertAsset(payload.engagementId, asset);
+      const probe = httpProbeByValue.get(asset.value.toLowerCase());
+      const id = await this.upsertAsset(payload.engagementId, asset, probe);
       if (!id) continue;
       assetIdByValue.set(asset.value.toLowerCase(), id);
       assetsPersisted++;
@@ -121,6 +133,14 @@ export class ParseJobProcessor extends WorkerHost {
       servicesPersisted++;
     }
 
+    let technologiesPersisted = 0;
+    for (const tech of out.technologies) {
+      const assetId = assetIdByValue.get(tech.assetValue.toLowerCase());
+      if (!assetId) continue;
+      await this.upsertTechnology(assetId, tech, payload.scannerName);
+      technologiesPersisted++;
+    }
+
     let findingsPersisted = 0;
     for (const finding of out.findings) {
       const assetId = findFirstAssetId(assetIdByValue);
@@ -129,17 +149,27 @@ export class ParseJobProcessor extends WorkerHost {
       findingsPersisted++;
     }
 
-    return { assetsPersisted, portsPersisted, servicesPersisted, findingsPersisted };
+    return {
+      assetsPersisted,
+      portsPersisted,
+      servicesPersisted,
+      findingsPersisted,
+      technologiesPersisted,
+    };
   }
 
-  private async upsertAsset(engagementId: string, asset: NormalizedAsset): Promise<string | null> {
+  private async upsertAsset(
+    engagementId: string,
+    asset: NormalizedAsset,
+    httpProbe?: NormalizedHttpProbe,
+  ): Promise<string | null> {
     const type = ASSET_TYPE_MAP[asset.type];
     if (!type) return null;
 
     // SUBDOMAIN assets require recon-chain upserts (Domain + Subdomain rows) and
     // a SUBDOMAIN pivot Asset that sets subdomainId (CHECK constraint enforces this).
     if (type === 'SUBDOMAIN') {
-      return this.upsertSubdomainChain(engagementId, asset);
+      return this.upsertSubdomainChain(engagementId, asset, httpProbe);
     }
 
     const canonicalValue = asset.value.toLowerCase();
@@ -164,6 +194,7 @@ export class ParseJobProcessor extends WorkerHost {
   private async upsertSubdomainChain(
     engagementId: string,
     asset: NormalizedAsset,
+    httpProbe?: NormalizedHttpProbe,
   ): Promise<string> {
     const canonicalValue = asset.value.toLowerCase().replace(/\.$/, '');
     const parentDomain = deriveParentDomain(canonicalValue);
@@ -191,6 +222,24 @@ export class ParseJobProcessor extends WorkerHost {
         update: { lastSeenAt: new Date(), domainId: domain.id },
         select: { id: true },
       });
+
+      // Apply httpx-derived HTTP fields onto the Subdomain row inside the same
+      // transaction so the row is consistent end-to-end.
+      if (
+        httpProbe &&
+        (httpProbe.status !== undefined ||
+          httpProbe.title !== undefined ||
+          httpProbe.server !== undefined)
+      ) {
+        await tx.subdomain.update({
+          where: { id: subdomain.id },
+          data: {
+            httpStatus: httpProbe.status,
+            httpTitle: httpProbe.title,
+            httpServer: httpProbe.server,
+          },
+        });
+      }
 
       const existingAsset = await tx.asset.findFirst({
         where: {
@@ -261,6 +310,44 @@ export class ParseJobProcessor extends WorkerHost {
         version: svc.version,
         banner: svc.extraInfo,
         cpe: svc.cpe ?? [],
+      },
+    });
+  }
+
+  // Technology has a nullable `version` column in its composite unique index.
+  // Postgres treats NULLs as distinct in unique indexes, so prisma.upsert via
+  // the (assetId, name, version) compound key fails when version is undefined.
+  // We use findFirst + create/update instead (mirroring upsertService).
+  private async upsertTechnology(
+    assetId: string,
+    tech: NormalizedTechnology,
+    scannerName: string,
+  ): Promise<void> {
+    const existing = await this.prisma.technology.findFirst({
+      where: {
+        assetId,
+        name: tech.name,
+        version: tech.version ?? null,
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      await this.prisma.technology.update({
+        where: { id: existing.id },
+        data: {
+          lastSeenAt: new Date(),
+          categories: tech.categories ?? undefined,
+        },
+      });
+      return;
+    }
+    await this.prisma.technology.create({
+      data: {
+        assetId,
+        name: tech.name,
+        version: tech.version,
+        source: scannerName,
+        categories: tech.categories ?? [],
       },
     });
   }

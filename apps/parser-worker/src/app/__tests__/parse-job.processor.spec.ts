@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
 import type { Job } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
-import { ParserRegistry, SubfinderJsonParser } from '@autoscanner/parsers';
+import { HttpxJsonParser, ParserRegistry, SubfinderJsonParser } from '@autoscanner/parsers';
 import { NmapXmlParser } from '@autoscanner/parsers';
 import type { ParseJobPayload } from '@autoscanner/queues';
 import type { ObjectStorage } from '@autoscanner/storage';
@@ -72,6 +72,12 @@ describe('ParseJobProcessor', () => {
           id: `subdomain_${where.engagementId_canonicalValue.canonicalValue}`,
           ...create,
         })),
+        update: jest.fn(async ({ data, where }) => ({ id: where.id, ...data })),
+      },
+      technology: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(async ({ data }) => ({ id: `tech_${data.assetId}_${data.name}`, ...data })),
+        update: jest.fn(async ({ data, where }) => ({ id: where.id, ...data })),
       },
       $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown>) => cb(prisma)),
     } as unknown as jest.Mocked<PrismaService>;
@@ -93,6 +99,7 @@ describe('ParseJobProcessor', () => {
     registry = new ParserRegistry();
     registry.register(new NmapXmlParser());
     registry.register(new SubfinderJsonParser());
+    registry.register(new HttpxJsonParser());
 
     processor = new ParseJobProcessor(prisma, registry, storage);
   });
@@ -173,6 +180,7 @@ describe('ParseJobProcessor', () => {
       portsPersisted: 2,
       servicesPersisted: 2,
       findingsPersisted: 0,
+      technologiesPersisted: 0,
     });
   });
 
@@ -327,6 +335,162 @@ describe('ParseJobProcessor', () => {
       expect(prisma.asset.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'existing_sub_asset' },
+          data: expect.objectContaining({ lastSeenAt: expect.any(Date) }),
+        }),
+      );
+    });
+  });
+
+  describe('Technology + HTTP-field persistence (httpx-json)', () => {
+    const HTTPX_JSONL = [
+      JSON.stringify({
+        url: 'https://www.hackerone.com',
+        input: 'www.hackerone.com',
+        title: 'HackerOne',
+        webserver: 'cloudflare',
+        status_code: 200,
+        tech: ['Cloudflare', 'HSTS', 'Varnish'],
+      }),
+      JSON.stringify({
+        url: 'https://api.hackerone.com',
+        input: 'api.hackerone.com',
+        title: 'HackerOne API',
+        webserver: 'cloudflare',
+        status_code: 200,
+        tech: [],
+      }),
+      JSON.stringify({
+        url: 'https://mta-sts.hackerone.com',
+        input: 'mta-sts.hackerone.com',
+        webserver: 'GitHub.com',
+        status_code: 404,
+      }),
+      '',
+    ].join('\n');
+
+    const httpxPayload: ParseJobPayload = {
+      scanJobId: 'job_3',
+      rawOutputKey: 'eng_1/scan_3/job_3/httpx.jsonl',
+      parserName: 'httpx-json',
+      scannerName: 'httpx',
+      target: 'hackerone.com',
+      engagementId: 'eng_1',
+    };
+
+    beforeEach(() => {
+      storage.getObject.mockResolvedValue({
+        body: asStream(HTTPX_JSONL),
+        contentLength: HTTPX_JSONL.length,
+        contentType: 'application/x-ndjson',
+      });
+    });
+
+    it('upserts three Technology rows for the SUBDOMAIN asset from httpx', async () => {
+      const result = await processor.process(job(httpxPayload));
+
+      // 3 techs come from www.hackerone.com (Cloudflare/HSTS/Varnish);
+      // api has empty tech[] and mta-sts has no `tech` key — so total = 3.
+      const techCreate = prisma.technology as unknown as { create: jest.Mock };
+      expect(techCreate.create).toHaveBeenCalledTimes(3);
+
+      // Each create must target the www.hackerone.com SUBDOMAIN Asset.
+      const wwwAssetId = 'asset_www.hackerone.com';
+      const createCalls = techCreate.create.mock.calls as Array<
+        [{ data: { assetId: string; name: string; version: unknown; source: string } }]
+      >;
+      const names = createCalls.map(([arg]) => arg.data.name);
+      expect(names).toEqual(expect.arrayContaining(['Cloudflare', 'HSTS', 'Varnish']));
+      for (const [arg] of createCalls) {
+        expect(arg.data.assetId).toBe(wwwAssetId);
+        expect(arg.data.source).toBe('httpx');
+        // version is undefined in httpx -tech-detect mode
+        expect(arg.data.version).toBeUndefined();
+      }
+
+      // Never use prisma.technology.upsert — version is nullable so the unique
+      // (assetId, name, version) compound key can't be used as an upsert key.
+      expect((prisma.technology as unknown as { upsert?: jest.Mock }).upsert).toBeUndefined();
+
+      expect(result.technologiesPersisted).toBe(3);
+    });
+
+    it('updates Subdomain HTTP fields (httpStatus/httpTitle/httpServer) inside the same $transaction', async () => {
+      await processor.process(job(httpxPayload));
+
+      const subdomainUpdate = prisma.subdomain as unknown as { update: jest.Mock };
+
+      // www: status + title + server
+      expect(subdomainUpdate.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'subdomain_www.hackerone.com' },
+          data: expect.objectContaining({
+            httpStatus: 200,
+            httpTitle: 'HackerOne',
+            httpServer: 'cloudflare',
+          }),
+        }),
+      );
+
+      // api: status + title + server (tech empty)
+      expect(subdomainUpdate.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'subdomain_api.hackerone.com' },
+          data: expect.objectContaining({
+            httpStatus: 200,
+            httpTitle: 'HackerOne API',
+            httpServer: 'cloudflare',
+          }),
+        }),
+      );
+
+      // mta-sts: 404, no title, server only
+      expect(subdomainUpdate.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'subdomain_mta-sts.hackerone.com' },
+          data: expect.objectContaining({
+            httpStatus: 404,
+            httpServer: 'GitHub.com',
+          }),
+        }),
+      );
+
+      expect(subdomainUpdate.update).toHaveBeenCalledTimes(3);
+
+      // Updates wrapped in $transaction (the mock passes prisma as tx).
+      expect(prisma.$transaction as unknown as jest.Mock).toHaveBeenCalled();
+    });
+
+    it('does not double-create Technology rows when httpx output repeats for the same host', async () => {
+      // Simulate an existing Technology row for (asset_www.hackerone.com, Cloudflare, null).
+      (prisma.technology as unknown as { findFirst: jest.Mock }).findFirst.mockImplementation(
+        async ({ where }) => {
+          if (
+            where.assetId === 'asset_www.hackerone.com' &&
+            where.name === 'Cloudflare' &&
+            where.version === null
+          ) {
+            return { id: 'existing_tech_cf' };
+          }
+          return null;
+        },
+      );
+
+      await processor.process(job(httpxPayload));
+
+      const techCreate = prisma.technology as unknown as { create: jest.Mock };
+      const techUpdate = prisma.technology as unknown as { update: jest.Mock };
+
+      // Cloudflare → update (lastSeenAt bump); HSTS + Varnish → create.
+      expect(techCreate.create).toHaveBeenCalledTimes(2);
+      const createdNames = (
+        techCreate.create.mock.calls as Array<[{ data: { name: string } }]>
+      ).map(([arg]) => arg.data.name);
+      expect(createdNames).toEqual(expect.arrayContaining(['HSTS', 'Varnish']));
+      expect(createdNames).not.toContain('Cloudflare');
+
+      expect(techUpdate.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'existing_tech_cf' },
           data: expect.objectContaining({ lastSeenAt: expect.any(Date) }),
         }),
       );
