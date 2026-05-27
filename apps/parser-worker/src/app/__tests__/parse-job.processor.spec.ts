@@ -255,6 +255,7 @@ describe('ParseJobProcessor', () => {
       // And the error is surfaced as a warning, not swallowed silently.
       expect(warn).toHaveBeenCalledWith(
         expect.stringMatching(/correlation failed for engagement eng_1.*boom: unique violation/),
+        expect.any(String),
       );
       warn.mockRestore();
     });
