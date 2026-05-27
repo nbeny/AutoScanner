@@ -96,10 +96,7 @@ export function EngagementsListPage() {
                 <td>{e.clientName}</td>
                 <td>{e.status}</td>
                 <td className="text-right">
-                  <Link
-                    to={`/engagements/${e.id}/scans`}
-                    className="text-indigo-400 hover:underline"
-                  >
+                  <Link to={`/engagements/${e.id}`} className="text-indigo-400 hover:underline">
                     Open
                   </Link>
                 </td>
