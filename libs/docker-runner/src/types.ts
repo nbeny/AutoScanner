@@ -15,6 +15,7 @@ export interface RunSpec {
   pidsLimit?: number;
   ulimits?: Array<{ name: string; soft: number; hard: number }>;
   timeoutMs: number;
+  stdin?: string;
   abortSignal?: AbortSignal;
   onStdout?: (chunk: string) => void;
   onStderr?: (chunk: string) => void;

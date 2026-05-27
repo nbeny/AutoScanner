@@ -85,4 +85,23 @@ describe('DockerodeRunner (integration)', () => {
     }),
     30_000,
   );
+
+  it(
+    'pipes spec.stdin to container stdin and streams stdout back',
+    guarded(async () => {
+      const chunks: string[] = [];
+      const spec: RunSpec = {
+        image: ALPINE,
+        cmd: ['sh', '-c', 'cat'],
+        stdin: 'hello-via-stdin\n',
+        timeoutMs: 10_000,
+        onStdout: (c) => chunks.push(c),
+      };
+      const res = await runner.run(spec);
+      expect(res.exitCode).toBe(0);
+      expect(res.timedOut).toBe(false);
+      expect(chunks.join('')).toContain('hello-via-stdin');
+    }),
+    30_000,
+  );
 });

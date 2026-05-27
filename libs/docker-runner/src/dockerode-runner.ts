@@ -84,6 +84,8 @@ export class DockerodeRunner implements DockerRunner {
       stderrFile = createWriteStream(stderrPath);
     }
 
+    const useStdin = spec.stdin !== undefined;
+
     const container = await this.docker.createContainer({
       Image: spec.image,
       Cmd: spec.cmd,
@@ -93,6 +95,7 @@ export class DockerodeRunner implements DockerRunner {
       Tty: false,
       AttachStdout: true,
       AttachStderr: true,
+      ...(useStdin ? { AttachStdin: true, OpenStdin: true, StdinOnce: true } : {}),
       HostConfig: {
         NetworkMode: toNetworkMode(spec.network),
         Binds: bindsToStrings(spec.binds),
@@ -122,7 +125,13 @@ export class DockerodeRunner implements DockerRunner {
       stderr.pipe(stderrFile!);
     }
 
-    const stream = await container.attach({ stream: true, stdout: true, stderr: true });
+    const attachOpts: Docker.ContainerAttachOptions = {
+      stream: true,
+      stdout: true,
+      stderr: true,
+      ...(useStdin ? { stdin: true, hijack: true } : {}),
+    };
+    const stream = await container.attach(attachOpts);
     container.modem.demuxStream(stream, stdout, stderr);
 
     let timedOut = false;
@@ -142,6 +151,10 @@ export class DockerodeRunner implements DockerRunner {
     let exitCode = -1;
     try {
       await container.start();
+      if (useStdin) {
+        (stream as NodeJS.WritableStream).write(spec.stdin as string, 'utf8');
+        (stream as NodeJS.WritableStream).end();
+      }
       const result = await container.wait();
       exitCode = typeof result?.StatusCode === 'number' ? result.StatusCode : -1;
     } catch (err) {

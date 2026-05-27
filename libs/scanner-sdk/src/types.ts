@@ -58,6 +58,7 @@ export interface BuildResult {
   cmd: string[];
   env?: Record<string, string>;
   binds?: Array<{ src: string; dst: string; readonly?: boolean }>;
+  stdin?: string;
 }
 
 export interface ScannerOutput {
