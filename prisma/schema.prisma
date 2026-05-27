@@ -27,9 +27,10 @@ model User {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  sessions     Session[]
-  engagements  Engagement[]
-  scansCreated Scan[]
+  sessions            Session[]
+  engagements         Engagement[]
+  scansCreated        Scan[]
+  templateRunsCreated TemplateRun[]
 
   @@index([deletedAt])
 }
@@ -77,10 +78,14 @@ model Engagement {
   updatedAt   DateTime         @updatedAt
   deletedAt   DateTime?
 
-  owner      User        @relation(fields: [ownerId], references: [id])
-  scopeRules ScopeRule[]
-  assets     Asset[]
-  scans      Scan[]
+  owner        User          @relation(fields: [ownerId], references: [id])
+  scopeRules   ScopeRule[]
+  assets       Asset[]
+  scans        Scan[]
+  domains      Domain[]
+  subdomains   Subdomain[]
+  ipAddresses  IpAddress[]
+  templateRuns TemplateRun[]
 
   @@index([ownerId])
   @@index([status])
@@ -143,10 +148,17 @@ model Asset {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
+  domainId       String?   @unique
+  subdomainId    String?   @unique
+  ipAddressId    String?   @unique
 
-  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
-  ports      Port[]
-  findings   Finding[]
+  engagement   Engagement   @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  ports        Port[]
+  findings     Finding[]
+  domain       Domain?      @relation("AssetDomain", fields: [domainId], references: [id])
+  subdomain    Subdomain?   @relation("AssetSubdomain", fields: [subdomainId], references: [id])
+  ipAddress    IpAddress?   @relation("AssetIpAddress", fields: [ipAddressId], references: [id])
+  technologies Technology[]
 
   // Real uniqueness applied via partial unique index in migration SQL
   @@index([engagementId, type, canonicalValue])
@@ -169,17 +181,20 @@ enum ScanStatus {
 }
 
 model Scan {
-  id           String     @id @default(cuid())
-  engagementId String
-  createdById  String
-  name         String?
-  status       ScanStatus @default(PENDING)
-  createdAt    DateTime   @default(now())
-  completedAt  DateTime?
+  id            String     @id @default(cuid())
+  engagementId  String
+  createdById   String
+  name          String?
+  status        ScanStatus @default(PENDING)
+  createdAt     DateTime   @default(now())
+  completedAt   DateTime?
+  templateRunId String?
+  stepIndex     Int?
 
-  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
-  createdBy  User       @relation(fields: [createdById], references: [id])
-  jobs       ScanJob[]
+  engagement  Engagement   @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  jobs        ScanJob[]
+  templateRun TemplateRun? @relation(fields: [templateRunId], references: [id], onDelete: Cascade)
 
   @@index([engagementId])
   @@index([status])
@@ -288,4 +303,178 @@ model Finding {
   @@index([scanJobId])
   @@index([severity])
   @@index([cveId])
+}
+
+// =====================================================================
+// RECON MODELS (Phase 2)
+// =====================================================================
+
+model Domain {
+  id             String   @id @default(cuid())
+  engagementId   String
+  value          String
+  canonicalValue String
+  firstSeenAt    DateTime @default(now())
+  lastSeenAt     DateTime @default(now())
+  metadata       Json?
+
+  engagement Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  subdomains Subdomain[]
+  dnsRecords DnsRecord[]
+  asset      Asset?      @relation("AssetDomain")
+
+  @@unique([engagementId, canonicalValue])
+  @@index([engagementId])
+}
+
+model Subdomain {
+  id             String   @id @default(cuid())
+  engagementId   String
+  domainId       String
+  value          String
+  canonicalValue String
+  httpStatus     Int?
+  httpTitle      String?
+  httpServer     String?
+  firstSeenAt    DateTime @default(now())
+  lastSeenAt     DateTime @default(now())
+  metadata       Json?
+
+  engagement Engagement    @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  domain     Domain        @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  dnsRecords DnsRecord[]
+  ips        SubdomainIp[]
+  asset      Asset?        @relation("AssetSubdomain")
+
+  @@unique([engagementId, canonicalValue])
+  @@index([engagementId])
+  @@index([domainId])
+}
+
+enum IpVersion {
+  IPV4
+  IPV6
+}
+
+model IpAddress {
+  id             String    @id @default(cuid())
+  engagementId   String
+  value          String
+  canonicalValue String
+  version        IpVersion
+  firstSeenAt    DateTime  @default(now())
+  lastSeenAt     DateTime  @default(now())
+  metadata       Json?
+
+  engagement Engagement    @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  subdomains SubdomainIp[]
+  asset      Asset?        @relation("AssetIpAddress")
+
+  @@unique([engagementId, canonicalValue])
+  @@index([engagementId])
+}
+
+model SubdomainIp {
+  subdomainId String
+  ipAddressId String
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  subdomain Subdomain @relation(fields: [subdomainId], references: [id], onDelete: Cascade)
+  ip        IpAddress @relation(fields: [ipAddressId], references: [id], onDelete: Cascade)
+
+  @@id([subdomainId, ipAddressId])
+}
+
+enum DnsRecordType {
+  A
+  AAAA
+  CNAME
+  MX
+  NS
+  TXT
+  PTR
+  SRV
+  CAA
+  SOA
+}
+
+model DnsRecord {
+  id          String        @id @default(cuid())
+  domainId    String?
+  subdomainId String?
+  type        DnsRecordType
+  name        String
+  value       String
+  ttl         Int?
+  firstSeenAt DateTime      @default(now())
+  lastSeenAt  DateTime      @default(now())
+
+  domain    Domain?    @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  subdomain Subdomain? @relation(fields: [subdomainId], references: [id], onDelete: Cascade)
+
+  @@unique([domainId, subdomainId, type, name, value])
+  @@index([subdomainId])
+  @@index([domainId])
+}
+
+model Technology {
+  id          String   @id @default(cuid())
+  assetId     String
+  name        String
+  version     String?
+  source      String
+  categories  String[] @default([])
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, name, version])
+  @@index([assetId])
+}
+
+model ScanTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  displayName String
+  description String?
+  steps       Json
+  isSeeded    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  runs TemplateRun[]
+}
+
+enum TemplateRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model TemplateRun {
+  id               String            @id @default(cuid())
+  templateId       String
+  templateName     String
+  engagementId     String
+  target           String
+  status           TemplateRunStatus @default(PENDING)
+  currentStepIndex Int               @default(0)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  errorMessage     String?
+  createdById      String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  template   ScanTemplate @relation(fields: [templateId], references: [id])
+  engagement Engagement   @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  createdBy  User         @relation(fields: [createdById], references: [id])
+  scans      Scan[]
+
+  @@index([engagementId])
+  @@index([status])
 }

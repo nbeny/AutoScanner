@@ -5,6 +5,13 @@
   "projectType": "library",
   "tags": ["scope:lib"],
   "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/database"],
+      "options": {
+        "jestConfig": "libs/database/jest.config.ts"
+      }
+    },
     "type-check": {
       "executor": "nx:run-commands",
       "options": {
