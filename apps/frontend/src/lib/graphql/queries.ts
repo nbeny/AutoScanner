@@ -92,6 +92,29 @@ export const ASSETS_QUERY = gql`
           version
         }
       }
+      technologies {
+        id
+        name
+        version
+      }
+    }
+  }
+`;
+
+// Pass severities=null to mean "no filter" (all severities). Pass an explicit
+// array (possibly empty) to filter; an empty array also means "no filter" on
+// the backend side. The frontend always sends `null` when every checkbox is on.
+export const FINDINGS_QUERY = gql`
+  query Findings($engagementId: ID!, $severities: [Severity!]) {
+    findings(engagementId: $engagementId, severities: $severities) {
+      id
+      title
+      severity
+      location
+      cveId
+      templateId
+      firstSeenAt
+      lastSeenAt
     }
   }
 `;

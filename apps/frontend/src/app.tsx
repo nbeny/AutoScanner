@@ -4,6 +4,7 @@ import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth-context';
 import { createApolloClient } from './lib/apollo';
 import { LoginPage } from './features/auth/login-page';
+import { EngagementPage } from './features/engagements/engagement-page';
 import { EngagementsListPage } from './features/engagements/engagements-list-page';
 import { ScanRunPage } from './features/scans/scan-run-page';
 import { TemplateRunPage } from './features/template-runs/template-run-page';
@@ -49,6 +50,14 @@ function AppShell() {
           element={
             <RequireAuth>
               <EngagementsListPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/engagements/:engagementId"
+          element={
+            <RequireAuth>
+              <EngagementPage />
             </RequireAuth>
           }
         />
