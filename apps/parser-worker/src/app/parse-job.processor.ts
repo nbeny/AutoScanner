@@ -18,6 +18,8 @@ import {
 import { QueueName, type ParseJobPayload } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 
+import { canonicalize, CorrelationService } from './correlation.service';
+
 export interface ParseJobResult {
   assetsPersisted: number;
   portsPersisted: number;
@@ -41,12 +43,13 @@ const ASSET_TYPE_MAP: Record<
 // TODO Phase 4: use psl lib for proper Public Suffix List handling.
 // Phase 2 simplification: take everything after the first dot, with an apex-domain guard
 // (single-dot hosts like `hackerone.com` resolve to themselves rather than `com`).
+// Pre-condition: caller passes an already-canonicalized SUBDOMAIN value. The result
+// must still be wrapped with canonicalize(..., { type: 'DOMAIN' }) before persisting.
 function deriveParentDomain(host: string): string {
-  const lower = host.toLowerCase().replace(/\.$/, '');
-  const dotCount = (lower.match(/\./g) ?? []).length;
-  if (dotCount <= 1) return lower;
-  const firstDot = lower.indexOf('.');
-  return lower.slice(firstDot + 1);
+  const dotCount = (host.match(/\./g) ?? []).length;
+  if (dotCount <= 1) return host;
+  const firstDot = host.indexOf('.');
+  return host.slice(firstDot + 1);
 }
 
 @Processor(QueueName.PARSE_JOBS, { concurrency: 4 })
@@ -57,6 +60,7 @@ export class ParseJobProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly registry: ParserRegistry,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly correlation: CorrelationService,
   ) {
     super();
   }
@@ -85,6 +89,24 @@ export class ParseJobProcessor extends WorkerHost {
     this.logger.log(
       `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted}`,
     );
+
+    // Correlation v1: defensive merge of duplicate subdomains within the engagement.
+    // Best-effort — persistence already succeeded, so the BullMQ job reports success
+    // even if correlation fails. The unique constraint on Subdomain prevents the
+    // duplicates this targets today; it will become load-bearing in Phase 3+.
+    try {
+      const { merged } = await this.correlation.mergeSubdomains(payload.engagementId);
+      if (merged > 0) {
+        this.logger.log(
+          `correlation merged ${merged} duplicate subdomains for engagement ${payload.engagementId}`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `correlation failed for engagement ${payload.engagementId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
     return result;
   }
 
@@ -172,7 +194,15 @@ export class ParseJobProcessor extends WorkerHost {
       return this.upsertSubdomainChain(engagementId, asset, httpProbe);
     }
 
-    const canonicalValue = asset.value.toLowerCase();
+    // type ∈ { DOMAIN, IP_ADDRESS, URL, NETWORK }. We canonicalize DOMAIN and
+    // IP_ADDRESS with the matching canonicalize() variant; URL and NETWORK
+    // fall through to a trim-only default (lowercase would mangle URL paths).
+    const canonicalValue =
+      type === 'DOMAIN'
+        ? canonicalize(asset.value, { type: 'DOMAIN' })
+        : type === 'IP_ADDRESS'
+          ? canonicalize(asset.value, { type: 'IP_ADDRESS' })
+          : asset.value.trim();
     const existing = await this.prisma.asset.findFirst({
       where: { engagementId, type, canonicalValue, deletedAt: null },
       select: { id: true },
@@ -196,8 +226,8 @@ export class ParseJobProcessor extends WorkerHost {
     asset: NormalizedAsset,
     httpProbe?: NormalizedHttpProbe,
   ): Promise<string> {
-    const canonicalValue = asset.value.toLowerCase().replace(/\.$/, '');
-    const parentDomain = deriveParentDomain(canonicalValue);
+    const canonicalValue = canonicalize(asset.value, { type: 'SUBDOMAIN' });
+    const parentDomain = canonicalize(deriveParentDomain(canonicalValue), { type: 'DOMAIN' });
 
     return this.prisma.$transaction(async (tx) => {
       const domain = await tx.domain.upsert({

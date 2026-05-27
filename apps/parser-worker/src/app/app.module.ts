@@ -7,6 +7,7 @@ import { QueuesModule } from '@autoscanner/queues';
 import { ParsersModule } from '@autoscanner/parsers';
 import { StorageModule } from '@autoscanner/storage';
 
+import { CorrelationService } from './correlation.service';
 import { ParseJobProcessor } from './parse-job.processor';
 
 @Module({
@@ -18,6 +19,6 @@ import { ParseJobProcessor } from './parse-job.processor';
     StorageModule,
     ParsersModule,
   ],
-  providers: [ParseJobProcessor],
+  providers: [ParseJobProcessor, CorrelationService],
 })
 export class AppModule {}
