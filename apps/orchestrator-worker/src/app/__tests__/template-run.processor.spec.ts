@@ -1,0 +1,233 @@
+import type { Job } from 'bullmq';
+import type { PrismaService } from '@autoscanner/database';
+import type { TemplateRunPayload } from '@autoscanner/queues';
+import type { TemplateDefinition } from '@autoscanner/templates';
+import { TemplateRegistry } from '@autoscanner/templates';
+
+import type { StepExecutor } from '../step-executor.service';
+import { TemplateRunProcessor } from '../template-run.processor';
+
+type TemplateRunRow = {
+  id: string;
+  templateId: string;
+  templateName: string;
+  engagementId: string;
+  target: string;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  currentStepIndex: number;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  errorMessage: string | null;
+  createdById: string;
+  createdAt: Date;
+  updatedAt: Date;
+  template: { id: string; name: string };
+};
+
+function makeRow(overrides: Partial<TemplateRunRow> = {}): TemplateRunRow {
+  return {
+    id: 'run_1',
+    templateId: 'tpl_1',
+    templateName: 'recon-passive',
+    engagementId: 'eng_1',
+    target: 'example.com',
+    status: 'PENDING',
+    currentStepIndex: 0,
+    startedAt: null,
+    completedAt: null,
+    errorMessage: null,
+    createdById: 'user_1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    template: { id: 'tpl_1', name: 'recon-passive' },
+    ...overrides,
+  };
+}
+
+function makePrisma(row: TemplateRunRow): jest.Mocked<PrismaService> {
+  return {
+    templateRun: {
+      findUniqueOrThrow: jest.fn().mockResolvedValue(row),
+      update: jest.fn().mockResolvedValue({}),
+    },
+  } as unknown as jest.Mocked<PrismaService>;
+}
+
+const TEMPLATE: TemplateDefinition = {
+  name: 'recon-passive',
+  displayName: 'Test Recon',
+  description: 'unit-test',
+  steps: [
+    {
+      scannerName: 'subfinder',
+      inputs: {},
+      target: { kind: 'context', path: 'target' },
+    },
+    {
+      scannerName: 'httpx',
+      inputs: {},
+      target: { kind: 'context', path: 'subdomains' },
+    },
+  ],
+};
+
+function makeRegistry(): TemplateRegistry {
+  const r = new TemplateRegistry();
+  r.register(TEMPLATE);
+  return r;
+}
+
+function makeExecutor(): jest.Mocked<StepExecutor> {
+  return {
+    runStep: jest.fn().mockResolvedValue(undefined),
+  } as unknown as jest.Mocked<StepExecutor>;
+}
+
+const job = (payload: TemplateRunPayload): Job<TemplateRunPayload> =>
+  ({
+    id: 'bull_1',
+    name: 'run-template',
+    data: payload,
+    attemptsMade: 0,
+  }) as unknown as Job<TemplateRunPayload>;
+
+describe('TemplateRunProcessor', () => {
+  it('PENDING -> RUNNING -> COMPLETED happy path', async () => {
+    const row = makeRow({ status: 'PENDING', currentStepIndex: 0 });
+    const prisma = makePrisma(row);
+    const registry = makeRegistry();
+    const executor = makeExecutor();
+    const proc = new TemplateRunProcessor(prisma, registry, executor);
+
+    await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
+
+    // Step 1: flip to RUNNING + set startedAt
+    expect(prisma.templateRun.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'run_1' },
+        data: expect.objectContaining({
+          status: 'RUNNING',
+          startedAt: expect.any(Date),
+        }),
+      }),
+    );
+
+    // Each step persists currentStepIndex before executing
+    expect(prisma.templateRun.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'run_1' },
+        data: { currentStepIndex: 0 },
+      }),
+    );
+    expect(prisma.templateRun.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'run_1' },
+        data: { currentStepIndex: 1 },
+      }),
+    );
+
+    expect(executor.runStep).toHaveBeenCalledTimes(2);
+    expect(executor.runStep).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        stepIndex: 0,
+        step: expect.objectContaining({ scannerName: 'subfinder' }),
+      }),
+    );
+    expect(executor.runStep).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        stepIndex: 1,
+        step: expect.objectContaining({ scannerName: 'httpx' }),
+      }),
+    );
+
+    // Final flip to COMPLETED
+    expect(prisma.templateRun.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { id: 'run_1' },
+        data: expect.objectContaining({
+          status: 'COMPLETED',
+          completedAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
+  it('resumes at currentStepIndex when the run was already partially executed', async () => {
+    const row = makeRow({ status: 'RUNNING', currentStepIndex: 1, startedAt: new Date() });
+    const prisma = makePrisma(row);
+    const executor = makeExecutor();
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+
+    await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
+
+    // Only step 1 should run (step 0 was already done before the crash)
+    expect(executor.runStep).toHaveBeenCalledTimes(1);
+    expect(executor.runStep).toHaveBeenCalledWith(expect.objectContaining({ stepIndex: 1 }));
+  });
+
+  it('marks FAILED and re-throws when a step throws', async () => {
+    const row = makeRow({ status: 'PENDING' });
+    const prisma = makePrisma(row);
+    const executor = makeExecutor();
+    executor.runStep.mockRejectedValueOnce(new Error('docker boom'));
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+
+    await expect(
+      proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
+    ).rejects.toThrow('docker boom');
+
+    expect(prisma.templateRun.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'run_1' },
+        data: expect.objectContaining({
+          status: 'FAILED',
+          errorMessage: 'docker boom',
+          completedAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
+  it('Already-CANCELLED -> early return, no executor calls, no status mutation', async () => {
+    const row = makeRow({ status: 'CANCELLED' });
+    const prisma = makePrisma(row);
+    const executor = makeExecutor();
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+
+    await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
+
+    expect(executor.runStep).not.toHaveBeenCalled();
+    expect(prisma.templateRun.update).not.toHaveBeenCalled();
+  });
+
+  it('Already-COMPLETED -> early return, no executor calls, no status mutation', async () => {
+    const row = makeRow({ status: 'COMPLETED' });
+    const prisma = makePrisma(row);
+    const executor = makeExecutor();
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+
+    await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
+
+    expect(executor.runStep).not.toHaveBeenCalled();
+    expect(prisma.templateRun.update).not.toHaveBeenCalled();
+  });
+
+  it('preserves existing startedAt on resume (does not overwrite)', async () => {
+    const startedAt = new Date('2024-01-01T00:00:00Z');
+    const row = makeRow({ status: 'RUNNING', currentStepIndex: 0, startedAt });
+    const prisma = makePrisma(row);
+    const executor = makeExecutor();
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+
+    await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
+
+    expect(prisma.templateRun.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'run_1' },
+        data: expect.objectContaining({ status: 'RUNNING', startedAt }),
+      }),
+    );
+  });
+});
