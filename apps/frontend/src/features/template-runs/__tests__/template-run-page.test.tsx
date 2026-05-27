@@ -99,7 +99,9 @@ describe('<TemplateRunPage />', () => {
         ],
       },
     ];
-    renderPage([templateRunMock(scans)]);
+    // Provide a second identical mock entry to cover a possible 3s poll tick
+    // if the test runs slowly — prevents Apollo "no more mocked responses" noise.
+    renderPage([templateRunMock(scans), templateRunMock(scans)]);
 
     const stepCards = await screen.findAllByLabelText(/template-step-card/i);
     expect(stepCards).toHaveLength(2);

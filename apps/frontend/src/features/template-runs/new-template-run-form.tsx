@@ -53,12 +53,16 @@ export function NewTemplateRunForm({ engagementId }: Props) {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (submitDisabled) return;
-    const res = await runTemplate({
-      variables: { input: { engagementId, templateName, target } },
-    });
-    const created = res.data?.runTemplate;
-    if (created) {
-      navigate(`/engagements/${engagementId}/template-runs/${created.id}`);
+    try {
+      const res = await runTemplate({
+        variables: { input: { engagementId, templateName, target } },
+      });
+      const created = res.data?.runTemplate;
+      if (created) {
+        navigate(`/engagements/${engagementId}/template-runs/${created.id}`);
+      }
+    } catch {
+      // Error already exposed via runError; prevent unhandled rejection.
     }
   }
 

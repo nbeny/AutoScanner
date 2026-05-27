@@ -79,6 +79,16 @@ export function TemplateRunPage() {
     [run],
   );
 
+  const sortedScans = useMemo(
+    () =>
+      run?.scans
+        ? [...run.scans].sort(
+            (a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime(),
+          )
+        : [],
+    [run],
+  );
+
   if (!engagementId || !templateRunId) {
     return <p className="p-8">Missing engagement or template run id.</p>;
   }
@@ -120,7 +130,7 @@ export function TemplateRunPage() {
                 </span>
               ) : null}
               <span className="text-slate-500 text-xs">
-                step {run.currentStepIndex + 1}/{run.scans?.length || '?'}
+                step {run.currentStepIndex + 1}/{sortedScans.length > 0 ? sortedScans.length : '?'}
               </span>
             </div>
           </header>
@@ -132,8 +142,8 @@ export function TemplateRunPage() {
           ) : null}
 
           <section className="space-y-3" aria-label="template-run-steps">
-            {run.scans && run.scans.length > 0 ? (
-              run.scans.map((scan, idx) => (
+            {sortedScans.length > 0 ? (
+              sortedScans.map((scan, idx) => (
                 <TemplateStepCard key={scan.id} scan={scan} index={idx} />
               ))
             ) : (
