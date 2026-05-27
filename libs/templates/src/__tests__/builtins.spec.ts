@@ -1,4 +1,5 @@
-import { BUILTIN_TEMPLATES, ReconPassive, TemplateRegistry } from '../index';
+import { Test } from '@nestjs/testing';
+import { BUILTIN_TEMPLATES, ReconPassive, TemplateRegistry, TemplatesModule } from '../index';
 
 describe('builtin templates', () => {
   describe('ReconPassive', () => {
@@ -38,6 +39,23 @@ describe('builtin templates', () => {
       const retrieved = registry.get('recon-passive');
       expect(retrieved).toBe(ReconPassive);
       expect(retrieved.steps).toHaveLength(2);
+    });
+  });
+
+  describe('TemplatesModule onModuleInit', () => {
+    it('registers builtins on first init and stays idempotent on re-init', async () => {
+      const ref = await Test.createTestingModule({ imports: [TemplatesModule] }).compile();
+      await ref.init();
+      const registry = ref.get(TemplateRegistry);
+
+      expect(registry.get('recon-passive')).toBe(ReconPassive);
+
+      // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
+      const moduleInstance = ref.get(TemplatesModule);
+      expect(() => moduleInstance.onModuleInit()).not.toThrow();
+      expect(registry.list()).toHaveLength(BUILTIN_TEMPLATES.length);
+
+      await ref.close();
     });
   });
 });
