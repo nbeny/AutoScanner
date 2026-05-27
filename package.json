@@ -122,6 +122,7 @@
     "graphql-request": "^7.4.0",
     "graphql-subscriptions": "^3.0.0",
     "graphql-tag": "2.12.6",
+    "graphql-type-json": "^0.3.2",
     "graphql-ws": "^6.0.3",
     "ioredis": "5.4.2",
     "jsonwebtoken": "9.0.2",
