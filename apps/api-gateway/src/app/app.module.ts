@@ -12,6 +12,7 @@ import { StorageModule } from '@autoscanner/storage';
 import { formatGraphqlError } from './graphql-error.formatter';
 import { AssetsModule } from './assets/assets.module';
 import { AuthModule } from './auth/auth.module';
+import { DnsRecordsModule } from './dns-records/dns-records.module';
 import { EngagementsModule } from './engagements/engagements.module';
 import { FindingsModule } from './findings/findings.module';
 import { HealthModule } from './health/health.module';
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
     }),
     AssetsModule,
     AuthModule,
+    DnsRecordsModule,
     EngagementsModule,
     FindingsModule,
     HealthModule,
