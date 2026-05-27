@@ -7,6 +7,7 @@ import { PrismaModule } from '@autoscanner/database';
 import { QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { DnsxScannerModule } from '@autoscanner/scanners-dnsx';
+import { NaabuScannerModule } from '@autoscanner/scanners-naabu';
 import { SubfinderScannerModule } from '@autoscanner/scanners-subfinder';
 import { HttpxScannerModule } from '@autoscanner/scanners-httpx';
 import { TemplatesModule } from '@autoscanner/templates';
@@ -48,6 +49,7 @@ const redisSubscriber: Provider = {
     SubfinderScannerModule,
     HttpxScannerModule,
     DnsxScannerModule,
+    NaabuScannerModule,
   ],
   providers: [redisSubscriber, ContextBuilder, StepExecutor, TemplateRunProcessor],
 })

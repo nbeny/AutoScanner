@@ -4,4 +4,5 @@ export * from './nmap-xml.parser';
 export * from './subfinder-json';
 export * from './httpx-json';
 export * from './dnsx-json';
+export * from './naabu-json';
 export * from './parsers.module';

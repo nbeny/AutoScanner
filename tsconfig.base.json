@@ -36,6 +36,7 @@
       "@autoscanner/queues": ["libs/queues/src/index.ts"],
       "@autoscanner/scanner-sdk": ["libs/scanner-sdk/src/index.ts"],
       "@autoscanner/scanners-httpx": ["libs/scanners/httpx/src/index.ts"],
+      "@autoscanner/scanners-naabu": ["libs/scanners/naabu/src/index.ts"],
       "@autoscanner/scanners-nmap": ["libs/scanners/nmap/src/index.ts"],
       "@autoscanner/scanners-dnsx": ["libs/scanners/dnsx/src/index.ts"],
       "@autoscanner/scanners-subfinder": ["libs/scanners/subfinder/src/index.ts"],
