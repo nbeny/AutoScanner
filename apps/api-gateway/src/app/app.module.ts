@@ -16,6 +16,7 @@ import { EngagementsModule } from './engagements/engagements.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { ScansModule } from './scans/scans.module';
+import { TemplatesModule } from './templates/templates.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -47,6 +48,7 @@ import { UsersModule } from './users/users.module';
     HealthModule,
     MetricsModule,
     ScansModule,
+    TemplatesModule,
     UsersModule,
   ],
   providers: [
