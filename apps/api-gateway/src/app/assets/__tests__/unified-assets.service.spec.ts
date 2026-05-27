@@ -61,6 +61,58 @@ describe('UnifiedAssetsService', () => {
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
   });
 
+  // The bound LIMIT/OFFSET values inside the Prisma.sql tagged template are
+  // awkward to introspect from a jest mock, so these tests assert the contract
+  // we actually care about: the service does NOT crash on hostile pagination
+  // input, and still issues exactly one $queryRaw call.
+  it('defaults limit to 100 when limit is NaN (does not throw)', async () => {
+    (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(svc.list(userId, engagementId, { limit: Number.NaN })).resolves.toEqual([]);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('truncates non-integer limit (12.7 -> 12, does not throw)', async () => {
+    (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(svc.list(userId, engagementId, { limit: 12.7 })).resolves.toEqual([]);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('clamps negative limit to 1 (does not throw)', async () => {
+    (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(svc.list(userId, engagementId, { limit: -5 })).resolves.toEqual([]);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('clamps oversized limit to 500 (does not throw)', async () => {
+    (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(svc.list(userId, engagementId, { limit: 1000 })).resolves.toEqual([]);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('clamps negative offset to 0 (does not throw)', async () => {
+    (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(svc.list(userId, engagementId, { offset: -1 })).resolves.toEqual([]);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('defaults offset to 0 when offset is NaN (does not throw)', async () => {
+    (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(svc.list(userId, engagementId, { offset: Number.NaN })).resolves.toEqual([]);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+
   it('treats empty/whitespace search as no filter (does not throw)', async () => {
     (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
     (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([]);

@@ -16,6 +16,25 @@ const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
 
 /**
+ * Clamps and normalizes user-supplied pagination inputs. Defends against
+ * `NaN`, `Infinity`, and non-integer floats: any non-finite value falls back
+ * to the default; finite floats are truncated to integers before clamping.
+ * Postgres would reject `LIMIT NaN`, and silently accepting `12.7` as 12.7
+ * is unfriendly — so we coerce here, not at the SQL layer.
+ */
+function clampPagination(
+  limit: number | null | undefined,
+  offset: number | null | undefined,
+): { limit: number; offset: number } {
+  const rawLimit = Number.isFinite(limit) ? Math.trunc(limit as number) : DEFAULT_LIMIT;
+  const rawOffset = Number.isFinite(offset) ? Math.trunc(offset as number) : 0;
+  return {
+    limit: Math.min(Math.max(rawLimit, 1), MAX_LIMIT),
+    offset: Math.max(rawOffset, 0),
+  };
+}
+
+/**
  * Reads the `asset_unified_view` SQL view (introduced in
  * `20260528000000_asset_unified_view`) and projects a single row stream over
  * the polymorphic Asset side-tables. The frontend `unifiedAssets` query
@@ -26,7 +45,9 @@ const MAX_LIMIT = 500;
  *   - `search`: case-insensitive substring on `canonicalValue` OR `displayName`.
  *               Trimmed; empty / whitespace-only is "no filter".
  * Pagination defaults: `limit=100` (clamped to [1, 500]), `offset=0` (clamped
- * to >= 0). Sort order is `lastSeenAt DESC, id ASC` for deterministic paging.
+ * to >= 0). Non-finite or non-integer limit/offset values fall back to the
+ * defaults (see `clampPagination`). Sort order is `lastSeenAt DESC, id ASC`
+ * for deterministic paging.
  */
 @Injectable()
 export class UnifiedAssetsService {
@@ -43,8 +64,7 @@ export class UnifiedAssetsService {
     });
     if (!engagement) throw new NotFoundError('Engagement', engagementId);
 
-    const limit = Math.min(Math.max(opts.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
-    const offset = Math.max(opts.offset ?? 0, 0);
+    const { limit, offset } = clampPagination(opts.limit, opts.offset);
 
     const trimmed = opts.search?.trim();
     const search = trimmed && trimmed.length > 0 ? trimmed : null;
