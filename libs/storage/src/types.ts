@@ -1,4 +1,5 @@
 import type { Readable } from 'node:stream';
+import type { RawOutputFormat } from '@autoscanner/scanner-sdk';
 
 export type StorageBucket =
   | 'raw-outputs'
@@ -48,7 +49,7 @@ export function rawOutputKey(args: {
   scanId: string;
   scanJobId: string;
   scannerName: string;
-  format: 'XML' | 'JSON' | 'CSV' | 'TEXT' | 'HTML' | 'SARIF' | 'PCAP' | 'BINARY';
+  format: RawOutputFormat;
 }): string {
   const ext = args.format.toLowerCase();
   return `${args.engagementId}/${args.scanId}/${args.scanJobId}/${args.scannerName}-${args.format.toLowerCase()}.${ext}`;
