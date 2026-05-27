@@ -180,7 +180,7 @@ describe('Asset polymorphic CHECK constraint', () => {
           // domainId intentionally omitted — should violate CHECK constraint
         },
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/asset_polymorphic_fk_check/i);
   });
 
   it('rejects Asset type=SUBDOMAIN when subdomainId is null', async () => {
@@ -196,7 +196,7 @@ describe('Asset polymorphic CHECK constraint', () => {
           // subdomainId intentionally omitted
         },
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/asset_polymorphic_fk_check/i);
   });
 
   it('rejects Asset type=IP_ADDRESS when ipAddressId is null', async () => {
@@ -212,7 +212,7 @@ describe('Asset polymorphic CHECK constraint', () => {
           // ipAddressId intentionally omitted
         },
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/asset_polymorphic_fk_check/i);
   });
 
   it('allows Asset type=URL (no polymorphic FK required)', async () => {
@@ -227,6 +227,58 @@ describe('Asset polymorphic CHECK constraint', () => {
       },
     });
     expect(asset.id).toBeTruthy();
+  });
+
+  it('allows soft-deleting an Asset and then hard-deleting its polymorphic FK target', async () => {
+    // Regression test for the original CHECK constraint. With the fix the
+    // CHECK is short-circuited when deletedAt IS NOT NULL, so:
+    //   1) the soft-delete UPDATE on the Asset succeeds, and
+    //   2) the subsequent ON DELETE SET NULL cascade (triggered by hard-
+    //      deleting the Domain) succeeds as well, since the Asset is
+    //      already soft-deleted by the time the cascading UPDATE fires.
+    //
+    // (Note: PostgreSQL CHECK constraints are evaluated row-by-row at
+    // statement end and cannot be deferred, so the soft-delete must happen
+    // before the FK target is hard-deleted.)
+    const { engagement } = await createTestEngagementAndUser('check-soft-delete');
+
+    const domain = await prisma.domain.create({
+      data: {
+        engagementId: engagement.id,
+        value: 'soft-delete.example.com',
+        canonicalValue: 'soft-delete.example.com',
+      },
+    });
+
+    const asset = await prisma.asset.create({
+      data: {
+        engagementId: engagement.id,
+        type: 'DOMAIN',
+        value: 'soft-delete.example.com',
+        canonicalValue: 'soft-delete.example.com',
+        domainId: domain.id,
+      },
+    });
+
+    // Soft-delete the Asset first. Under the pre-fix CHECK this UPDATE would
+    // succeed (the row state stays consistent), but the later cascade would
+    // fail. Under the new CHECK both operations succeed.
+    const softDeleted = await prisma.asset.update({
+      where: { id: asset.id },
+      data: { deletedAt: new Date() },
+    });
+    expect(softDeleted.deletedAt).not.toBeNull();
+    expect(softDeleted.domainId).toBe(domain.id);
+
+    // Hard-delete the Domain. ON DELETE SET NULL fires a cascading UPDATE
+    // that nulls Asset.domainId. Without the deletedAt short-circuit the
+    // resulting row (type=DOMAIN, domainId=NULL) would violate the CHECK;
+    // with the fix it passes because deletedAt is already set.
+    await prisma.domain.delete({ where: { id: domain.id } });
+
+    const after = await prisma.asset.findUniqueOrThrow({ where: { id: asset.id } });
+    expect(after.deletedAt).not.toBeNull();
+    expect(after.domainId).toBeNull();
   });
 });
 
@@ -254,7 +306,7 @@ describe('Unique constraints on Domain, Subdomain, IpAddress', () => {
           canonicalValue: 'unique.com',
         },
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: 'P2002' });
   });
 
   it('rejects duplicate Subdomain (engagementId, canonicalValue)', async () => {
@@ -286,7 +338,7 @@ describe('Unique constraints on Domain, Subdomain, IpAddress', () => {
           canonicalValue: 'www.unique2.com',
         },
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: 'P2002' });
   });
 
   it('rejects duplicate IpAddress (engagementId, canonicalValue)', async () => {
@@ -310,6 +362,6 @@ describe('Unique constraints on Domain, Subdomain, IpAddress', () => {
           version: 'IPV4',
         },
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: 'P2002' });
   });
 });
