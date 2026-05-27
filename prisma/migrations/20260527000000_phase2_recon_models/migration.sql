@@ -234,10 +234,15 @@ ALTER TABLE "TemplateRun" ADD CONSTRAINT "TemplateRun_engagementId_fkey" FOREIGN
 -- AddForeignKey
 ALTER TABLE "TemplateRun" ADD CONSTRAINT "TemplateRun_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- CHECK constraint: enforce polymorphic FK integrity on Asset
+-- CHECK constraint: enforce polymorphic FK integrity on Asset.
+-- Short-circuited when the row is soft-deleted so that hard-deletes of the
+-- referenced Domain/Subdomain/IpAddress (which set the FK to NULL via
+-- ON DELETE SET NULL) do not break subsequent UPDATEs (e.g. setting deletedAt).
 ALTER TABLE "Asset" ADD CONSTRAINT asset_polymorphic_fk_check CHECK (
-  (type = 'DOMAIN'     AND "domainId"    IS NOT NULL AND "subdomainId" IS NULL AND "ipAddressId" IS NULL) OR
-  (type = 'SUBDOMAIN'  AND "subdomainId" IS NOT NULL AND "domainId"    IS NULL AND "ipAddressId" IS NULL) OR
-  (type = 'IP_ADDRESS' AND "ipAddressId" IS NOT NULL AND "domainId"    IS NULL AND "subdomainId" IS NULL) OR
-  (type NOT IN ('DOMAIN', 'SUBDOMAIN', 'IP_ADDRESS') AND "domainId" IS NULL AND "subdomainId" IS NULL AND "ipAddressId" IS NULL)
+  "deletedAt" IS NOT NULL OR (
+    (type = 'DOMAIN'     AND "domainId"    IS NOT NULL AND "subdomainId" IS NULL AND "ipAddressId" IS NULL) OR
+    (type = 'SUBDOMAIN'  AND "subdomainId" IS NOT NULL AND "domainId"    IS NULL AND "ipAddressId" IS NULL) OR
+    (type = 'IP_ADDRESS' AND "ipAddressId" IS NOT NULL AND "domainId"    IS NULL AND "subdomainId" IS NULL) OR
+    (type NOT IN ('DOMAIN', 'SUBDOMAIN', 'IP_ADDRESS') AND "domainId" IS NULL AND "subdomainId" IS NULL AND "ipAddressId" IS NULL)
+  )
 );

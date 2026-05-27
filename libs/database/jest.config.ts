@@ -10,4 +10,8 @@ export default {
   },
   testMatch: ['**/*.spec.ts'],
   coverageDirectory: '../../coverage/libs/database',
+  // Integration tests run against a shared Postgres dev DB; force serial
+  // execution to avoid worker interference (cross-suite data collisions,
+  // schema-level locks during reset, etc.).
+  maxWorkers: 1,
 };
