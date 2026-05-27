@@ -64,7 +64,7 @@ export class TemplatesService {
     };
     await this.templateRunsQueue.add('template-run', payload);
     this.logger.log(
-      `Enqueued templateRun=${run.id} template=${template.name} target=${input.target}`,
+      `Enqueued templateRun=${run.id} template=${template.name} target=${JSON.stringify(input.target)}`,
     );
 
     return run;
