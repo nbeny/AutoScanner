@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { MockedProvider } from '@apollo/client/testing';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { AuthProvider } from '../../../lib/auth-context';
 import type { AuthSession, AuthStorage } from '../../../lib/auth';
-import { ASSETS_QUERY, RUN_SCAN_MUTATION, SCAN_QUERY } from '../../../lib/graphql/queries';
+import {
+  ASSETS_QUERY,
+  RUN_SCAN_MUTATION,
+  SCAN_QUERY,
+  SCAN_TEMPLATES_QUERY,
+} from '../../../lib/graphql/queries';
 import { ScanRunPage } from '../scan-run-page';
 
 function makeMemoryStorage(initial: AuthSession): AuthStorage {
@@ -32,6 +37,22 @@ const emptyAssetsMock = {
   result: { data: { assets: [] } },
 };
 
+const scanTemplatesMock = {
+  request: { query: SCAN_TEMPLATES_QUERY },
+  result: {
+    data: {
+      scanTemplates: [
+        {
+          id: 'tmpl_1',
+          name: 'recon-passive',
+          displayName: 'Recon Passive',
+          description: null,
+        },
+      ],
+    },
+  },
+};
+
 function renderPage(mocks: Parameters<typeof MockedProvider>[0]['mocks']) {
   return render(
     <MemoryRouter initialEntries={['/engagements/eng_1/scans']}>
@@ -48,13 +69,14 @@ function renderPage(mocks: Parameters<typeof MockedProvider>[0]['mocks']) {
 
 describe('<ScanRunPage />', () => {
   it('rejects invalid options JSON locally and does not call the mutation', async () => {
-    renderPage([emptyAssetsMock]);
+    renderPage([emptyAssetsMock, scanTemplatesMock]);
     await screen.findByText(/no assets yet/i);
 
     fireEvent.change(screen.getByLabelText(/options json/i), { target: { value: '{broken' } });
     fireEvent.submit(screen.getByRole('form', { name: 'run-scan' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Options must be valid JSON.');
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts.some((el) => el.textContent === 'Options must be valid JSON.')).toBe(true);
     expect(screen.queryByLabelText('scan-status')).not.toBeInTheDocument();
   });
 
@@ -103,11 +125,14 @@ describe('<ScanRunPage />', () => {
       },
     };
 
-    renderPage([emptyAssetsMock, runMock, scanPollMock]);
+    renderPage([emptyAssetsMock, scanTemplatesMock, runMock, scanPollMock]);
     await screen.findByText(/no assets yet/i);
 
-    fireEvent.change(screen.getByLabelText('Target'), { target: { value: '10.0.0.1' } });
-    fireEvent.submit(screen.getByRole('form', { name: 'run-scan' }));
+    // Both forms have a "Target" input — pick the one inside the run-scan form.
+    const runScanForm = screen.getByRole('form', { name: 'run-scan' });
+    const targetInput = within(runScanForm).getByLabelText('Target');
+    fireEvent.change(targetInput, { target: { value: '10.0.0.1' } });
+    fireEvent.submit(runScanForm);
 
     await waitFor(() => expect(screen.getByLabelText('scan-status')).toBeInTheDocument());
     expect(screen.getByText(/Scan scan_1/)).toBeInTheDocument();
