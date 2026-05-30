@@ -17,146 +17,58 @@
  *   E2E_SCAN_TIMEOUT_MS  poll timeout, ms (default: 300000 = 5 min)
  */
 
-import { GraphQLClient } from 'graphql-request';
+import type { GraphQLClient } from 'graphql-request';
+import {
+  authedGqlClient,
+  createEngagement,
+  describeOrSkipE2E,
+  filterAssetsByType,
+  queryAssetsWithServices,
+  queryScan,
+  readBaseEnv,
+  restLogin,
+  runScan,
+  sleep,
+} from '../helpers';
+import type { Scan } from '../helpers';
 
-const apiUrl = process.env['E2E_API_URL'];
-const email = process.env['E2E_EMAIL'];
-const password = process.env['E2E_PASSWORD'];
+const env = readBaseEnv();
 const target = process.env['E2E_TARGET'] ?? '127.0.0.1';
 const scanTimeoutMs = Number(process.env['E2E_SCAN_TIMEOUT_MS'] ?? 300_000);
 
-const describeOrSkip = apiUrl && email && password ? describe : describe.skip;
-
-interface AuthPayload {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-interface Engagement {
-  id: string;
-  name: string;
-  status: string;
-}
-
-interface ScanJob {
-  id: string;
-  scannerName: string;
-  target: string;
-  status: string;
-  rawOutputKey?: string | null;
-}
-
-interface Scan {
-  id: string;
-  status: string;
-  completedAt?: string | null;
-  jobs: ScanJob[];
-}
-
-interface Asset {
-  id: string;
-  value: string;
-  type: string;
-  ports?: { number: number; protocol: string; state: string; services?: { name?: string }[] }[];
-}
-
-async function restLogin(): Promise<AuthPayload> {
-  const res = await fetch(`${apiUrl!}/auth/login`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!res.ok) throw new Error(`login failed: HTTP ${res.status} ${await res.text()}`);
-  return (await res.json()) as AuthPayload;
-}
-
-async function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-describeOrSkip('Phase 1 — first scan E2E', () => {
+describeOrSkipE2E(env)('Phase 1 — first scan E2E', () => {
   let gql: GraphQLClient;
   let accessToken: string;
 
   beforeAll(async () => {
-    const auth = await restLogin();
+    const auth = await restLogin(env.apiUrl!, env.email!, env.password!);
     accessToken = auth.accessToken;
-    gql = new GraphQLClient(`${apiUrl!}/graphql`, {
-      headers: { authorization: `Bearer ${accessToken}` },
-    });
+    gql = authedGqlClient(env.apiUrl!, accessToken);
   }, 30_000);
 
   it(
     'runs nmap against the target and exposes assets + raw output',
     async () => {
-      const engagementName = `e2e-${Date.now()}`;
-      const created = await gql.request<{ createEngagement: Engagement }>(
-        /* GraphQL */ `
-          mutation Create($input: CreateEngagementInput!) {
-            createEngagement(input: $input) {
-              id
-              name
-              status
-            }
-          }
-        `,
-        { input: { name: engagementName, clientName: 'e2e-client' } },
-      );
-      expect(created.createEngagement.id).toBeTruthy();
-      const engagementId = created.createEngagement.id;
+      const engagement = await createEngagement(gql, {
+        name: `e2e-${Date.now()}`,
+        clientName: 'e2e-client',
+      });
+      expect(engagement.id).toBeTruthy();
 
-      const queued = await gql.request<{ runScan: Scan }>(
-        /* GraphQL */ `
-          mutation Run($input: RunScanInput!) {
-            runScan(input: $input) {
-              id
-              status
-              jobs {
-                id
-                scannerName
-                target
-                status
-              }
-            }
-          }
-        `,
-        {
-          input: {
-            engagementId,
-            scannerName: 'nmap',
-            target,
-            optionsJson: JSON.stringify({ ports: '22,80,443', serviceDetection: true }),
-          },
-        },
-      );
-      expect(queued.runScan.jobs.length).toBeGreaterThan(0);
-      const scanId = queued.runScan.id;
+      const queued = await runScan(gql, {
+        engagementId: engagement.id,
+        scannerName: 'nmap',
+        target,
+        optionsJson: JSON.stringify({ ports: '22,80,443', serviceDetection: true }),
+      });
+      expect(queued.jobs.length).toBeGreaterThan(0);
 
       const deadline = Date.now() + scanTimeoutMs;
       let final: Scan | null = null;
       while (Date.now() < deadline) {
-        const polled = await gql.request<{ scan: Scan }>(
-          /* GraphQL */ `
-            query S($id: ID!) {
-              scan(id: $id) {
-                id
-                status
-                completedAt
-                jobs {
-                  id
-                  scannerName
-                  target
-                  status
-                  rawOutputKey
-                }
-              }
-            }
-          `,
-          { id: scanId },
-        );
-        if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(polled.scan.status)) {
-          final = polled.scan;
+        const polled = await queryScan(gql, queued.id);
+        if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(polled.status)) {
+          final = polled;
           break;
         }
         await sleep(2000);
@@ -168,31 +80,18 @@ describeOrSkip('Phase 1 — first scan E2E', () => {
       const job = final!.jobs[0];
       expect(job.rawOutputKey).toBeTruthy();
 
-      const assetsRes = await gql.request<{ assets: Asset[] }>(
-        /* GraphQL */ `
-          query A($id: ID!) {
-            assets(engagementId: $id) {
-              id
-              value
-              type
-              ports {
-                number
-                protocol
-                state
-                services {
-                  name
-                }
-              }
-            }
-          }
-        `,
-        { id: engagementId },
-      );
-      expect(assetsRes.assets.length).toBeGreaterThan(0);
-      const a = assetsRes.assets.find((x) => x.value === target) ?? assetsRes.assets[0];
-      expect(a.ports?.length ?? 0).toBeGreaterThan(0);
+      const assets = await queryAssetsWithServices(gql, engagement.id);
+      expect(assets.length).toBeGreaterThan(0);
+      // Prefer the row that matches the requested target so the ports
+      // assertion is meaningful (otherwise we could read a host that
+      // legitimately has no ports yet).
+      const matched =
+        assets.find((x) => x.value === target) ??
+        filterAssetsByType(assets, 'IP_ADDRESS')[0] ??
+        assets[0];
+      expect(matched.ports?.length ?? 0).toBeGreaterThan(0);
 
-      const rawRes = await fetch(`${apiUrl!}/scan-jobs/${job.id}/raw`, {
+      const rawRes = await fetch(`${env.apiUrl!}/scan-jobs/${job.id}/raw`, {
         method: 'GET',
         redirect: 'manual',
         headers: { authorization: `Bearer ${accessToken}` },
