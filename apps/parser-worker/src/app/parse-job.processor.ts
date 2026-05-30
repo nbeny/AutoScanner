@@ -78,57 +78,41 @@ export class ParseJobProcessor extends WorkerHost {
       `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted}`,
     );
 
-    // Correlation v1: defensive merge of duplicate subdomains within the engagement.
-    // Best-effort — persistence already succeeded, so the BullMQ job reports success
-    // even if correlation fails. The unique constraint on Subdomain prevents the
-    // duplicates this targets today; it will become load-bearing in Phase 3+.
-    try {
-      const { merged } = await this.assetMerge.mergeSubdomains(payload.engagementId);
-      if (merged > 0) {
-        this.logger.log(
-          `correlation merged ${merged} duplicate subdomains for engagement ${payload.engagementId}`,
-        );
-      }
-    } catch (err) {
-      this.logger.warn(
-        `correlation failed for engagement ${payload.engagementId}: ${err instanceof Error ? err.message : String(err)}`,
-        err instanceof Error ? err.stack : undefined,
-      );
-    }
-
-    // Correlation v1: same defensive merge for duplicate IpAddress rows.
-    try {
-      const { merged } = await this.assetMerge.mergeIpAddresses(payload.engagementId);
-      if (merged > 0) {
-        this.logger.log(
-          `correlation merged ${merged} duplicate IpAddress rows for engagement ${payload.engagementId}`,
-        );
-      }
-    } catch (err) {
-      this.logger.warn(
-        `IP correlation failed for engagement ${payload.engagementId}: ${err instanceof Error ? err.message : String(err)}`,
-        err instanceof Error ? err.stack : undefined,
-      );
-    }
-
-    // Correlation v1: cross-asset Finding dedup. The per-asset upsert key handles
-    // the common case; this catches the canonicalisation-drift case where two
-    // Asset rows end up with Findings sharing the same dedupHash.
-    try {
-      const { merged } = await this.assetMerge.dedupFindings(payload.engagementId);
-      if (merged > 0) {
-        this.logger.log(
-          `correlation deduped ${merged} duplicate Finding rows for engagement ${payload.engagementId}`,
-        );
-      }
-    } catch (err) {
-      this.logger.warn(
-        `Finding dedup failed for engagement ${payload.engagementId}: ${err instanceof Error ? err.message : String(err)}`,
-        err instanceof Error ? err.stack : undefined,
-      );
-    }
+    // Correlation v1: defensive merges/dedups. Each pass is best-effort —
+    // persistence already succeeded, so the BullMQ job reports success even
+    // if a pass fails. Unique constraints prevent the duplicates these target
+    // today; they will become load-bearing in Phase 3+. Run them in declared
+    // order: Subdomain merge, IP merge, cross-asset Finding dedup.
+    await this.runMergePass('subdomains', () =>
+      this.assetMerge.mergeSubdomains(payload.engagementId),
+    );
+    await this.runMergePass('IpAddress rows', () =>
+      this.assetMerge.mergeIpAddresses(payload.engagementId),
+    );
+    await this.runMergePass('Finding rows', () =>
+      this.assetMerge.dedupFindings(payload.engagementId),
+    );
 
     return result;
+  }
+
+  /**
+   * Run a single correlation pass. Logs a `merged N` line on success when N>0
+   * so quiet runs don't spam the log; on failure, logs a warn with stack but
+   * never throws — the ParseJob has already succeeded by the time we get here.
+   */
+  private async runMergePass(kind: string, fn: () => Promise<{ merged: number }>): Promise<void> {
+    try {
+      const { merged } = await fn();
+      if (merged > 0) {
+        this.logger.log(`correlation merged ${merged} duplicate ${kind}`);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `correlation pass (${kind}) failed: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+    }
   }
 
   private async fetchRaw(key: string): Promise<Buffer> {

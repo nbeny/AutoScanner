@@ -364,7 +364,7 @@ describe('ParseJobProcessor', () => {
       expect(result.assetsPersisted).toBeGreaterThan(0);
       // And the error is surfaced as a warning, not swallowed silently.
       expect(warn).toHaveBeenCalledWith(
-        expect.stringMatching(/correlation failed for engagement eng_1.*boom: unique violation/),
+        expect.stringMatching(/correlation pass \(subdomains\) failed.*boom: unique violation/),
         expect.any(String),
       );
       warn.mockRestore();
@@ -1212,7 +1212,7 @@ describe('ParseJobProcessor', () => {
       await processor.process(job(nucleiPayload));
 
       expect(warn).toHaveBeenCalledWith(
-        expect.stringMatching(/Finding dedup failed for engagement eng_1.*boom: dedup error/),
+        expect.stringMatching(/correlation pass \(Finding rows\) failed.*boom: dedup error/),
         expect.any(String),
       );
       warn.mockRestore();
