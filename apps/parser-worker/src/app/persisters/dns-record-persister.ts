@@ -30,6 +30,48 @@ type PrismaDnsRecordType =
   | 'CAA'
   | 'SOA';
 
+/**
+ * Type-aware DNS record value normalisation.
+ *
+ * The DnsRecord unique key includes `value`, so two runs producing the same
+ * record under different casings must collapse to one row. Lowercasing
+ * everything (the original Phase 2 approach) is wrong for case-sensitive
+ * record types — SPF tokens in TXT, DKIM base64 bodies, CAA tag values, and
+ * SOA RNAME/MNAME all carry semantically meaningful case that must be
+ * preserved.
+ *
+ * - A / AAAA → canonicalise as IP_ADDRESS (RFC 5952 compression for IPv6;
+ *   dotted-decimal for IPv4). This collapses `2001:DB8::1` and
+ *   `2001:0db8:0000::0001` onto the same value.
+ * - CNAME / NS / PTR → canonicalise as SUBDOMAIN (lowercase + strip trailing
+ *   FQDN dot; punycode IDN). Hostname-valued, DNS is case-insensitive on names.
+ * - MX / SRV → lowercase + strip trailing dot. These are technically
+ *   `<priority> <target>` (MX) and `<priority> <weight> <port> <target>` (SRV),
+ *   but the numeric prefix is case-invariant, so whole-string lowercasing is
+ *   safe and keeps the helper simple. Today's dnsx parser emits only the
+ *   target component for MX, so the prefix path is defensive.
+ * - TXT / CAA / SOA → trim only. Preserves case for SPF/DKIM/CAA/SOA payloads.
+ */
+function normalizeRecordValue(type: PrismaDnsRecordType, raw: string): string {
+  const trimmed = raw.trim();
+  switch (type) {
+    case 'A':
+    case 'AAAA':
+      return canonicalize(trimmed, { type: 'IP_ADDRESS' });
+    case 'CNAME':
+    case 'NS':
+    case 'PTR':
+      return canonicalize(trimmed, { type: 'SUBDOMAIN' });
+    case 'MX':
+    case 'SRV':
+      return trimmed.toLowerCase().replace(/\.$/, '');
+    case 'TXT':
+    case 'CAA':
+    case 'SOA':
+      return trimmed;
+  }
+}
+
 @Injectable()
 export class DnsRecordPersister {
   private readonly logger = new Logger(DnsRecordPersister.name);
@@ -56,7 +98,7 @@ export class DnsRecordPersister {
 
     const type = record.recordType as PrismaDnsRecordType;
     const name = canonicalize(record.assetValue, { type: 'SUBDOMAIN' });
-    const value = record.value.trim().toLowerCase();
+    const value = normalizeRecordValue(type, record.value);
 
     // Prefer Subdomain lookup, fall back to Domain.
     const subdomain = await this.prisma.subdomain.findFirst({
