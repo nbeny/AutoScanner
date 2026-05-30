@@ -278,4 +278,45 @@ describe('ScanJobProcessor', () => {
       }),
     );
   });
+
+  it('warns only once per scan-job when log stream publish keeps failing (no flood)', async () => {
+    // Simulate Redis pub/sub down: every publish rejects. A chatty scanner
+    // emitting many chunks must not produce one warn per chunk.
+    logStream.publish.mockRejectedValue(new Error('redis pubsub down'));
+
+    // Docker mock that emits stdout 50 times to mimic a chatty scanner.
+    docker.run.mockImplementationOnce(async (spec: RunSpec): Promise<RunResult> => {
+      for (let i = 0; i < 50; i++) spec.onStdout?.(NMAP_XML);
+      return {
+        exitCode: 0,
+        durationMs: 100,
+        containerId: 'c_x',
+        timedOut: false,
+        killedByUser: false,
+      };
+    });
+
+    const warnSpy = jest
+      .spyOn((processor as unknown as { logger: { warn: (msg: string) => void } }).logger, 'warn')
+      .mockImplementation(() => undefined);
+
+    await processor.process(
+      job({
+        scanJobId: 'job_1',
+        scannerName: 'nmap',
+        target: '127.0.0.1',
+        input: {},
+        engagementId: 'eng_1',
+      }),
+    );
+
+    // Yield enough microtasks for all 50 publish rejections to settle.
+    await new Promise((r) => setImmediate(r));
+
+    const publishWarns = warnSpy.mock.calls.filter(([msg]) =>
+      typeof msg === 'string' ? msg.includes('log stream publish failed') : false,
+    );
+    expect(publishWarns).toHaveLength(1);
+    expect(logStream.publish).toHaveBeenCalledTimes(50);
+  });
 });
