@@ -26,8 +26,6 @@ export interface RunResult {
   exitCode: number;
   durationMs: number;
   containerId: string;
-  stdoutPath?: string;
-  stderrPath?: string;
   timedOut: boolean;
   killedByUser: boolean;
 }
