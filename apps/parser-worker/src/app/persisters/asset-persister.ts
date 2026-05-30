@@ -6,7 +6,7 @@ import type {
   NormalizedHttpProbe,
 } from '@autoscanner/parsers';
 
-import { canonicalize } from '../correlation.service';
+import { canonicalize } from '@autoscanner/correlation';
 
 const ASSET_TYPE_MAP: Record<
   NormalizedAssetType,

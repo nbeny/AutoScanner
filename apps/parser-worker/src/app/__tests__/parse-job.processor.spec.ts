@@ -13,7 +13,8 @@ import { NmapXmlParser } from '@autoscanner/parsers';
 import type { ParseJobPayload } from '@autoscanner/queues';
 import type { ObjectStorage } from '@autoscanner/storage';
 
-import { CorrelationService } from '../correlation.service';
+import { AssetMergeService } from '@autoscanner/correlation';
+
 import { ParseJobProcessor } from '../parse-job.processor';
 import { AssetPersister } from '../persisters/asset-persister';
 import { DnsRecordPersister } from '../persisters/dns-record-persister';
@@ -51,7 +52,7 @@ describe('ParseJobProcessor', () => {
   let prisma: jest.Mocked<PrismaService>;
   let storage: jest.Mocked<ObjectStorage>;
   let registry: ParserRegistry;
-  let correlation: CorrelationService;
+  let assetMerge: AssetMergeService;
   let processor: ParseJobProcessor;
 
   beforeEach(() => {
@@ -153,16 +154,16 @@ describe('ParseJobProcessor', () => {
     registry.register(new DnsxJsonParser());
     registry.register(new NucleiJsonParser());
 
-    correlation = new CorrelationService(prisma);
+    assetMerge = new AssetMergeService(prisma);
     // Default: merges are no-ops. Individual tests override.
-    jest.spyOn(correlation, 'mergeSubdomains').mockResolvedValue({ merged: 0 });
-    jest.spyOn(correlation, 'mergeIpAddresses').mockResolvedValue({ merged: 0 });
-    jest.spyOn(correlation, 'dedupFindings').mockResolvedValue({ merged: 0 });
+    jest.spyOn(assetMerge, 'mergeSubdomains').mockResolvedValue({ merged: 0 });
+    jest.spyOn(assetMerge, 'mergeIpAddresses').mockResolvedValue({ merged: 0 });
+    jest.spyOn(assetMerge, 'dedupFindings').mockResolvedValue({ merged: 0 });
 
     processor = new ParseJobProcessor(
       registry,
       storage,
-      correlation,
+      assetMerge,
       new AssetPersister(prisma),
       new PortPersister(prisma),
       new ServicePersister(prisma),
@@ -302,16 +303,16 @@ describe('ParseJobProcessor', () => {
   });
 
   describe('correlation merge after persist', () => {
-    it('invokes correlation.mergeSubdomains with the engagement id after persistence', async () => {
+    it('invokes assetMerge.mergeSubdomains with the engagement id after persistence', async () => {
       await processor.process(job(payload));
 
-      expect(correlation.mergeSubdomains).toHaveBeenCalledTimes(1);
-      expect(correlation.mergeSubdomains).toHaveBeenCalledWith('eng_1');
+      expect(assetMerge.mergeSubdomains).toHaveBeenCalledTimes(1);
+      expect(assetMerge.mergeSubdomains).toHaveBeenCalledWith('eng_1');
     });
 
-    it('does not rethrow when correlation.mergeSubdomains fails — persistence already succeeded', async () => {
+    it('does not rethrow when assetMerge.mergeSubdomains fails — persistence already succeeded', async () => {
       const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-      (correlation.mergeSubdomains as jest.Mock).mockRejectedValueOnce(
+      (assetMerge.mergeSubdomains as jest.Mock).mockRejectedValueOnce(
         new Error('boom: unique violation'),
       );
 
@@ -802,11 +803,11 @@ describe('ParseJobProcessor', () => {
       expect(subdomainIpUpsert.upsert).not.toHaveBeenCalled();
     });
 
-    it('calls correlation.mergeIpAddresses after persistence', async () => {
+    it('calls assetMerge.mergeIpAddresses after persistence', async () => {
       await processor.process(job(dnsxPayload));
 
-      expect(correlation.mergeIpAddresses).toHaveBeenCalledTimes(1);
-      expect(correlation.mergeIpAddresses).toHaveBeenCalledWith('eng_1');
+      expect(assetMerge.mergeIpAddresses).toHaveBeenCalledTimes(1);
+      expect(assetMerge.mergeIpAddresses).toHaveBeenCalledWith('eng_1');
     });
   });
 
@@ -919,11 +920,11 @@ describe('ParseJobProcessor', () => {
       expect(result.findingsPersisted).toBe(2);
     });
 
-    it('calls correlation.dedupFindings after persistence', async () => {
+    it('calls assetMerge.dedupFindings after persistence', async () => {
       await processor.process(job(nucleiPayload));
 
-      expect(correlation.dedupFindings).toHaveBeenCalledTimes(1);
-      expect(correlation.dedupFindings).toHaveBeenCalledWith('eng_1');
+      expect(assetMerge.dedupFindings).toHaveBeenCalledTimes(1);
+      expect(assetMerge.dedupFindings).toHaveBeenCalledWith('eng_1');
     });
 
     it('falls back to findFirstAssetId when no canonical host matches the engagement', async () => {
@@ -946,11 +947,9 @@ describe('ParseJobProcessor', () => {
       expect(result.findingsPersisted).toBe(0);
     });
 
-    it('does not rethrow when correlation.dedupFindings fails — persistence already succeeded', async () => {
+    it('does not rethrow when assetMerge.dedupFindings fails — persistence already succeeded', async () => {
       const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-      (correlation.dedupFindings as jest.Mock).mockRejectedValueOnce(
-        new Error('boom: dedup error'),
-      );
+      (assetMerge.dedupFindings as jest.Mock).mockRejectedValueOnce(new Error('boom: dedup error'));
 
       await processor.process(job(nucleiPayload));
 

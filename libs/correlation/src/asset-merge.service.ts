@@ -1,33 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@autoscanner/database';
 
-export interface CanonicalizeOptions {
-  type: 'DOMAIN' | 'SUBDOMAIN' | 'IP_ADDRESS';
-}
-
-/**
- * Single source of truth for canonicalizing host-like values on the persister side.
- *
- * - DOMAIN/SUBDOMAIN: trim whitespace, lowercase, strip trailing FQDN-root dot.
- *   TODO Phase 4: IDN -> punycode via 'punycode' lib.
- * - IP_ADDRESS: trim + lowercase. IPv4 is already canonical in dotted form; IPv6
- *   compression (e.g. 2001:0db8:0000::1 -> 2001:db8::1) is deferred to Phase 4.
- *
- * Parsers (subfinder-json, httpx-json) keep their inline boundary normalization;
- * this function is invoked by the persister so there's one final form before DB
- * write. Idempotent for repeated application.
- */
-export function canonicalize(value: string, opts: CanonicalizeOptions): string {
-  if (opts.type === 'DOMAIN' || opts.type === 'SUBDOMAIN') {
-    return value.trim().toLowerCase().replace(/\.$/, '');
-  }
-  if (opts.type === 'IP_ADDRESS') {
-    return value.trim().toLowerCase();
-  }
-  // Default: trim only (URL, NETWORK, EMAIL etc. — caller decides downstream).
-  return value.trim();
-}
-
 interface DuplicateGroup {
   canonicalValue: string;
   ids: string[];
@@ -39,8 +12,8 @@ interface DuplicateFindingGroup {
 }
 
 @Injectable()
-export class CorrelationService {
-  private readonly logger = new Logger(CorrelationService.name);
+export class AssetMergeService {
+  private readonly logger = new Logger(AssetMergeService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
