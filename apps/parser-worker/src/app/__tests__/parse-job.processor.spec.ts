@@ -914,6 +914,63 @@ describe('ParseJobProcessor', () => {
       expect(assetMerge.mergeIpAddresses).toHaveBeenCalledWith('eng_1');
     });
 
+    it('promotes a legacy subdomainId:null DnsRecord row when the subdomain is now known', async () => {
+      // Scenario: a prior dnsx run landed before subfinder created the
+      // Subdomain row, so the record was stored as
+      // `{domainId:'d1', subdomainId:null, type:'A', name:'www…', value:'…'}`.
+      // Today subfinder has filled in the Subdomain and dnsx runs again.
+      // The OR-clause must find the legacy row and *promote* it (set
+      // subdomainId) rather than create a duplicate.
+      jest.spyOn(registry, 'get').mockReturnValue({
+        parse: async () => ({
+          assets: [],
+          ports: [],
+          services: [],
+          findings: [],
+          technologies: [],
+          ipAddresses: [],
+          dnsRecords: [
+            {
+              assetValue: 'www.hackerone.com',
+              recordType: 'A',
+              value: '104.16.99.52',
+            },
+          ],
+          subdomainIps: [],
+          httpProbes: [],
+        }),
+      } as never);
+
+      const dnsRecordMock = prisma.dnsRecord as unknown as {
+        findFirst: jest.Mock;
+        update: jest.Mock;
+        create: jest.Mock;
+      };
+      // Pretend the legacy orphan row exists.
+      dnsRecordMock.findFirst.mockResolvedValueOnce({
+        id: 'legacy_dnsrecord_id',
+        subdomainId: null,
+      });
+
+      await processor.process(job(dnsxPayload));
+
+      // Update should have been called with the promoted subdomainId.
+      expect(dnsRecordMock.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'legacy_dnsrecord_id' },
+          data: expect.objectContaining({
+            subdomainId: 'subdomain_www.hackerone.com',
+          }),
+        }),
+      );
+      // And no extra create for this record.
+      expect(dnsRecordMock.create).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ name: 'www.hackerone.com', value: '104.16.99.52' }),
+        }),
+      );
+    });
+
     it('preserves case for TXT/CAA values and canonicalises AAAA via RFC 5952', async () => {
       // dnsx-json today doesn't emit TXT/CAA/AAAA-with-mixed-case, but the
       // persister advertises support for those types. Inject a synthetic

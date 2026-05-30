@@ -87,6 +87,16 @@ export class DnsRecordPersister {
    * NULLs as distinct in unique indexes, meaning Prisma's generated upsert via
    * the compound key would fail at runtime for nullable columns. We therefore
    * use findFirst + create/update (same approach as TechnologyPersister).
+   *
+   * Defensive OR clause on the dedup lookup: if a prior dnsx run landed before
+   * the matching Subdomain row existed (e.g. dnsx scheduled ahead of subfinder
+   * by a custom template), the record was persisted with `subdomainId: null`
+   * against the parent Domain. A later run that *does* resolve the Subdomain
+   * would, with a strict `{subdomainId: 'sub1', ...}` lookup, miss that legacy
+   * row and create a duplicate (the partial unique key treats `null` as
+   * distinct from any concrete id). The OR-clause picks up both shapes, and
+   * when we find the legacy `subdomainId: null` row we promote it by writing
+   * the now-known `subdomainId` in the same update.
    */
   async upsert(engagementId: string, record: NormalizedDnsRecord): Promise<void> {
     if (!VALID_DNS_RECORD_TYPES.has(record.recordType)) {
@@ -135,9 +145,23 @@ export class DnsRecordPersister {
       domainId = domain.id;
     }
 
+    // When we have a resolved subdomainId, the lookup also accepts the legacy
+    // `subdomainId: null` shape so a previously-orphaned row gets promoted
+    // rather than duplicated. When subdomainId is already null (apex/domain
+    // fallback path), the OR collapses to a single-branch lookup with no
+    // behavioural change.
     const existing = await this.prisma.dnsRecord.findFirst({
-      where: { domainId, subdomainId, type, name, value },
-      select: { id: true },
+      where: {
+        domainId,
+        type,
+        name,
+        value,
+        OR:
+          subdomainId !== null ? [{ subdomainId }, { subdomainId: null }] : [{ subdomainId: null }],
+      },
+      // Prefer the row already linked to the subdomain when both shapes coexist.
+      orderBy: { subdomainId: { sort: 'desc', nulls: 'last' } },
+      select: { id: true, subdomainId: true },
     });
 
     if (existing) {
@@ -145,6 +169,7 @@ export class DnsRecordPersister {
         where: { id: existing.id },
         data: {
           lastSeenAt: new Date(),
+          ...(subdomainId !== null && existing.subdomainId === null ? { subdomainId } : {}),
           ...(record.ttl !== undefined ? { ttl: record.ttl } : {}),
         },
       });
