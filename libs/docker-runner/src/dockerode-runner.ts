@@ -1,11 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Docker = require('dockerode');
-import { createWriteStream, type WriteStream } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
-import { randomUUID } from 'node:crypto';
 import type { DockerRunner, RunResult, RunSpec } from './types';
 
 const DEFAULT_PIDS_LIMIT = 512;
@@ -14,7 +9,6 @@ const DEFAULT_CPU_QUOTA = 1_000_000;
 const DEFAULT_USER = '1000:1000';
 const DEFAULT_NOFILE: [number, number] = [8192, 8192];
 const DEFAULT_TMPFS_SIZE = '512m';
-const TMP_PREFIX = 'autoscanner-';
 
 function toNetworkMode(network: RunSpec['network']): string {
   if (!network) return 'bridge';
@@ -68,20 +62,15 @@ export class DockerodeRunner implements DockerRunner {
 
   async run(spec: RunSpec): Promise<RunResult> {
     const start = Date.now();
-    const streaming = Boolean(spec.onStdout || spec.onStderr);
-
-    let stdoutPath: string | undefined;
-    let stderrPath: string | undefined;
-    let stdoutFile: WriteStream | undefined;
-    let stderrFile: WriteStream | undefined;
-
-    if (!streaming) {
-      const scratch = join(tmpdir(), `${TMP_PREFIX}${randomUUID()}`);
-      await mkdir(scratch, { recursive: true });
-      stdoutPath = join(scratch, 'stdout.log');
-      stderrPath = join(scratch, 'stderr.log');
-      stdoutFile = createWriteStream(stdoutPath);
-      stderrFile = createWriteStream(stderrPath);
+    // Callers MUST provide at least one of onStdout/onStderr. The legacy
+    // file-capture fallback was dead code that leaked a `tmpdir()` scratch
+    // directory on every run (the caller owned cleanup but no caller did
+    // it). Requiring streaming makes the contract explicit and eliminates
+    // the leak by construction.
+    if (!spec.onStdout && !spec.onStderr) {
+      throw new Error(
+        'DockerodeRunner.run: at least one of spec.onStdout / spec.onStderr is required (file-capture fallback removed)',
+      );
     }
 
     const useStdin = spec.stdin !== undefined;
@@ -116,14 +105,8 @@ export class DockerodeRunner implements DockerRunner {
 
     const stdout = new PassThrough();
     const stderr = new PassThrough();
-
-    if (streaming) {
-      if (spec.onStdout) stdout.on('data', (c: Buffer) => spec.onStdout?.(c.toString('utf8')));
-      if (spec.onStderr) stderr.on('data', (c: Buffer) => spec.onStderr?.(c.toString('utf8')));
-    } else {
-      stdout.pipe(stdoutFile!);
-      stderr.pipe(stderrFile!);
-    }
+    if (spec.onStdout) stdout.on('data', (c: Buffer) => spec.onStdout?.(c.toString('utf8')));
+    if (spec.onStderr) stderr.on('data', (c: Buffer) => spec.onStderr?.(c.toString('utf8')));
 
     const attachOpts: Docker.ContainerAttachOptions = {
       stream: true,
@@ -170,9 +153,6 @@ export class DockerodeRunner implements DockerRunner {
         setTimeout(resolve, 100);
       });
 
-      stdoutFile?.end();
-      stderrFile?.end();
-
       try {
         await container.remove({ force: true });
       } catch (err) {
@@ -186,8 +166,6 @@ export class DockerodeRunner implements DockerRunner {
       exitCode,
       durationMs: Date.now() - start,
       containerId: container.id,
-      stdoutPath,
-      stderrPath,
       timedOut,
       killedByUser,
     };

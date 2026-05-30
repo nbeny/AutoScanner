@@ -1,5 +1,4 @@
 import Docker = require('dockerode');
-import { readFile } from 'node:fs/promises';
 import { DockerodeRunner } from '../dockerode-runner';
 import type { RunSpec } from '../types';
 
@@ -48,19 +47,20 @@ describe('DockerodeRunner (integration)', () => {
   );
 
   it(
-    'captures stdout to file when no callbacks provided',
+    'rejects with a clear error when neither onStdout nor onStderr is provided',
     guarded(async () => {
-      const res = await runner.run({
-        image: ALPINE,
-        cmd: ['sh', '-c', 'echo file-capture'],
-        timeoutMs: 10_000,
-      });
-      expect(res.exitCode).toBe(0);
-      expect(res.stdoutPath).toBeDefined();
-      const contents = await readFile(res.stdoutPath as string, 'utf8');
-      expect(contents).toContain('file-capture');
+      // The legacy file-capture fallback leaked a `tmpdir()` scratch dir on
+      // every run. We removed it; callers must now stream. This test pins
+      // the contract so a future refactor can't silently regress it.
+      await expect(
+        runner.run({
+          image: ALPINE,
+          cmd: ['sh', '-c', 'echo nope'],
+          timeoutMs: 10_000,
+        }),
+      ).rejects.toThrow(/onStdout.*onStderr.*required/);
     }),
-    30_000,
+    10_000,
   );
 
   it(
@@ -70,6 +70,8 @@ describe('DockerodeRunner (integration)', () => {
         image: ALPINE,
         cmd: ['sh', '-c', 'sleep 30'],
         timeoutMs: 2_000,
+        // onStdout required since file-capture fallback was removed.
+        onStdout: () => undefined,
       });
       expect(res.timedOut).toBe(true);
       expect(res.exitCode).not.toBe(0);
