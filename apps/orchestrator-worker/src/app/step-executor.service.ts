@@ -238,8 +238,9 @@ export class StepExecutor implements OnModuleDestroy {
 
     // C2: Create Scan + ScanJob rows in a SINGLE transaction so a failure
     // on the ScanJob insert rolls back the Scan row instead of orphaning it.
+    let scanId: string;
     try {
-      await this.prisma.$transaction(async (tx) => {
+      scanId = await this.prisma.$transaction(async (tx) => {
         const scan = await tx.scan.create({
           data: {
             engagementId: templateRun.engagementId,
@@ -259,6 +260,7 @@ export class StepExecutor implements OnModuleDestroy {
             queuedAt: new Date(),
           },
         });
+        return scan.id;
       });
     } catch (err) {
       // Row creation failed — tear down the subscription we opened above
@@ -277,7 +279,31 @@ export class StepExecutor implements OnModuleDestroy {
       input,
       engagementId: templateRun.engagementId,
     };
-    await this.scanQueue.add('scan', payload);
+    try {
+      await this.scanQueue.add('scan', payload);
+    } catch (err) {
+      // Mirrors the api-gateway ScansService reconciliation path: the DB
+      // rows are already committed; if the enqueue fails (Redis down, queue
+      // rejected the job, etc.) we mark both rows FAILED so the operator
+      // doesn't see a phantom QUEUED scan that no worker will ever pick up.
+      // The polling wait would only catch this after the full step budget
+      // (often >10 min), so reconciling here keeps the UI honest. Updates
+      // are best-effort; the original enqueue error must surface intact.
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `Failed to enqueue scanJob=${scanJobId} scanner=${step.scannerName} step=${stepIndex}: ${message}`,
+      );
+      await Promise.allSettled([
+        this.prisma.scan.update({ where: { id: scanId }, data: { status: 'FAILED' } }),
+        this.prisma.scanJob.update({
+          where: { id: scanJobId },
+          data: { status: 'FAILED', errorMessage: `enqueue failed: ${message}` },
+        }),
+      ]);
+      this.removeListener(onMessage);
+      await this.safeUnsubscribe(channel);
+      throw err;
+    }
 
     // Wait for completion (poll + push). Honours the shared AbortSignal:
     // when a sibling rejects, the controller aborts and this promise
