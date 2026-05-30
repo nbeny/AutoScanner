@@ -126,13 +126,31 @@ export class ScanJobProcessor extends WorkerHost {
     });
 
     const body = output.capture === 'stdout' ? stdoutBuffer : stderrBuffer;
-    await this.storage.ensureBucket('raw-outputs');
-    await this.storage.putObject({
-      bucket: 'raw-outputs',
-      key,
-      body: Buffer.from(body, 'utf8'),
-      contentType: output.format === 'XML' ? 'application/xml' : 'application/octet-stream',
-    });
+    try {
+      await this.storage.ensureBucket('raw-outputs');
+      await this.storage.putObject({
+        bucket: 'raw-outputs',
+        key,
+        body: Buffer.from(body, 'utf8'),
+        contentType: output.format === 'XML' ? 'application/xml' : 'application/octet-stream',
+      });
+    } catch (err) {
+      const message = (err as Error).message;
+      this.logger.error(`scanJob=${payload.scanJobId} storage upload failed: ${message}`);
+      await this.prisma.scanJob
+        .update({
+          where: { id: payload.scanJobId },
+          data: {
+            status: 'FAILED',
+            completedAt: new Date(),
+            exitCode: result.exitCode,
+            durationMs: result.durationMs,
+            errorMessage: `storage upload failed: ${message}`,
+          },
+        })
+        .catch(() => undefined);
+      throw err;
+    }
 
     const status = result.timedOut
       ? 'TIMEOUT'
@@ -141,6 +159,41 @@ export class ScanJobProcessor extends WorkerHost {
         : result.exitCode === 0
           ? 'COMPLETED'
           : 'FAILED';
+
+    // Enqueue BEFORE flipping the ScanJob status to COMPLETED so the
+    // orchestrator's polling never observes a clean COMPLETED while no
+    // ParseJob is queued. Without this, a Redis blip between the status
+    // update and the enqueue would silently drop the asset/finding
+    // persistence — the step appears successful but no results materialise.
+    if (status === 'COMPLETED') {
+      try {
+        await this.parseQueue.add('parse', {
+          scanJobId: payload.scanJobId,
+          rawOutputKey: key,
+          parserName: output.parser,
+          scannerName: payload.scannerName,
+          target: payload.target,
+          engagementId: payload.engagementId,
+        });
+      } catch (err) {
+        const message = (err as Error).message;
+        this.logger.error(`scanJob=${payload.scanJobId} parse enqueue failed: ${message}`);
+        await this.prisma.scanJob
+          .update({
+            where: { id: payload.scanJobId },
+            data: {
+              status: 'FAILED',
+              completedAt: new Date(),
+              exitCode: result.exitCode,
+              durationMs: result.durationMs,
+              rawOutputKey: key,
+              errorMessage: `parse enqueue failed: ${message}`,
+            },
+          })
+          .catch(() => undefined);
+        throw err;
+      }
+    }
 
     await this.prisma.scanJob.update({
       where: { id: payload.scanJobId },
@@ -152,17 +205,6 @@ export class ScanJobProcessor extends WorkerHost {
         rawOutputKey: key,
       },
     });
-
-    if (status === 'COMPLETED') {
-      await this.parseQueue.add('parse', {
-        scanJobId: payload.scanJobId,
-        rawOutputKey: key,
-        parserName: output.parser,
-        scannerName: payload.scannerName,
-        target: payload.target,
-        engagementId: payload.engagementId,
-      });
-    }
 
     this.logger.log(
       `scanJob=${payload.scanJobId} status=${status} exit=${result.exitCode} duration=${result.durationMs}ms`,
