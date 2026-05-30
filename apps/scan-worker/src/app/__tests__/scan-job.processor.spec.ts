@@ -233,6 +233,10 @@ describe('ScanJobProcessor', () => {
       .mockResolvedValueOnce({}) // RUNNING flip
       .mockRejectedValueOnce(new Error('db is down')); // reconciliation
 
+    const warnSpy = jest
+      .spyOn((processor as unknown as { logger: { warn: (msg: string) => void } }).logger, 'warn')
+      .mockImplementation(() => undefined);
+
     await expect(
       processor.process(
         job({
@@ -244,6 +248,12 @@ describe('ScanJobProcessor', () => {
         }),
       ),
     ).rejects.toThrow(/redis is down/);
+
+    // The masked update failure must surface as a warn so operators can
+    // distinguish "Redis blip" from "Redis blip + DB also unreachable".
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/reconciliation failed.*db is down/),
+    );
   });
 
   it('marks FAILED and re-throws when docker.run throws', async () => {

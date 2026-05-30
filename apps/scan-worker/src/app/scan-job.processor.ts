@@ -148,7 +148,11 @@ export class ScanJobProcessor extends WorkerHost {
             errorMessage: `storage upload failed: ${message}`,
           },
         })
-        .catch(() => undefined);
+        .catch((updateErr) => {
+          this.logger.warn(
+            `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
+          );
+        });
       throw err;
     }
 
@@ -190,7 +194,11 @@ export class ScanJobProcessor extends WorkerHost {
               errorMessage: `parse enqueue failed: ${message}`,
             },
           })
-          .catch(() => undefined);
+          .catch((updateErr) => {
+            this.logger.warn(
+              `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
+            );
+          });
         throw err;
       }
     }
