@@ -293,13 +293,23 @@ export class StepExecutor implements OnModuleDestroy {
       this.logger.error(
         `Failed to enqueue scanJob=${scanJobId} scanner=${step.scannerName} step=${stepIndex}: ${message}`,
       );
-      await Promise.allSettled([
+      const [scanUpdate, scanJobUpdate] = await Promise.allSettled([
         this.prisma.scan.update({ where: { id: scanId }, data: { status: 'FAILED' } }),
         this.prisma.scanJob.update({
           where: { id: scanJobId },
           data: { status: 'FAILED', errorMessage: `enqueue failed: ${message}` },
         }),
       ]);
+      if (scanUpdate.status === 'rejected') {
+        this.logger.warn(
+          `scan=${scanId} FAILED-status reconciliation failed: ${(scanUpdate.reason as Error).message}`,
+        );
+      }
+      if (scanJobUpdate.status === 'rejected') {
+        this.logger.warn(
+          `scanJob=${scanJobId} FAILED-status reconciliation failed: ${(scanJobUpdate.reason as Error).message}`,
+        );
+      }
       this.removeListener(onMessage);
       await this.safeUnsubscribe(channel);
       throw err;
