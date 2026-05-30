@@ -86,17 +86,29 @@ export class ScansService {
       // The DB rows are already committed; if the enqueue fails (Redis
       // unavailable, queue rejected the job, etc.) we must mark both rows
       // FAILED so the UI doesn't show a phantom QUEUED scan that no worker
-      // will ever pick up. We swallow update errors here so the original
-      // enqueue error surfaces to the caller intact.
+      // will ever pick up. Update errors don't propagate to the caller —
+      // the original enqueue error must surface intact — but we log them at
+      // warn so an operator hit by Redis-down *and* DB-flake at once still
+      // sees both signals instead of just the BullMQ failure.
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to enqueue scan=${scan.id} job=${scanJob.id}: ${message}`);
-      await Promise.allSettled([
+      const [scanUpdate, scanJobUpdate] = await Promise.allSettled([
         this.prisma.scan.update({ where: { id: scan.id }, data: { status: 'FAILED' } }),
         this.prisma.scanJob.update({
           where: { id: scanJob.id },
           data: { status: 'FAILED', errorMessage: `enqueue failed: ${message}` },
         }),
       ]);
+      if (scanUpdate.status === 'rejected') {
+        this.logger.warn(
+          `scan=${scan.id} FAILED-status reconciliation failed: ${(scanUpdate.reason as Error).message}`,
+        );
+      }
+      if (scanJobUpdate.status === 'rejected') {
+        this.logger.warn(
+          `scanJob=${scanJob.id} FAILED-status reconciliation failed: ${(scanJobUpdate.reason as Error).message}`,
+        );
+      }
       throw err;
     }
     this.logger.log(`Enqueued scanJob=${scanJob.id} scanner=${scanner.name}`);

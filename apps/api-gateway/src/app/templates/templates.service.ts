@@ -77,7 +77,11 @@ export class TemplatesService {
           where: { id: run.id },
           data: { status: 'FAILED', errorMessage: `enqueue failed: ${message}` },
         })
-        .catch(() => undefined);
+        .catch((updateErr) => {
+          this.logger.warn(
+            `templateRun=${run.id} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
+          );
+        });
       throw err;
     }
     this.logger.log(
