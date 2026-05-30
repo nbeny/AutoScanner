@@ -44,9 +44,27 @@ export class RedisLogStreamSubscriber implements LogStreamSubscriber, OnModuleDe
     if (set.size === 1) {
       void this.redis.subscribe(ch).catch((err) => {
         this.logger.error(`Failed to subscribe ${scanJobId}: ${(err as Error).message}`);
+        // Without this, the iterator below hangs forever: it waits in a Promise
+        // for messages that will never arrive (no subscription = no `message`
+        // event). GraphQL subscriptions on `scanJobLogs` would stay open until
+        // the client disconnects. Tear every state attached to this channel
+        // down so the iterator yields `done: true` on its next read.
+        this.terminateChannel(ch);
       });
     }
     return this.makeIterable(ch, state);
+  }
+
+  private terminateChannel(ch: string): void {
+    const set = this.subscribersByChannel.get(ch);
+    if (!set) return;
+    for (const state of set) {
+      state.done = true;
+      const w = state.waiter;
+      state.waiter = null;
+      w?.({ value: undefined as never, done: true });
+    }
+    this.subscribersByChannel.delete(ch);
   }
 
   async close(): Promise<void> {

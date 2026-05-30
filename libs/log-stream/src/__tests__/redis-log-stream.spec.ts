@@ -119,4 +119,29 @@ describe('RedisLogStream end-to-end via fake redis', () => {
 
     await subscriber.close();
   });
+
+  it('terminates the iterator with done:true when redis subscribe rejects (no hang)', async () => {
+    // Without this guarantee, the GraphQL `scanJobLogs` subscription would
+    // hang forever because the iterator's `next()` parks on a Promise that
+    // nothing ever resolves — no subscription means no `message` event.
+    const { sub } = makePair();
+    (sub as unknown as { subscribe: (ch: string) => Promise<number> }).subscribe = () =>
+      Promise.reject(new Error('redis down'));
+
+    const subscriber = new RedisLogStreamSubscriber(sub as never);
+    const iter = subscriber.subscribe('job_fail');
+
+    // Race: if the iterator never resolves, this rejects after the timeout.
+    const next = (async () => {
+      for await (const _ of iter) {
+        return 'yielded';
+      }
+      return 'closed';
+    })();
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('iterator hung')), 500),
+    );
+
+    await expect(Promise.race([next, timeout])).resolves.toBe('closed');
+  });
 });
