@@ -59,22 +59,43 @@ export class AssetPersister {
         : type === 'IP_ADDRESS'
           ? canonicalize(asset.value, { type: 'IP_ADDRESS' })
           : asset.value.trim();
-    const existing = await this.prisma.asset.findFirst({
-      where: { engagementId, type, canonicalValue, deletedAt: null },
-      select: { id: true },
-    });
-    if (existing) {
-      await this.prisma.asset.update({
-        where: { id: existing.id },
-        data: { lastSeenAt: new Date() },
+
+    // Wrap findFirst+update / findFirst+create in $transaction for atomicity
+    // (a worker crash between the two writes leaves no half-state) and to mirror
+    // the SUBDOMAIN chain pattern below. The partial unique index
+    // `Asset_engagement_type_canonical_active_uq` still enforces uniqueness at
+    // the DB level: with parser-worker concurrency=4, two workers racing on
+    // the same canonicalValue can both pass the `findFirst` null check, so the
+    // loser's `create` raises P2002. We retry the whole transaction once on
+    // P2002 — the second pass hits the winner's row and takes the update branch.
+    const attemptUpsert = () =>
+      this.prisma.$transaction(async (tx) => {
+        const existing = await tx.asset.findFirst({
+          where: { engagementId, type, canonicalValue, deletedAt: null },
+          select: { id: true },
+        });
+        if (existing) {
+          await tx.asset.update({
+            where: { id: existing.id },
+            data: { lastSeenAt: new Date() },
+          });
+          return existing.id;
+        }
+        const created = await tx.asset.create({
+          data: { engagementId, type, value: asset.value, canonicalValue },
+          select: { id: true },
+        });
+        return created.id;
       });
-      return existing.id;
+
+    try {
+      return await attemptUpsert();
+    } catch (err) {
+      if ((err as { code?: string }).code === 'P2002') {
+        return attemptUpsert();
+      }
+      throw err;
     }
-    const created = await this.prisma.asset.create({
-      data: { engagementId, type, value: asset.value, canonicalValue },
-      select: { id: true },
-    });
-    return created.id;
   }
 
   private async upsertSubdomainChain(
