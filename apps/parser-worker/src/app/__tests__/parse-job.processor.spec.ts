@@ -1141,9 +1141,12 @@ describe('ParseJobProcessor', () => {
       expect(assetMerge.dedupFindings).toHaveBeenCalledWith('eng_1');
     });
 
-    it('falls back to findFirstAssetId when no canonical host matches the engagement', async () => {
-      // No Asset rows exist in this engagement matching the host.
+    it('skips and logs when no Asset matches the Finding host (no silent misattribution)', async () => {
+      // No Asset rows exist in this engagement matching the host. The
+      // resolution loop must drop the Finding rather than attach it to an
+      // arbitrary unrelated Asset (which would corrupt per-asset counts).
       (prisma.asset.findFirst as jest.Mock).mockResolvedValue(null);
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 
       const NUCLEI_WITHOUT_KNOWN_HOST = JSON.stringify({
         'template-id': 'tmpl-no-host-known',
@@ -1157,8 +1160,49 @@ describe('ParseJobProcessor', () => {
       });
 
       const result = await processor.process(job(nucleiPayload));
-      // No assets exist and no findFirstAssetId fallback to draw from → finding dropped.
       expect(result.findingsPersisted).toBe(0);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /Skipping Finding: no Asset matched unknown\.example\.com.*template=tmpl-no-host-known/,
+        ),
+      );
+      warn.mockRestore();
+    });
+
+    it('resolves IDN Finding locations against punycoded Asset rows', async () => {
+      // A Finding whose location is `https://bücher.example/...` must match the
+      // Asset row persisted with canonicalValue `xn--bcher-kva.example`. The
+      // raw-lowercase fallback that used to live in urlToCanonicalHost would
+      // have missed this lookup.
+      (prisma.asset.findFirst as jest.Mock).mockResolvedValueOnce({ id: 'asset_idn' });
+
+      const NUCLEI_IDN = JSON.stringify({
+        'template-id': 'tmpl-idn',
+        info: { name: 'IDN finding', severity: 'low' },
+        'matched-at': 'https://bücher.example/login',
+      });
+      storage.getObject.mockResolvedValueOnce({
+        body: asStream(NUCLEI_IDN),
+        contentLength: NUCLEI_IDN.length,
+        contentType: 'application/x-ndjson',
+      });
+
+      await processor.process(job(nucleiPayload));
+
+      expect(prisma.asset.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            canonicalValue: 'xn--bcher-kva.example',
+            deletedAt: null,
+          }),
+        }),
+      );
+      const findingUpsert = prisma.finding as unknown as { upsert: jest.Mock };
+      expect(findingUpsert.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ assetId: 'asset_idn' }),
+        }),
+      );
     });
 
     it('does not rethrow when assetMerge.dedupFindings fails — persistence already succeeded', async () => {
