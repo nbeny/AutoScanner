@@ -120,4 +120,33 @@ describe('NaabuJsonParser', () => {
     expect(out.assets).toEqual([]);
     expect(out.ports).toEqual([]);
   });
+
+  it('canonicalises IPv6 to RFC 5952 (collapses uncompressed/uppercase variants)', async () => {
+    const input = [
+      '{"ip":"2001:0DB8:0000:0000:0000:0000:0000:0001","port":443,"protocol":"tcp"}',
+      '{"ip":"2001:db8::1","port":80,"protocol":"tcp"}',
+    ].join('\n');
+    const out = await parser.parse(input, ctx);
+    const ipAssets = out.assets.filter((a) => a.type === 'IP');
+    // Both forms collapse to the same canonical IPv6.
+    expect(ipAssets.length).toBe(1);
+    expect(ipAssets[0].value).toBe('2001:db8::1');
+    // Both ports attached to the canonical IP.
+    expect(out.ports.length).toBe(2);
+    expect(out.ports.every((p) => p.assetValue === '2001:db8::1')).toBe(true);
+  });
+
+  it('warns and defaults to TCP for an unknown protocol value', async () => {
+    const warnSpy = jest
+      .spyOn(require('@nestjs/common').Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    try {
+      const out = await parser.parse('{"ip":"1.1.1.1","port":22,"protocol":"sctp"}', ctx);
+      expect(out.ports.length).toBe(1);
+      expect(out.ports[0].protocol).toBe('TCP');
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/unknown naabu protocol 'sctp'/));
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
 });
