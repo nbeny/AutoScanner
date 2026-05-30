@@ -148,9 +148,23 @@ describe('ScansService.runScan', () => {
     (prisma.scan.update as jest.Mock).mockRejectedValueOnce(new Error('db is down'));
     (prisma.scanJob.update as jest.Mock).mockRejectedValueOnce(new Error('db is down'));
 
+    // Verify the masked update failures surface as warns. Without those,
+    // an operator hit by Redis-down + DB-flake at once would only see the
+    // BullMQ error and never know the DB row was never reconciled.
+    const warnSpy = jest
+      .spyOn((svc as unknown as { logger: { warn: (msg: string) => void } }).logger, 'warn')
+      .mockImplementation(() => undefined);
+
     await expect(
       svc.runScan(userId, { engagementId, scannerName: 'nmap', target: '127.0.0.1' }),
     ).rejects.toThrow(/redis is down/);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/scan=.*FAILED-status reconciliation failed.*db is down/),
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/scanJob=.*FAILED-status reconciliation failed.*db is down/),
+    );
   });
 
   it('rejects unknown scanner', async () => {
