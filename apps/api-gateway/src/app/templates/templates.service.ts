@@ -62,7 +62,24 @@ export class TemplatesService {
       templateRunId: run.id,
       engagementId: input.engagementId,
     };
-    await this.templateRunsQueue.add('template-run', payload);
+
+    try {
+      await this.templateRunsQueue.add('template-run', payload);
+    } catch (err) {
+      // Without this, a Redis blip after the DB write leaves the run
+      // visible to the operator as PENDING forever — no worker is going to
+      // pick it up because nothing was enqueued. Mark it FAILED so the
+      // status reflects reality and re-throw the original error.
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to enqueue templateRun=${run.id}: ${message}`);
+      await this.prisma.templateRun
+        .update({
+          where: { id: run.id },
+          data: { status: 'FAILED', errorMessage: `enqueue failed: ${message}` },
+        })
+        .catch(() => undefined);
+      throw err;
+    }
     this.logger.log(
       `Enqueued templateRun=${run.id} template=${template.name} target=${JSON.stringify(input.target)}`,
     );
