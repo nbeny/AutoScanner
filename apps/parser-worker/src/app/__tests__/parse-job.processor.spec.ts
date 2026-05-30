@@ -913,6 +913,59 @@ describe('ParseJobProcessor', () => {
       expect(assetMerge.mergeIpAddresses).toHaveBeenCalledTimes(1);
       expect(assetMerge.mergeIpAddresses).toHaveBeenCalledWith('eng_1');
     });
+
+    it('preserves case for TXT/CAA values and canonicalises AAAA via RFC 5952', async () => {
+      // dnsx-json today doesn't emit TXT/CAA/AAAA-with-mixed-case, but the
+      // persister advertises support for those types. Inject a synthetic
+      // parser output to verify the persister's value-normalisation contract
+      // without depending on a real fixture.
+      jest.spyOn(registry, 'get').mockReturnValue({
+        parse: async () => ({
+          assets: [],
+          ports: [],
+          services: [],
+          findings: [],
+          technologies: [],
+          ipAddresses: [],
+          dnsRecords: [
+            // TXT: SPF token case must survive intact.
+            {
+              assetValue: 'www.hackerone.com',
+              recordType: 'TXT',
+              value: 'v=spf1 include:_spf.Google.com -all',
+            },
+            // CAA: tag value (issuer hostname after the tag) is case-sensitive
+            // in real-world use (Let's Encrypt's `letsencrypt.org` is recorded
+            // verbatim; mixed-case here proves we don't mangle it).
+            {
+              assetValue: 'www.hackerone.com',
+              recordType: 'CAA',
+              value: '0 issue "LetsEncrypt.ORG"',
+            },
+            // AAAA: uppercase + non-compressed → RFC 5952 lowercase + compressed.
+            {
+              assetValue: 'www.hackerone.com',
+              recordType: 'AAAA',
+              value: '2001:0DB8:0000:0000:0000:0000:0000:0001',
+            },
+          ],
+          subdomainIps: [],
+          httpProbes: [],
+        }),
+      } as never);
+
+      await processor.process(job(dnsxPayload));
+
+      const dnsCreate = prisma.dnsRecord as unknown as { create: jest.Mock };
+      const createCalls = dnsCreate.create.mock.calls as Array<
+        [{ data: { type: string; value: string } }]
+      >;
+      const byType = (t: string) => createCalls.find(([arg]) => arg.data.type === t)?.[0].data;
+
+      expect(byType('TXT')?.value).toBe('v=spf1 include:_spf.Google.com -all');
+      expect(byType('CAA')?.value).toBe('0 issue "LetsEncrypt.ORG"');
+      expect(byType('AAAA')?.value).toBe('2001:db8::1');
+    });
   });
 
   describe('Finding persistence (nuclei-json)', () => {
