@@ -33,8 +33,16 @@ import { TemplateRunProcessor } from './template-run.processor';
 const redisSubscriber: Provider = {
   provide: ORCHESTRATOR_REDIS_SUBSCRIBER,
   inject: [AppConfigService],
-  useFactory: (cfg: AppConfigService): OrchestratorRedisSubscriber =>
-    new IORedis(cfg.env.REDIS_URL, { lazyConnect: false }),
+  useFactory: (cfg: AppConfigService): OrchestratorRedisSubscriber => {
+    // StepExecutor attaches one `message` listener per in-flight ScanJob (so
+    // it can react to the future `scanjob:done:<id>` push). A template with
+    // a wide fan-out — e.g. naabu over a /24 — easily exceeds Node's default
+    // 10-listener warning threshold and floods stderr with
+    // MaxListenersExceededWarning. Lift the cap on this dedicated subscriber.
+    const sub = new IORedis(cfg.env.REDIS_URL, { lazyConnect: false });
+    sub.setMaxListeners(0);
+    return sub;
+  },
 };
 
 @Module({
