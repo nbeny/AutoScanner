@@ -695,6 +695,13 @@ describe('StepExecutor.runStep — enqueue failure reconciliation', () => {
 
     const exec = build(prisma, makeScannerRegistry(60_000), queue, makeRedis(), 5_000);
 
+    // Spy on the executor's logger so we can verify both masked-update
+    // warns fire — without that signal, an operator hit by Redis-down +
+    // DB-flake at once would only see the BullMQ error.
+    const warnSpy = jest
+      .spyOn((exec as unknown as { logger: { warn: (msg: string) => void } }).logger, 'warn')
+      .mockImplementation(() => undefined);
+
     const step: TemplateStep = {
       scannerName: 'subfinder',
       inputs: {},
@@ -703,6 +710,13 @@ describe('StepExecutor.runStep — enqueue failure reconciliation', () => {
 
     await expect(exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 })).rejects.toThrow(
       /redis is down/,
+    );
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/scan=.*FAILED-status reconciliation failed.*scan db blip/),
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/scanJob=.*FAILED-status reconciliation failed.*scanJob db blip/),
     );
   });
 });
