@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@autoscanner/database';
 import type { NormalizedDnsRecord } from '@autoscanner/parsers';
 
-import { canonicalize } from '../correlation.service';
+import { canonicalize } from '@autoscanner/correlation';
 
 // DnsRecordType enum values supported by Prisma / the schema.
 const VALID_DNS_RECORD_TYPES = new Set([

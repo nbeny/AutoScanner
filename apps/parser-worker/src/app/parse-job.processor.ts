@@ -11,7 +11,7 @@ import { QueueName, type ParseJobPayload } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 import { PrismaService } from '@autoscanner/database';
 
-import { CorrelationService, canonicalize } from './correlation.service';
+import { AssetMergeService, canonicalize } from '@autoscanner/correlation';
 import { AssetPersister } from './persisters/asset-persister';
 import { DnsRecordPersister } from './persisters/dns-record-persister';
 import { FindingPersister } from './persisters/finding-persister';
@@ -39,7 +39,7 @@ export class ParseJobProcessor extends WorkerHost {
   constructor(
     private readonly registry: ParserRegistry,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
-    private readonly correlation: CorrelationService,
+    private readonly assetMerge: AssetMergeService,
     private readonly assetPersister: AssetPersister,
     private readonly portPersister: PortPersister,
     private readonly servicePersister: ServicePersister,
@@ -83,7 +83,7 @@ export class ParseJobProcessor extends WorkerHost {
     // even if correlation fails. The unique constraint on Subdomain prevents the
     // duplicates this targets today; it will become load-bearing in Phase 3+.
     try {
-      const { merged } = await this.correlation.mergeSubdomains(payload.engagementId);
+      const { merged } = await this.assetMerge.mergeSubdomains(payload.engagementId);
       if (merged > 0) {
         this.logger.log(
           `correlation merged ${merged} duplicate subdomains for engagement ${payload.engagementId}`,
@@ -98,7 +98,7 @@ export class ParseJobProcessor extends WorkerHost {
 
     // Correlation v1: same defensive merge for duplicate IpAddress rows.
     try {
-      const { merged } = await this.correlation.mergeIpAddresses(payload.engagementId);
+      const { merged } = await this.assetMerge.mergeIpAddresses(payload.engagementId);
       if (merged > 0) {
         this.logger.log(
           `correlation merged ${merged} duplicate IpAddress rows for engagement ${payload.engagementId}`,
@@ -115,7 +115,7 @@ export class ParseJobProcessor extends WorkerHost {
     // the common case; this catches the canonicalisation-drift case where two
     // Asset rows end up with Findings sharing the same dedupHash.
     try {
-      const { merged } = await this.correlation.dedupFindings(payload.engagementId);
+      const { merged } = await this.assetMerge.dedupFindings(payload.engagementId);
       if (merged > 0) {
         this.logger.log(
           `correlation deduped ${merged} duplicate Finding rows for engagement ${payload.engagementId}`,

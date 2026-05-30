@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 
 import { AppConfigModule } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
+import { CorrelationModule } from '@autoscanner/correlation';
 import { PrismaModule } from '@autoscanner/database';
 import { QueuesModule } from '@autoscanner/queues';
 import { ParsersModule } from '@autoscanner/parsers';
 import { StorageModule } from '@autoscanner/storage';
 
-import { CorrelationService } from './correlation.service';
 import { ParseJobProcessor } from './parse-job.processor';
 import { AssetPersister } from './persisters/asset-persister';
 import { DnsRecordPersister } from './persisters/dns-record-persister';
@@ -22,6 +22,7 @@ import { TechnologyPersister } from './persisters/technology-persister';
   imports: [
     AppConfigModule,
     AppLoggingModule,
+    CorrelationModule,
     PrismaModule,
     QueuesModule,
     StorageModule,
@@ -29,7 +30,6 @@ import { TechnologyPersister } from './persisters/technology-persister';
   ],
   providers: [
     ParseJobProcessor,
-    CorrelationService,
     AssetPersister,
     PortPersister,
     ServicePersister,

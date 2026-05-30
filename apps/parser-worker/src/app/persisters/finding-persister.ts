@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { createHash } from 'node:crypto';
 import { PrismaService } from '@autoscanner/database';
+import { findingDedupHash } from '@autoscanner/correlation';
 import type { NormalizedFinding } from '@autoscanner/parsers';
 
 @Injectable()
@@ -11,7 +11,7 @@ export class FindingPersister {
    * Upsert a Finding for the given asset.
    *
    * `assetCanonical` is the host canonicalised by the caller (lowercased, trim,
-   * trailing-dot stripped — see {@link canonicalize} in correlation.service.ts).
+   * trailing-dot stripped — see `canonicalize` in `@autoscanner/correlation`).
    * It's part of the dedupHash so two findings located at differently-cased URLs
    * (`Https://API.example.com/path` vs `https://api.example.com/path`) collapse
    * onto the same row.
@@ -33,17 +33,13 @@ export class FindingPersister {
     assetCanonical: string,
   ): Promise<void> {
     const sig = finding.cveId ?? finding.templateId ?? finding.title;
-    const dedupHash = createHash('sha256')
-      .update(finding.scannerName)
-      .update('|')
-      .update(finding.templateId ?? '')
-      .update('|')
-      .update(assetCanonical)
-      .update('|')
-      .update(finding.location ?? '')
-      .update('|')
-      .update(sig)
-      .digest('hex');
+    const dedupHash = findingDedupHash({
+      scannerName: finding.scannerName,
+      templateId: finding.templateId,
+      assetCanonical,
+      location: finding.location,
+      signature: sig,
+    });
 
     const now = new Date();
     await this.prisma.finding.upsert({

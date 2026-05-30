@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@autoscanner/database';
 import type { NormalizedAsset } from '@autoscanner/parsers';
 
-import { canonicalize } from '../correlation.service';
+import { canonicalize } from '@autoscanner/correlation';
 
 @Injectable()
 export class IpAddressPersister {
