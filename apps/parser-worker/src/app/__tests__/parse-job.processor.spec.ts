@@ -284,6 +284,48 @@ describe('ParseJobProcessor', () => {
     expect(prisma.asset.create).toHaveBeenCalledTimes(1);
   });
 
+  it('retries non-SUBDOMAIN upsert on P2002 race and updates the winning row', async () => {
+    // Simulate a concurrent-worker race on the DOMAIN asset 'db.internal' (the
+    // path that goes through AssetPersister.upsert — IPs are owned by
+    // IpAddressPersister). 1st create throws P2002, the retried transaction's
+    // findFirst returns the row inserted by the racing worker, and we take
+    // the update branch instead of re-creating.
+    const p2002 = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    let domainFindFirstCalls = 0;
+    let domainCreateCalls = 0;
+
+    (prisma.asset.findFirst as jest.Mock).mockImplementation(async ({ where }) => {
+      if (where.canonicalValue === 'db.internal' && where.type === 'DOMAIN') {
+        domainFindFirstCalls++;
+        if (domainFindFirstCalls === 1) return null;
+        return {
+          id: 'winner_domain',
+          type: 'DOMAIN',
+          value: 'db.internal',
+          canonicalValue: 'db.internal',
+        };
+      }
+      return null;
+    });
+    (prisma.asset.create as jest.Mock).mockImplementation(async ({ data }) => {
+      if (data.canonicalValue === 'db.internal' && data.type === 'DOMAIN') {
+        domainCreateCalls++;
+        if (domainCreateCalls === 1) throw p2002;
+      }
+      return { id: `asset_${data.canonicalValue}`, ...data };
+    });
+
+    await processor.process(job(payload));
+
+    expect(domainFindFirstCalls).toBe(2);
+    // Only the failed first create; the retry hits the winner and takes update.
+    expect(domainCreateCalls).toBe(1);
+    expect(prisma.asset.update).toHaveBeenCalledWith({
+      where: { id: 'winner_domain' },
+      data: { lastSeenAt: expect.any(Date) },
+    });
+  });
+
   it('throws when parser not in registry (so BullMQ can retry/dead-letter)', async () => {
     await expect(
       processor.process(job({ ...payload, parserName: 'does-not-exist' })),
