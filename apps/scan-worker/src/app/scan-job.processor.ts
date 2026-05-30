@@ -73,34 +73,33 @@ export class ScanJobProcessor extends WorkerHost {
     let stdoutBuffer = '';
     let stderrBuffer = '';
 
+    // If pub/sub is down, a chatty scanner (nuclei emits thousands of chunks)
+    // produces one warn per chunk, drowning every other signal in the log.
+    // Cap to one warn per scan-job: subsequent failures stay suppressed for
+    // this run but the BullMQ retry on a fresh scan-job will warn again.
+    let publishFailureLogged = false;
+    const safePublish = (stream: 'stdout' | 'stderr', chunk: string): void => {
+      void this.logStream
+        .publish({ scanJobId: payload.scanJobId, stream, ts: Date.now(), chunk })
+        .catch((err) => {
+          if (publishFailureLogged) return;
+          publishFailureLogged = true;
+          this.logger.warn(
+            `scanJob=${payload.scanJobId} log stream publish failed (suppressing further warns for this scan): ${(err as Error).message}`,
+          );
+        });
+    };
+
     try {
       result = await this.docker.run({
         ...runSpec,
         onStdout: (chunk) => {
           stdoutBuffer += chunk;
-          void this.logStream
-            .publish({
-              scanJobId: payload.scanJobId,
-              stream: 'stdout',
-              ts: Date.now(),
-              chunk,
-            })
-            .catch((err) =>
-              this.logger.warn(`log stream publish failed: ${(err as Error).message}`),
-            );
+          safePublish('stdout', chunk);
         },
         onStderr: (chunk) => {
           stderrBuffer += chunk;
-          void this.logStream
-            .publish({
-              scanJobId: payload.scanJobId,
-              stream: 'stderr',
-              ts: Date.now(),
-              chunk,
-            })
-            .catch((err) =>
-              this.logger.warn(`log stream publish failed: ${(err as Error).message}`),
-            );
+          safePublish('stderr', chunk);
         },
       });
     } catch (err) {
