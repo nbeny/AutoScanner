@@ -90,14 +90,25 @@ export class TemplateRunProcessor extends WorkerHost {
     } catch (err) {
       const message = (err as Error).message;
       this.logger.error(`TemplateRun ${run.id} FAILED: ${message}`);
-      await this.prisma.templateRun.update({
-        where: { id: run.id },
-        data: {
-          status: 'FAILED',
-          completedAt: new Date(),
-          errorMessage: message,
-        },
-      });
+      // Swallow update failures so the original step error surfaces to
+      // BullMQ. Without this, a transient DB blip during status reconciliation
+      // would mask the actual root cause and leave the run in RUNNING (boot
+      // reconciliation would re-pick it up, but the operator would see a
+      // misleading "DB error" stack instead of the step failure).
+      await this.prisma.templateRun
+        .update({
+          where: { id: run.id },
+          data: {
+            status: 'FAILED',
+            completedAt: new Date(),
+            errorMessage: message,
+          },
+        })
+        .catch((updateErr) => {
+          this.logger.warn(
+            `TemplateRun ${run.id} status reconciliation failed: ${(updateErr as Error).message}`,
+          );
+        });
       throw err;
     }
   }

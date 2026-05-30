@@ -214,6 +214,25 @@ describe('TemplateRunProcessor', () => {
     expect(prisma.templateRun.update).not.toHaveBeenCalled();
   });
 
+  it('still re-throws the step error when the FAILED-status update itself fails', async () => {
+    const row = makeRow({ status: 'PENDING' });
+    const prisma = makePrisma(row);
+    const executor = makeExecutor();
+    executor.runStep.mockRejectedValueOnce(new Error('docker boom'));
+    // Last update (FAILED reconciliation) rejects. The original 'docker boom'
+    // must still be what bubbles up — otherwise the operator sees a DB error
+    // instead of the actual step failure.
+    (prisma.templateRun.update as jest.Mock)
+      .mockResolvedValueOnce({}) // flip to RUNNING
+      .mockResolvedValueOnce({}) // currentStepIndex = 0
+      .mockRejectedValueOnce(new Error('db is down')); // FAILED reconciliation
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+
+    await expect(
+      proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
+    ).rejects.toThrow('docker boom');
+  });
+
   it('preserves existing startedAt on resume (does not overwrite)', async () => {
     const startedAt = new Date('2024-01-01T00:00:00Z');
     const row = makeRow({ status: 'RUNNING', currentStepIndex: 0, startedAt });

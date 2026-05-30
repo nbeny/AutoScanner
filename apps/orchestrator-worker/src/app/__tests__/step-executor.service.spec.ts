@@ -631,6 +631,82 @@ describe('StepExecutor — code-review follow-ups (Task 10)', () => {
   });
 });
 
+describe('StepExecutor.runStep — enqueue failure reconciliation', () => {
+  // No fake timers: the enqueue throw happens before any polling timer is
+  // installed, so we can let the natural promise chain unwind.
+
+  it('marks Scan + ScanJob FAILED and re-throws when scanQueue.add throws', async () => {
+    const prisma = makePrisma();
+    // makePrisma omits update mocks since the happy path doesn't need them.
+    // Reach in and attach jest.fn()s for both surfaces so the reconciliation
+    // path has somewhere to land.
+    (prisma.scan as unknown as { update: jest.Mock }).update = jest
+      .fn()
+      .mockResolvedValue({ id: 'scan_1', status: 'FAILED' });
+    (prisma.scanJob as unknown as { update: jest.Mock }).update = jest
+      .fn()
+      .mockResolvedValue({ status: 'FAILED' });
+
+    const queue = makeScanQueue();
+    const enqueueError = new Error('redis is down');
+    (queue.add as jest.Mock).mockRejectedValueOnce(enqueueError);
+
+    const redis = makeRedis();
+    const exec = build(prisma, makeScannerRegistry(60_000), queue, redis, 5_000);
+
+    const step: TemplateStep = {
+      scannerName: 'subfinder',
+      inputs: {},
+      target: { kind: 'context', path: 'target' },
+    };
+
+    await expect(exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 })).rejects.toBe(
+      enqueueError,
+    );
+
+    // Both row updates must have landed before the throw was re-raised.
+    const scanUpdate = (prisma.scan as unknown as { update: jest.Mock }).update;
+    const scanJobUpdate = (prisma.scanJob as unknown as { update: jest.Mock }).update;
+    expect(scanUpdate).toHaveBeenCalledWith({
+      where: { id: 'scan_1' },
+      data: { status: 'FAILED' },
+    });
+    const scanJobId = (prisma.scanJob.create as jest.Mock).mock.calls[0][0].data.id as string;
+    expect(scanJobUpdate).toHaveBeenCalledWith({
+      where: { id: scanJobId },
+      data: { status: 'FAILED', errorMessage: 'enqueue failed: redis is down' },
+    });
+    // Subscriber must be torn down so we don't leak the redis listener.
+    expect(redis.unsubscribe).toHaveBeenCalled();
+    expect(redis.off).toHaveBeenCalled();
+  });
+
+  it('still re-throws the original enqueue error when the FAILED-status updates themselves fail', async () => {
+    const prisma = makePrisma();
+    (prisma.scan as unknown as { update: jest.Mock }).update = jest
+      .fn()
+      .mockRejectedValue(new Error('scan db blip'));
+    (prisma.scanJob as unknown as { update: jest.Mock }).update = jest
+      .fn()
+      .mockRejectedValue(new Error('scanJob db blip'));
+
+    const queue = makeScanQueue();
+    (queue.add as jest.Mock).mockRejectedValueOnce(new Error('redis is down'));
+
+    const exec = build(prisma, makeScannerRegistry(60_000), queue, makeRedis(), 5_000);
+
+    const step: TemplateStep = {
+      scannerName: 'subfinder',
+      inputs: {},
+      target: { kind: 'context', path: 'target' },
+    };
+
+    await expect(exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 })).rejects.toThrow(
+      /redis is down/,
+    );
+  });
+});
+
 // helper local to this file: clones a prisma mock returned by makePrisma so
 // we can install additional mock impls without affecting earlier specs.
 function makePrisma_(p: jest.Mocked<PrismaService>): jest.Mocked<PrismaService> {
