@@ -215,26 +215,37 @@ export class ParseJobProcessor extends WorkerHost {
       //
       // Resolution order:
       //   1. In-memory map (assets emitted by *this* parse job).
-      //   2. DB lookup by canonical host within the engagement (nuclei usually
-      //      runs after subfinder/httpx, so the Asset row already exists).
-      //   3. Fallback to the first asset in the map — covers the rare case of
-      //      non-URL findings (templates without `matched-at`).
+      //   2. DB lookup by canonical host within the engagement, filtered to
+      //      live (non-soft-deleted) Asset rows — nuclei usually runs after
+      //      subfinder/httpx so the row already exists.
+      //
+      // No "pick a random asset" fallback: silently attaching a finding to an
+      // unrelated asset corrupts attribution downstream (per-asset finding
+      // counts, severity rollups, the unified asset view). When resolution
+      // fails we log and skip; BullMQ retains the raw output for re-processing
+      // once the missing Asset row lands.
       const canonicalHost = urlToCanonicalHost(finding.location);
       let assetId: string | undefined;
       if (canonicalHost) {
         assetId = assetIdByValue.get(canonicalHost);
         if (!assetId) {
           const existing = await this.prisma.asset.findFirst({
-            where: { engagementId: payload.engagementId, canonicalValue: canonicalHost },
+            where: {
+              engagementId: payload.engagementId,
+              canonicalValue: canonicalHost,
+              deletedAt: null,
+            },
             select: { id: true },
           });
           assetId = existing?.id;
         }
       }
       if (!assetId) {
-        assetId = findFirstAssetId(assetIdByValue);
+        this.logger.warn(
+          `Skipping Finding: no Asset matched ${canonicalHost ?? '(no location)'} in engagement ${payload.engagementId} (template=${finding.templateId ?? 'unknown'})`,
+        );
+        continue;
       }
-      if (!assetId) continue;
       await this.findingPersister.upsert(payload.scanJobId, assetId, finding, canonicalHost ?? '');
       findingsPersisted++;
     }
@@ -290,22 +301,19 @@ function portKey(p: { assetValue: string; number: number; protocol: string }): s
   return `${p.assetValue.toLowerCase()}|${p.number}|${p.protocol}`;
 }
 
-function findFirstAssetId(map: Map<string, string>): string | undefined {
-  for (const id of map.values()) return id;
-  return undefined;
-}
-
 /**
  * Extract the canonical host from a Finding.location URL. Returns `undefined`
  * if `location` is missing or fails URL parsing (non-URL scanners may still
- * emit findings without a location). Mirrors `canonicalize(host, { type: 'SUBDOMAIN' })`
- * — lowercase + trim + strip trailing dot.
+ * emit findings without a location). Delegates to
+ * `canonicalize(host, { type: 'SUBDOMAIN' })` so the output matches Asset
+ * canonicalValues bit-for-bit — including IDN punycode (a finding at
+ * `https://bücher.example/` must resolve to the `xn--bcher-kva.example` Asset).
  */
 function urlToCanonicalHost(location: string | undefined): string | undefined {
   if (!location) return undefined;
   try {
     const url = new URL(location);
-    const host = url.hostname.trim().toLowerCase().replace(/\.$/, '');
+    const host = canonicalize(url.hostname, { type: 'SUBDOMAIN' });
     return host.length > 0 ? host : undefined;
   } catch {
     return undefined;
