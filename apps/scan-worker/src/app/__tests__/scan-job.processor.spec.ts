@@ -164,6 +164,88 @@ describe('ScanJobProcessor', () => {
     );
   });
 
+  it('marks FAILED with a storage error message and does NOT enqueue parse when storage.putObject throws', async () => {
+    storage.putObject.mockRejectedValueOnce(new Error('minio unreachable'));
+
+    await expect(
+      processor.process(
+        job({
+          scanJobId: 'job_1',
+          scannerName: 'nmap',
+          target: '127.0.0.1',
+          input: {},
+          engagementId: 'eng_1',
+        }),
+      ),
+    ).rejects.toThrow('minio unreachable');
+
+    expect(parseQueue.add).not.toHaveBeenCalled();
+    expect(prisma.scanJob.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'job_1' },
+        data: expect.objectContaining({
+          status: 'FAILED',
+          errorMessage: 'storage upload failed: minio unreachable',
+        }),
+      }),
+    );
+  });
+
+  it('marks FAILED with a parse-enqueue error message when parseQueue.add throws (so orchestrator never observes a phantom COMPLETED)', async () => {
+    parseQueue.add.mockRejectedValueOnce(new Error('redis is down'));
+
+    await expect(
+      processor.process(
+        job({
+          scanJobId: 'job_1',
+          scannerName: 'nmap',
+          target: '127.0.0.1',
+          input: {},
+          engagementId: 'eng_1',
+        }),
+      ),
+    ).rejects.toThrow('redis is down');
+
+    expect(parseQueue.add).toHaveBeenCalledTimes(1);
+    // The final status update must NOT have flipped COMPLETED — the
+    // orchestrator's polling would have treated that as a clean step.
+    const completedUpdates = (prisma.scanJob.update as jest.Mock).mock.calls.filter(
+      ([arg]) => (arg as { data: { status?: string } }).data.status === 'COMPLETED',
+    );
+    expect(completedUpdates).toHaveLength(0);
+    expect(prisma.scanJob.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'job_1' },
+        data: expect.objectContaining({
+          status: 'FAILED',
+          errorMessage: 'parse enqueue failed: redis is down',
+          rawOutputKey: 'eng_1/scan_1/job_1/nmap-xml.xml',
+        }),
+      }),
+    );
+  });
+
+  it('still re-throws the original error when the FAILED reconciliation update itself fails', async () => {
+    parseQueue.add.mockRejectedValueOnce(new Error('redis is down'));
+    // The RUNNING-status update at the start works; the reconciliation
+    // update is the second call and will reject.
+    (prisma.scanJob.update as jest.Mock)
+      .mockResolvedValueOnce({}) // RUNNING flip
+      .mockRejectedValueOnce(new Error('db is down')); // reconciliation
+
+    await expect(
+      processor.process(
+        job({
+          scanJobId: 'job_1',
+          scannerName: 'nmap',
+          target: '127.0.0.1',
+          input: {},
+          engagementId: 'eng_1',
+        }),
+      ),
+    ).rejects.toThrow(/redis is down/);
+  });
+
   it('marks FAILED and re-throws when docker.run throws', async () => {
     docker.run.mockRejectedValueOnce(new Error('boom'));
 
