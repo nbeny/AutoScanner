@@ -75,6 +75,9 @@ export const RUN_SCAN_MUTATION = gql`
   }
 `;
 
+// Fat query used by the scan-run AssetsTable, which renders ports + services
+// inline. Per-kind engagement tabs use the leaner queries below to avoid the
+// eager JOIN on Ports/Services/Technologies for every row.
 export const ASSETS_QUERY = gql`
   query Assets($engagementId: ID!) {
     assets(engagementId: $engagementId) {
@@ -92,6 +95,36 @@ export const ASSETS_QUERY = gql`
           version
         }
       }
+      technologies {
+        id
+        name
+        version
+      }
+    }
+  }
+`;
+
+// Lean query for per-kind tabs (DOMAIN/SUBDOMAIN/IP). The resolver inspects
+// the selection set and skips the ports/technologies Prisma joins entirely
+// when neither is requested, so this avoids the JOIN cost server-side too.
+export const ASSETS_BY_TYPE_QUERY = gql`
+  query AssetsByType($engagementId: ID!, $types: [AssetType!]) {
+    assets(engagementId: $engagementId, types: $types) {
+      id
+      value
+      type
+      lastSeenAt
+    }
+  }
+`;
+
+// Selects only assets carrying technologies. We still fetch all assets and
+// flatten client-side because Technology is not a top-level engagement query;
+// the resolver skips the ports JOIN since it's not selected.
+export const ASSET_TECHNOLOGIES_QUERY = gql`
+  query AssetTechnologies($engagementId: ID!) {
+    assets(engagementId: $engagementId) {
+      id
       technologies {
         id
         name

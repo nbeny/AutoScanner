@@ -18,7 +18,7 @@ describe('AssetsService', () => {
   });
 
   describe('listForOwner', () => {
-    it('returns the engagement assets with nested ports and services', async () => {
+    it('defaults to including ports and technologies when no opts are passed (back-compat)', async () => {
       (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
       const fixture = [
         {
@@ -44,6 +44,69 @@ describe('AssetsService', () => {
         include: { ports: { include: { services: true } }, technologies: true },
       });
       expect(result).toBe(fixture);
+    });
+
+    it('skips the ports/technologies includes when both flags are false', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (prisma.asset.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.listForOwner(userId, engagementId, {
+        includePorts: false,
+        includeTechnologies: false,
+      });
+
+      expect(prisma.asset.findMany).toHaveBeenCalledWith({
+        where: { engagementId, deletedAt: null },
+        orderBy: { lastSeenAt: 'desc' },
+        include: {},
+      });
+    });
+
+    it('skips only the unrequested relation (ports false, technologies true)', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (prisma.asset.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.listForOwner(userId, engagementId, {
+        includePorts: false,
+        includeTechnologies: true,
+      });
+
+      expect(prisma.asset.findMany).toHaveBeenCalledWith({
+        where: { engagementId, deletedAt: null },
+        orderBy: { lastSeenAt: 'desc' },
+        include: { technologies: true },
+      });
+    });
+
+    it('applies a type filter via `{ type: { in: [...] } }` when types is non-empty', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (prisma.asset.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.listForOwner(userId, engagementId, {
+        types: ['DOMAIN', 'SUBDOMAIN'] as never,
+        includePorts: false,
+        includeTechnologies: false,
+      });
+
+      expect(prisma.asset.findMany).toHaveBeenCalledWith({
+        where: {
+          engagementId,
+          deletedAt: null,
+          type: { in: ['DOMAIN', 'SUBDOMAIN'] },
+        },
+        orderBy: { lastSeenAt: 'desc' },
+        include: {},
+      });
+    });
+
+    it('omits the type filter when types is an empty array (treats as "no filter")', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (prisma.asset.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.listForOwner(userId, engagementId, { types: [] });
+
+      const call = (prisma.asset.findMany as jest.Mock).mock.calls[0][0];
+      expect(call.where).not.toHaveProperty('type');
     });
 
     it('throws NotFoundError when the engagement is not owned by the user', async () => {
