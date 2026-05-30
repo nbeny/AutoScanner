@@ -25,60 +25,22 @@
  *   E2E_ENGAGEMENT_ID       pre-seeded engagement id; required for full coverage
  */
 
-import { GraphQLClient } from 'graphql-request';
+import type { GraphQLClient } from 'graphql-request';
+import { authedGqlClient, describeOrSkipE2E, readBaseEnv, restLogin } from '../helpers';
+import type { GqlError, TemplateRun } from '../helpers';
 
-const apiUrl = process.env['E2E_API_URL'];
-const email = process.env['E2E_EMAIL'];
-const password = process.env['E2E_PASSWORD'];
+const env = readBaseEnv();
 const templateName = process.env['E2E_TEMPLATE_NAME'] ?? 'recon-passive';
 const target = process.env['E2E_TEMPLATE_TARGET'] ?? 'hackerone.com';
 const outOfScopeTarget = process.env['E2E_OUT_OF_SCOPE_TARGET'] ?? 'example.org';
 const seededEngagementId = process.env['E2E_ENGAGEMENT_ID'];
 
-const describeOrSkip = apiUrl && email && password ? describe : describe.skip;
-
-interface AuthPayload {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-interface TemplateRun {
-  id: string;
-  templateName: string;
-  target: string;
-  status: string;
-  currentStepIndex: number;
-  scans: { id: string }[];
-}
-
-interface GqlErrorShape {
-  message: string;
-  extensions?: { code?: string };
-}
-
-interface GqlError {
-  response?: { errors?: GqlErrorShape[] };
-}
-
-async function restLogin(): Promise<AuthPayload> {
-  const res = await fetch(`${apiUrl!}/auth/login`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!res.ok) throw new Error(`login failed: HTTP ${res.status} ${await res.text()}`);
-  return (await res.json()) as AuthPayload;
-}
-
-describeOrSkip('Phase 2 — runTemplate GraphQL surface', () => {
+describeOrSkipE2E(env)('Phase 2 — runTemplate GraphQL surface', () => {
   let gql: GraphQLClient;
 
   beforeAll(async () => {
-    const auth = await restLogin();
-    gql = new GraphQLClient(`${apiUrl!}/graphql`, {
-      headers: { authorization: `Bearer ${auth.accessToken}` },
-    });
+    const auth = await restLogin(env.apiUrl!, env.email!, env.password!);
+    gql = authedGqlClient(env.apiUrl!, auth.accessToken);
   }, 30_000);
 
   const inScopeCase = seededEngagementId ? it : it.skip;
