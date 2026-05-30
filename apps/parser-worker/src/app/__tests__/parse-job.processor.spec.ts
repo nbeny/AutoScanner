@@ -613,7 +613,7 @@ describe('ParseJobProcessor', () => {
             where.name === 'Cloudflare' &&
             where.version === null
           ) {
-            return { id: 'existing_tech_cf' };
+            return { id: 'existing_tech_cf', categories: [] };
           }
           return null;
         },
@@ -638,6 +638,68 @@ describe('ParseJobProcessor', () => {
           data: expect.objectContaining({ lastSeenAt: expect.any(Date) }),
         }),
       );
+    });
+
+    it('union-merges Technology categories on re-detection and never rewrites source', async () => {
+      // Pre-existing Cloudflare row was first detected by another scanner with
+      // categories ['cdn']. httpx now re-detects it carrying ['waf']. We expect
+      // the update to write ['cdn','waf'] (order-preserving union), and we
+      // expect `source` to be absent from the update payload — sticky.
+      (prisma.technology as unknown as { findFirst: jest.Mock }).findFirst.mockImplementation(
+        async ({ where }) => {
+          if (
+            where.assetId === 'asset_www.hackerone.com' &&
+            where.name === 'Cloudflare' &&
+            where.version === null
+          ) {
+            return { id: 'existing_tech_cf', categories: ['cdn'] };
+          }
+          return null;
+        },
+      );
+
+      // Simulate the parser carrying categories for Cloudflare. Inject via a
+      // ParserRegistry override that mirrors the httpx payload but adds a
+      // categories field to the Cloudflare tech entry.
+      const techUpdate = prisma.technology as unknown as { update: jest.Mock };
+
+      // Re-route the httpx parser to emit a tech with categories.
+      jest.spyOn(registry, 'get').mockReturnValue({
+        parse: async () => ({
+          assets: [
+            {
+              type: 'SUBDOMAIN' as const,
+              value: 'www.hackerone.com',
+              parentDomain: 'hackerone.com',
+            },
+          ],
+          ports: [],
+          services: [],
+          findings: [],
+          technologies: [
+            {
+              assetValue: 'www.hackerone.com',
+              name: 'Cloudflare',
+              categories: ['waf'],
+            },
+          ],
+          ipAddresses: [],
+          dnsRecords: [],
+          subdomainIps: [],
+          httpProbes: [],
+        }),
+      } as never);
+
+      await processor.process(job(httpxPayload));
+
+      const updateCalls = techUpdate.update.mock.calls as Array<
+        [{ data: { categories?: string[]; source?: string } }]
+      >;
+      const cfUpdate = updateCalls.find(([arg]) => Array.isArray(arg.data.categories));
+      expect(cfUpdate).toBeDefined();
+      expect(cfUpdate?.[0].data.categories).toEqual(['cdn', 'waf']);
+      // `source` is sticky — never set on update.
+      expect(cfUpdate?.[0].data.source).toBeUndefined();
     });
   });
 
