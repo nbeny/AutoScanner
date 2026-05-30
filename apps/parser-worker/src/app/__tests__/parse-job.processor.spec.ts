@@ -344,6 +344,25 @@ describe('ParseJobProcessor', () => {
     await expect(processor.process(job(payload))).rejects.toThrow(/empty/i);
   });
 
+  it('refuses to load an oversize raw output into memory (caps memory blast radius)', async () => {
+    // A scanner producing > MAX_RAW_OUTPUT_BYTES (e.g. naabu on a /16 or a
+    // runaway nuclei job) must fail the parse job with a clear error rather
+    // than OOM the worker. We stream chunks that exceed the cap in one go
+    // so the early bail-out fires on the first oversized chunk.
+    const { MAX_RAW_OUTPUT_BYTES } = await import('../parse-job.processor');
+    const bigChunk = Buffer.alloc(MAX_RAW_OUTPUT_BYTES + 1, 0x20);
+    storage.getObject.mockResolvedValueOnce({
+      body: Readable.from([bigChunk]),
+      contentLength: bigChunk.length,
+      contentType: 'application/xml',
+    });
+
+    await expect(processor.process(job(payload))).rejects.toThrow(/raw output exceeds .* bytes/);
+    // The parser must never be invoked — proves the cap fires before we
+    // attempt to parse the oversized buffer.
+    expect(prisma.asset.create).not.toHaveBeenCalled();
+  });
+
   describe('correlation merge after persist', () => {
     it('invokes assetMerge.mergeSubdomains with the engagement id after persistence', async () => {
       await processor.process(job(payload));

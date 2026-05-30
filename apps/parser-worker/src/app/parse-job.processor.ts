@@ -117,7 +117,7 @@ export class ParseJobProcessor extends WorkerHost {
 
   private async fetchRaw(key: string): Promise<Buffer> {
     const obj = await this.storage.getObject('raw-outputs', key);
-    return streamToBuffer(obj.body);
+    return streamToBuffer(obj.body, MAX_RAW_OUTPUT_BYTES);
   }
 
   private async persist(payload: ParseJobPayload, out: NormalizedOutput): Promise<ParseJobResult> {
@@ -304,10 +304,31 @@ function urlToCanonicalHost(location: string | undefined): string | undefined {
   }
 }
 
-async function streamToBuffer(stream: Readable): Promise<Buffer> {
+// Hard cap on raw-output size we'll load into memory before parsing.
+// A runaway scan (naabu over a /16, nuclei with severity:info on a large
+// surface) can produce hundreds of MB; without a cap, an unbounded
+// `Buffer.concat` would OOM the parser-worker and silently kill in-flight
+// jobs on the same instance. 256 MiB covers normal outputs (nmap XML over
+// /16 ≈ 10-50 MiB, large nuclei JSON ≈ 50-200 MiB) and surfaces oversize
+// inputs as a clear FAILED job — operator-actionable, not a process crash.
+export const MAX_RAW_OUTPUT_BYTES = 256 * 1024 * 1024;
+
+async function streamToBuffer(stream: Readable, maxBytes: number): Promise<Buffer> {
   const chunks: Buffer[] = [];
+  let total = 0;
   for await (const chunk of stream) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += buf.length;
+    if (total > maxBytes) {
+      // Best-effort: tell the producer we're done. Some object-storage
+      // clients ignore this, but for those that honour it the underlying
+      // socket is freed instead of buffering the rest of the response.
+      stream.destroy();
+      throw new Error(
+        `raw output exceeds ${maxBytes} bytes (read at least ${total} before bailing) — refusing to load into memory`,
+      );
+    }
+    chunks.push(buf);
   }
   return Buffer.concat(chunks);
 }
