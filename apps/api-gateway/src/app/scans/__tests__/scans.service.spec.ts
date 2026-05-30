@@ -33,6 +33,7 @@ describe('ScansService.runScan', () => {
           createdAt: new Date(),
           completedAt: null,
         })),
+        update: jest.fn(async ({ where, data }) => ({ id: where.id, ...data })),
         findFirst: jest.fn(),
         findMany: jest.fn(),
       },
@@ -47,8 +48,13 @@ describe('ScansService.runScan', () => {
           queuedAt: new Date(),
           createdAt: new Date(),
         })),
+        update: jest.fn(async ({ where, data }) => ({ id: where.id, ...data })),
         findFirst: jest.fn(),
       },
+      // Callback form: invoke the callback with `prisma` itself as the tx
+      // client so nested .scan.create / .scanJob.create resolve via the
+      // mocks above.
+      $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(prisma)),
     } as unknown as jest.Mocked<PrismaService>;
 
     scanQueue = { add: jest.fn().mockResolvedValue({ id: 'bull_1' }) } as unknown as jest.Mocked<
@@ -105,6 +111,46 @@ describe('ScansService.runScan', () => {
       }),
     );
     expect(scan.id).toBe('scan_1');
+  });
+
+  it('wraps Scan + ScanJob creation in a single $transaction', async () => {
+    await svc.runScan(userId, {
+      engagementId,
+      scannerName: 'nmap',
+      target: '127.0.0.1',
+    });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    // Both create calls happened inside the tx callback (we proxied tx=prisma).
+    expect(prisma.scan.create).toHaveBeenCalledTimes(1);
+    expect(prisma.scanJob.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks both Scan and ScanJob FAILED when the BullMQ enqueue throws and re-throws the error', async () => {
+    const enqueueError = new Error('redis is down');
+    (scanQueue.add as jest.Mock).mockRejectedValueOnce(enqueueError);
+
+    await expect(
+      svc.runScan(userId, { engagementId, scannerName: 'nmap', target: '127.0.0.1' }),
+    ).rejects.toBe(enqueueError);
+
+    expect(prisma.scan.update).toHaveBeenCalledWith({
+      where: { id: 'scan_1' },
+      data: { status: 'FAILED' },
+    });
+    expect(prisma.scanJob.update).toHaveBeenCalledWith({
+      where: { id: 'job_1' },
+      data: { status: 'FAILED', errorMessage: 'enqueue failed: redis is down' },
+    });
+  });
+
+  it('still re-throws the enqueue error even if the FAILED status update itself fails', async () => {
+    (scanQueue.add as jest.Mock).mockRejectedValueOnce(new Error('redis is down'));
+    (prisma.scan.update as jest.Mock).mockRejectedValueOnce(new Error('db is down'));
+    (prisma.scanJob.update as jest.Mock).mockRejectedValueOnce(new Error('db is down'));
+
+    await expect(
+      svc.runScan(userId, { engagementId, scannerName: 'nmap', target: '127.0.0.1' }),
+    ).rejects.toThrow(/redis is down/);
   });
 
   it('rejects unknown scanner', async () => {

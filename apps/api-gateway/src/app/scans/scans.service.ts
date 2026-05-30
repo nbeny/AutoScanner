@@ -47,24 +47,29 @@ export class ScansService {
     const rawOptions = this.parseOptions(input.optionsJson);
     const parsedInput = this.validateScannerInput(scanner, rawOptions);
 
-    const scan = await this.prisma.scan.create({
-      data: {
-        engagementId: input.engagementId,
-        createdById: userId,
-        name: input.name ?? null,
-        status: 'QUEUED',
-      },
-    });
-
-    const scanJob = await this.prisma.scanJob.create({
-      data: {
-        scanId: scan.id,
-        scannerName: scanner.name,
-        target: input.target,
-        input: parsedInput as never,
-        status: 'QUEUED',
-        queuedAt: new Date(),
-      },
+    // Atomic: either both Scan and ScanJob land, or neither does. Without
+    // the transaction, a failure between the two creates leaves an orphan
+    // Scan with no jobs that the UI would render as "stuck QUEUED".
+    const { scan, scanJob } = await this.prisma.$transaction(async (tx) => {
+      const scan = await tx.scan.create({
+        data: {
+          engagementId: input.engagementId,
+          createdById: userId,
+          name: input.name ?? null,
+          status: 'QUEUED',
+        },
+      });
+      const scanJob = await tx.scanJob.create({
+        data: {
+          scanId: scan.id,
+          scannerName: scanner.name,
+          target: input.target,
+          input: parsedInput as never,
+          status: 'QUEUED',
+          queuedAt: new Date(),
+        },
+      });
+      return { scan, scanJob };
     });
 
     const payload: ScanJobPayload = {
@@ -74,7 +79,26 @@ export class ScansService {
       input: parsedInput as Record<string, unknown>,
       engagementId: input.engagementId,
     };
-    await this.scanQueue.add('scan', payload);
+
+    try {
+      await this.scanQueue.add('scan', payload);
+    } catch (err) {
+      // The DB rows are already committed; if the enqueue fails (Redis
+      // unavailable, queue rejected the job, etc.) we must mark both rows
+      // FAILED so the UI doesn't show a phantom QUEUED scan that no worker
+      // will ever pick up. We swallow update errors here so the original
+      // enqueue error surfaces to the caller intact.
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to enqueue scan=${scan.id} job=${scanJob.id}: ${message}`);
+      await Promise.allSettled([
+        this.prisma.scan.update({ where: { id: scan.id }, data: { status: 'FAILED' } }),
+        this.prisma.scanJob.update({
+          where: { id: scanJob.id },
+          data: { status: 'FAILED', errorMessage: `enqueue failed: ${message}` },
+        }),
+      ]);
+      throw err;
+    }
     this.logger.log(`Enqueued scanJob=${scanJob.id} scanner=${scanner.name}`);
 
     return scan;
