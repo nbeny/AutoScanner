@@ -34,37 +34,35 @@ describe('getTopFindings', () => {
   it('groups by dedupHash and returns one entry per group with affectedAssetCount + scannerSources', async () => {
     const prisma = {
       finding: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([
-            makeFinding({
-              id: 'f1',
-              assetId: 'a1',
-              dedupHash: 'h-CVE-2024-1',
-              title: 'CVE-2024-1',
-              severity: 'CRITICAL',
-              cveId: 'CVE-2024-1',
-              scanJob: { scannerName: 'nuclei' },
-            }),
-            makeFinding({
-              id: 'f2',
-              assetId: 'a2',
-              dedupHash: 'h-CVE-2024-1',
-              title: 'CVE-2024-1',
-              severity: 'CRITICAL',
-              cveId: 'CVE-2024-1',
-              scanJob: { scannerName: 'nuclei' },
-            }),
-            makeFinding({
-              id: 'f3',
-              assetId: 'a1',
-              dedupHash: 'h-Open-Dir',
-              title: 'Open dir',
-              severity: 'MEDIUM',
-              cveId: null,
-              scanJob: { scannerName: 'nuclei' },
-            }),
-          ]),
+        findMany: jest.fn().mockResolvedValue([
+          makeFinding({
+            id: 'f1',
+            assetId: 'a1',
+            dedupHash: 'h-CVE-2024-1',
+            title: 'CVE-2024-1',
+            severity: 'CRITICAL',
+            cveId: 'CVE-2024-1',
+            scanJob: { scannerName: 'nuclei' },
+          }),
+          makeFinding({
+            id: 'f2',
+            assetId: 'a2',
+            dedupHash: 'h-CVE-2024-1',
+            title: 'CVE-2024-1',
+            severity: 'CRITICAL',
+            cveId: 'CVE-2024-1',
+            scanJob: { scannerName: 'nuclei' },
+          }),
+          makeFinding({
+            id: 'f3',
+            assetId: 'a1',
+            dedupHash: 'h-Open-Dir',
+            title: 'Open dir',
+            severity: 'MEDIUM',
+            cveId: null,
+            scanJob: { scannerName: 'nuclei' },
+          }),
+        ]),
       },
     } as unknown as PrismaClient;
 
