@@ -18,13 +18,13 @@ export class FindingObject {
   @Field(() => Severity)
   severity!: Severity;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   location?: string | null;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   cveId?: string | null;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   templateId?: string | null;
 
   @Field()

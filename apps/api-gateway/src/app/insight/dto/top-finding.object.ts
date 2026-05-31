@@ -6,7 +6,7 @@ export class TopFindingObject {
   @Field(() => ID) dedupHash!: string;
   @Field() title!: string;
   @Field(() => Severity) severity!: Severity;
-  @Field({ nullable: true }) cveId?: string | null;
+  @Field(() => String, { nullable: true }) cveId?: string | null;
   @Field(() => Int) affectedAssetCount!: number;
   @Field(() => [String]) scannerSources!: string[];
   @Field() firstSeenAt!: Date;
