@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 
 import {
   channelName,
+  MAX_LOG_CHUNK_BYTES,
   RedisLogStreamPublisher,
   RedisLogStreamSubscriber,
 } from '../redis-log-stream';
@@ -116,6 +117,47 @@ describe('RedisLogStream end-to-end via fake redis', () => {
     const [aOut, bOut] = await Promise.all([collect(a, 2), collect(b, 2)]);
     expect(aOut.map((c) => c.chunk)).toEqual(['one', 'two']);
     expect(bOut.map((c) => c.chunk)).toEqual(['one', 'two']);
+
+    await subscriber.close();
+  });
+
+  it('truncates oversized chunks before publishing (stays under Redis pubsub limit)', async () => {
+    // A single multi-MiB scanner line would exceed Redis pubsub's default
+    // client-output-buffer-limit and kick every subscriber on the connection.
+    // The publisher must shrink the chunk before hitting redis.publish.
+    const { pub, sub } = makePair();
+    const publisher = new RedisLogStreamPublisher(pub as never);
+    const subscriber = new RedisLogStreamSubscriber(sub as never);
+
+    const iter = subscriber.subscribe('job_big');
+    await new Promise((r) => setImmediate(r));
+
+    const oversized = 'x'.repeat(MAX_LOG_CHUNK_BYTES * 2);
+    await publisher.publish({ scanJobId: 'job_big', stream: 'stdout', ts: 1, chunk: oversized });
+
+    const [delivered] = await collect(iter, 1);
+    expect(Buffer.byteLength(delivered.chunk, 'utf8')).toBeLessThanOrEqual(MAX_LOG_CHUNK_BYTES);
+    expect(delivered.chunk).toMatch(/truncated, original \d+ bytes/);
+    // Tail-preserving: the last bytes of the original input survive.
+    expect(delivered.chunk.startsWith('xxxx')).toBe(true);
+
+    await subscriber.close();
+  });
+
+  it('passes chunks under the cap through unchanged', async () => {
+    // Regression guard: don't pay the truncation cost on the common path.
+    const { pub, sub } = makePair();
+    const publisher = new RedisLogStreamPublisher(pub as never);
+    const subscriber = new RedisLogStreamSubscriber(sub as never);
+
+    const iter = subscriber.subscribe('job_small');
+    await new Promise((r) => setImmediate(r));
+
+    const payload = 'hello world\n';
+    await publisher.publish({ scanJobId: 'job_small', stream: 'stdout', ts: 1, chunk: payload });
+
+    const [delivered] = await collect(iter, 1);
+    expect(delivered.chunk).toBe(payload);
 
     await subscriber.close();
   });
