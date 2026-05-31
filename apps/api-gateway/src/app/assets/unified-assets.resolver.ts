@@ -4,6 +4,7 @@ import type { User } from '@prisma/client';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AssetFacetsObject } from './dto/asset-facets.object';
 import { AssetFilters } from './dto/asset-filters.input';
 import { AssetSort } from './dto/asset-sort.enum';
 import { AssetType } from './dto/asset-type.enum';
@@ -40,5 +41,15 @@ export class UnifiedAssetsResolver {
     sort?: AssetSort | null,
   ): Promise<UnifiedAssetObject[]> {
     return this.svc.list(user.id, engagementId, { kinds, search, limit, offset, filters, sort });
+  }
+
+  @Query(() => AssetFacetsObject)
+  assetFacets(
+    @CurrentUser() user: User,
+    @Args('engagementId', { type: () => ID }) engagementId: string,
+    @Args('filters', { type: () => AssetFilters, nullable: true })
+    filters?: AssetFilters | null,
+  ): Promise<AssetFacetsObject> {
+    return this.svc.facets(user.id, engagementId, filters ?? null);
   }
 }
