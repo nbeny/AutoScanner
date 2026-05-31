@@ -69,6 +69,7 @@ describe('ParseJobProcessor', () => {
           id: `port_${create.number}_${create.protocol}`,
           ...create,
         })),
+        findUnique: jest.fn().mockResolvedValue({ assetId: 'asset_10.0.0.5' }),
       },
       service: {
         findFirst: jest.fn().mockResolvedValue(null),
