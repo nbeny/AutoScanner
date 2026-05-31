@@ -1,5 +1,12 @@
+import { useState } from 'react';
 import { useQuery } from '@apollo/client';
-import { ASSETS_BY_TYPE_QUERY, ASSET_TECHNOLOGIES_QUERY } from '../../lib/graphql/queries';
+import { useNavigate } from 'react-router-dom';
+import {
+  ASSETS_BY_TYPE_QUERY,
+  ASSET_TECHNOLOGIES_QUERY,
+  UNIFIED_ASSETS_SCORED_QUERY,
+} from '../../lib/graphql/queries';
+import { EngagementAssetsFacets, type AssetFiltersState } from './engagement-assets-facets';
 
 export type AssetKind = 'DOMAIN' | 'SUBDOMAIN' | 'IP' | 'TECHNOLOGY';
 
@@ -173,4 +180,87 @@ export function EngagementAssetsTab({
 }) {
   if (kind === 'TECHNOLOGY') return <TechnologiesPanel engagementId={engagementId} />;
   return <AssetsByTypePanel engagementId={engagementId} kind={kind} />;
+}
+
+type AssetSort = 'RISK_SCORE' | 'FIRST_SEEN_AT' | 'LAST_SEEN_AT' | 'CANONICAL_VALUE';
+
+interface ScoredRow {
+  id: string;
+  kind: string;
+  canonicalValue: string;
+  displayName: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  riskScore: number;
+}
+
+export function ScoredAssetsPanel({ engagementId }: { engagementId: string }) {
+  const navigate = useNavigate();
+  const [sort, setSort] = useState<AssetSort>('RISK_SCORE');
+  const [filters, setFilters] = useState<AssetFiltersState>({
+    severityHas: [],
+    techNames: [],
+    scannerSources: [],
+  });
+
+  const { data, loading, error } = useQuery<{ unifiedAssets: ScoredRow[] }>(
+    UNIFIED_ASSETS_SCORED_QUERY,
+    {
+      variables: {
+        engagementId,
+        sort,
+        filters: {
+          severityHas: filters.severityHas.length ? filters.severityHas : null,
+          techNames: filters.techNames.length ? filters.techNames : null,
+          scannerSources: filters.scannerSources.length ? filters.scannerSources : null,
+        },
+      },
+    },
+  );
+
+  return (
+    <div className="flex gap-6">
+      <EngagementAssetsFacets engagementId={engagementId} state={filters} onChange={setFilters} />
+      <div className="flex-1">
+        {loading ? <p className="text-slate-400 text-sm">Loading…</p> : null}
+        {error ? (
+          <p className="text-red-400 text-sm" role="alert">
+            {error.message}
+          </p>
+        ) : null}
+        <table className="w-full text-sm">
+          <thead className="text-left text-slate-400">
+            <tr>
+              <th className="py-2">Kind</th>
+              <th>Value</th>
+              <th
+                onClick={() => setSort('RISK_SCORE')}
+                className="cursor-pointer"
+                aria-sort={sort === 'RISK_SCORE' ? 'descending' : 'none'}
+              >
+                Risk
+              </th>
+              <th onClick={() => setSort('LAST_SEEN_AT')} className="cursor-pointer">
+                Last seen
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data?.unifiedAssets ?? []).map((r) => (
+              <tr
+                key={r.id}
+                onClick={() => navigate(`/engagements/${engagementId}/assets/${r.id}`)}
+                className="border-t border-slate-800 hover:bg-slate-900 cursor-pointer"
+              >
+                <td className="py-2 text-[10px] uppercase">{r.kind}</td>
+                <td className="font-mono">{r.canonicalValue}</td>
+                <td className="font-mono">{r.riskScore.toFixed(1)}</td>
+                <td className="text-xs text-slate-400">{r.lastSeenAt}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
