@@ -1,13 +1,21 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { EngagementAssetsTab } from './engagement-assets-tab';
+import { EngagementAssetsTab, ScoredAssetsPanel } from './engagement-assets-tab';
 import { FindingsTable } from '../findings/findings-table';
 import { EngagementSynthesisPage } from './synthesis/engagement-synthesis-page';
 
-type TabKey = 'overview' | 'domains' | 'subdomains' | 'ips' | 'technologies' | 'findings';
+type TabKey =
+  | 'overview'
+  | 'assets'
+  | 'domains'
+  | 'subdomains'
+  | 'ips'
+  | 'technologies'
+  | 'findings';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
+  { key: 'assets', label: 'Assets' },
   { key: 'domains', label: 'Domains' },
   { key: 'subdomains', label: 'Subdomains' },
   { key: 'ips', label: 'IPs' },
@@ -52,6 +60,7 @@ export function EngagementPage() {
 
       <section>
         {tab === 'overview' ? <EngagementSynthesisPage engagementId={engagementId} /> : null}
+        {tab === 'assets' ? <ScoredAssetsPanel engagementId={engagementId} /> : null}
         {tab === 'domains' ? (
           <EngagementAssetsTab engagementId={engagementId} kind="DOMAIN" />
         ) : null}
