@@ -152,13 +152,14 @@ model Asset {
   subdomainId    String?   @unique
   ipAddressId    String?   @unique
 
-  engagement   Engagement   @relation(fields: [engagementId], references: [id], onDelete: Cascade)
-  ports        Port[]
-  findings     Finding[]
-  domain       Domain?      @relation("AssetDomain", fields: [domainId], references: [id])
-  subdomain    Subdomain?   @relation("AssetSubdomain", fields: [subdomainId], references: [id])
-  ipAddress    IpAddress?   @relation("AssetIpAddress", fields: [ipAddressId], references: [id])
-  technologies Technology[]
+  engagement    Engagement         @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  ports         Port[]
+  findings      Finding[]
+  observations  AssetObservation[] @relation("AssetObservations")
+  domain        Domain?            @relation("AssetDomain", fields: [domainId], references: [id])
+  subdomain     Subdomain?         @relation("AssetSubdomain", fields: [subdomainId], references: [id])
+  ipAddress     IpAddress?         @relation("AssetIpAddress", fields: [ipAddressId], references: [id])
+  technologies  Technology[]
 
   // Real uniqueness applied via partial unique index in migration SQL
   @@index([engagementId, type, canonicalValue])
@@ -202,23 +203,24 @@ model Scan {
 }
 
 model ScanJob {
-  id           String     @id @default(cuid())
-  scanId       String
-  scannerName  String
-  target       String
-  input        Json
-  status       ScanStatus @default(PENDING)
-  queuedAt     DateTime?
-  startedAt    DateTime?
-  completedAt  DateTime?
-  exitCode     Int?
-  durationMs   Int?
-  rawOutputKey String?
-  errorMessage String?
-  createdAt    DateTime   @default(now())
+  id            String                @id @default(cuid())
+  scanId        String
+  scannerName   String
+  target        String
+  input         Json
+  status        ScanStatus            @default(PENDING)
+  queuedAt      DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  exitCode      Int?
+  durationMs    Int?
+  rawOutputKey  String?
+  errorMessage  String?
+  createdAt     DateTime              @default(now())
 
-  scan     Scan      @relation(fields: [scanId], references: [id], onDelete: Cascade)
-  findings Finding[]
+  scan          Scan                  @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  findings      Finding[]
+  observations  AssetObservation[]    @relation("ScanJobObservations")
 
   @@index([scanId])
   @@index([status])
@@ -303,6 +305,39 @@ model Finding {
   @@index([scanJobId])
   @@index([severity])
   @@index([cveId])
+}
+
+// =====================================================================
+// PHASE 3 — CROSS-SCANNER OBSERVATIONS
+// =====================================================================
+
+enum ObservationKind {
+  DISCOVERED
+  RESOLVED
+  PORT_OPEN
+  SERVICE_DETECTED
+  TECH_DETECTED
+  HTTP_PROBED
+  DNS_RECORD
+  FINDING_RAISED
+}
+
+model AssetObservation {
+  id          String           @id @default(cuid())
+  assetId     String
+  scanJobId   String
+  scannerName String
+  kind        ObservationKind
+  observedAt  DateTime         @default(now())
+  payload     Json?
+
+  asset   Asset   @relation("AssetObservations", fields: [assetId], references: [id], onDelete: Cascade)
+  scanJob ScanJob @relation("ScanJobObservations", fields: [scanJobId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, observedAt])
+  @@index([scanJobId])
+  @@index([kind])
+  @@index([scannerName])
 }
 
 // =====================================================================
