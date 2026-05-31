@@ -1,2 +1,2 @@
-// Phase 3.1 insight queries — re-exports filled in later tasks.
-export {};
+export { getEngagementOverview } from './get-engagement-overview';
+export type { EngagementOverview, SeverityCounts } from './get-engagement-overview';
