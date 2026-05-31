@@ -12,13 +12,38 @@ import {
 
 export { channelName };
 
+// Per-chunk publish cap. Redis pub/sub enforces
+// `client-output-buffer-limit pubsub 32mb 8mb 60` by default — a burst above
+// 32 MiB on one connection, or 8 MiB sustained for 60s, makes Redis drop the
+// subscriber. A chatty scanner emitting one huge line would take down every
+// `scanJobLogs` GraphQL subscription on that subscriber connection. Truncate
+// well below the burst limit so individual lines stay deliverable; live tail
+// is best-effort UX, the authoritative raw output still lands in MinIO.
+export const MAX_LOG_CHUNK_BYTES = 64 * 1024;
+
 @Injectable()
 export class RedisLogStreamPublisher implements LogStreamPublisher {
   constructor(@Inject(REDIS_PUBLISHER_CLIENT) private readonly redis: Redis) {}
 
   async publish(chunk: LogChunk): Promise<void> {
-    await this.redis.publish(channelName(chunk.scanJobId), JSON.stringify(chunk));
+    const payload = JSON.stringify(capChunkSize(chunk));
+    await this.redis.publish(channelName(chunk.scanJobId), payload);
   }
+}
+
+function capChunkSize(chunk: LogChunk): LogChunk {
+  // UTF-8 byte length, not `.length` — non-ASCII content (scanner output
+  // can include arbitrary bytes) is double-counted by char-based limits.
+  const byteLength = Buffer.byteLength(chunk.chunk, 'utf8');
+  if (byteLength <= MAX_LOG_CHUNK_BYTES) return chunk;
+  // Truncate from the head — for live-tail UX the trailing bytes are usually
+  // the freshest signal. Slice on bytes (not chars) so we don't split inside
+  // a multi-byte sequence and yield invalid UTF-8 to the subscriber.
+  const buf = Buffer.from(chunk.chunk, 'utf8');
+  const marker = `\n[…truncated, original ${byteLength} bytes]`;
+  const markerLen = Buffer.byteLength(marker, 'utf8');
+  const keep = buf.subarray(buf.length - (MAX_LOG_CHUNK_BYTES - markerLen)).toString('utf8');
+  return { ...chunk, chunk: keep + marker };
 }
 
 interface IteratorState {
