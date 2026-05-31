@@ -165,7 +165,7 @@ describe('UnifiedAssetsService.detail', () => {
     await expect(svc.detail('me', 'a1')).rejects.toThrow(/Forbidden|forbidden/i);
   });
 
-  it('returns asset detail with empty observations array', async () => {
+  it('returns asset detail with empty observations array when none exist', async () => {
     const prisma = {
       asset: {
         findFirst: jest.fn().mockResolvedValue({
@@ -185,12 +185,84 @@ describe('UnifiedAssetsService.detail', () => {
         }),
       },
       scanJob: { findMany: jest.fn().mockResolvedValue([]) },
+      assetObservation: { findMany: jest.fn().mockResolvedValue([]) },
     } as never;
     const svc = new UnifiedAssetsService(prisma);
     const detail = await svc.detail('me', 'a1');
     expect(detail.id).toBe('a1');
     expect(detail.observations).toEqual([]);
     expect(detail.riskScore).toBe(12.5);
+  });
+
+  it('returns mapped observations with ts field from observedAt', async () => {
+    const assetId = 'a2';
+    const ts1 = new Date('2026-05-30T10:00:00Z');
+    const ts2 = new Date('2026-05-29T08:00:00Z');
+    const findManyObs = jest.fn().mockResolvedValue([
+      {
+        id: 'obs_1',
+        kind: 'PORTSCAN',
+        scannerName: 'nmap',
+        observedAt: ts1,
+        payload: { port: 80 },
+      },
+      {
+        id: 'obs_2',
+        kind: 'VULN',
+        scannerName: 'nuclei',
+        observedAt: ts2,
+        payload: { cve: 'CVE-2024-1234' },
+      },
+    ]);
+    const prisma = {
+      asset: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: assetId,
+          type: 'IP_ADDRESS',
+          canonicalValue: '1.2.3.4',
+          riskScore: 50,
+          firstSeenAt: new Date('2026-05-01'),
+          lastSeenAt: new Date('2026-05-30'),
+          engagement: { ownerId: 'me' },
+          ports: [],
+          findings: [],
+          technologies: [],
+          subdomain: null,
+          ipAddress: { subdomains: [] },
+          domain: null,
+        }),
+      },
+      scanJob: { findMany: jest.fn().mockResolvedValue([]) },
+      assetObservation: { findMany: findManyObs },
+    } as never;
+    const svc = new UnifiedAssetsService(prisma);
+    const detail = await svc.detail('me', assetId);
+
+    expect(findManyObs).toHaveBeenCalledWith({
+      where: { assetId },
+      orderBy: { observedAt: 'desc' },
+      take: 200,
+      select: {
+        id: true,
+        kind: true,
+        scannerName: true,
+        observedAt: true,
+        payload: true,
+      },
+    });
+    expect(detail.observations).toHaveLength(2);
+    expect(detail.observations[0]).toMatchObject({
+      id: 'obs_1',
+      kind: 'PORTSCAN',
+      scannerName: 'nmap',
+      ts: ts1,
+    });
+    expect(detail.observations[1]).toMatchObject({
+      id: 'obs_2',
+      kind: 'VULN',
+      scannerName: 'nuclei',
+      ts: ts2,
+    });
   });
 });
 
