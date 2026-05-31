@@ -1,13 +1,13 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
 import type { Readable } from 'node:stream';
-import type { Job } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
 import {
   ParserRegistry,
   type NormalizedHttpProbe,
   type NormalizedOutput,
 } from '@autoscanner/parsers';
-import { QueueName, type ParseJobPayload } from '@autoscanner/queues';
+import { QueueName, type ParseJobPayload, type CveEnrichmentPayload } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 import { PrismaService } from '@autoscanner/database';
 
@@ -55,6 +55,7 @@ export class ParseJobProcessor extends WorkerHost {
     private readonly dnsRecordPersister: DnsRecordPersister,
     private readonly subdomainIpPersister: SubdomainIpPersister,
     private readonly prisma: PrismaService,
+    @InjectQueue(QueueName.CVE_ENRICHMENT) private readonly cveQueue: Queue<CveEnrichmentPayload>,
   ) {
     super();
   }
@@ -79,10 +80,34 @@ export class ParseJobProcessor extends WorkerHost {
       engagementId: payload.engagementId,
     });
 
+    // Collect distinct cveIds BEFORE persistence so we can enqueue AFTER the
+    // transaction commits. Aggregating from the parsed output (not from DB rows)
+    // is safe: BullMQ deduplicates by jobId, so re-enqueuing an already-enriched
+    // CVE is a no-op. We only enqueue for cveIds that actually made it through
+    // the findings loop (i.e. had a matching Asset), but over-enqueueing is
+    // harmless because the enricher worker is idempotent.
+    const cveIdsToEnqueue = new Set<string>(
+      output.findings.filter((f) => f.cveId).map((f) => f.cveId as string),
+    );
+
     const result = await this.persist(payload, output);
     this.logger.log(
       `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted}`,
     );
+
+    // Enqueue CVE_ENRICHMENT jobs for each distinct cveId found in the persisted
+    // findings. Each enqueue is wrapped individually so one failure doesn't
+    // prevent subsequent cveIds from being enqueued. Failures are logged as
+    // warnings and must NOT fail the parse job.
+    for (const cveId of cveIdsToEnqueue) {
+      try {
+        await this.cveQueue.add('enrich', { cveId }, { jobId: cveId });
+      } catch (err) {
+        this.logger.warn(
+          `CVE_ENRICHMENT enqueue failed for ${cveId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
 
     // Correlation v1: defensive merges/dedups. Each pass is best-effort —
     // persistence already succeeded, so the BullMQ job reports success even
