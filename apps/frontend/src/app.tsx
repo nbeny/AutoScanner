@@ -8,6 +8,7 @@ import { EngagementPage } from './features/engagements/engagement-page';
 import { EngagementsListPage } from './features/engagements/engagements-list-page';
 import { ScanRunPage } from './features/scans/scan-run-page';
 import { TemplateRunPage } from './features/template-runs/template-run-page';
+import { AssetDetailPage } from './features/assets/asset-detail-page';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session } = useAuth();
@@ -74,6 +75,14 @@ function AppShell() {
           element={
             <RequireAuth>
               <TemplateRunPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/engagements/:engagementId/assets/:assetId"
+          element={
+            <RequireAuth>
+              <AssetDetailPage />
             </RequireAuth>
           }
         />
