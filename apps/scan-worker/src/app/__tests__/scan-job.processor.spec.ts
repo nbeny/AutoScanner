@@ -7,7 +7,7 @@ import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { NmapScanner } from '@autoscanner/scanners-nmap';
 import type { ObjectStorage } from '@autoscanner/storage';
 
-import { ScanJobProcessor } from '../scan-job.processor';
+import { MAX_RAW_OUTPUT_BYTES, ScanJobProcessor } from '../scan-job.processor';
 
 const NMAP_XML =
   '<?xml version="1.0"?><nmaprun><host><address addr="127.0.0.1" addrtype="ipv4"/></host></nmaprun>';
@@ -318,5 +318,63 @@ describe('ScanJobProcessor', () => {
     );
     expect(publishWarns).toHaveLength(1);
     expect(logStream.publish).toHaveBeenCalledTimes(50);
+  });
+
+  it('aborts the container and marks FAILED when captured stream exceeds MAX_RAW_OUTPUT_BYTES (no OOM)', async () => {
+    // Simulate a runaway scanner that ships an oversize chunk. nmap captures
+    // stdout, so we trip the cap on the stdout path.
+    const oversizeChunk = Buffer.alloc(MAX_RAW_OUTPUT_BYTES + 1, 0x61).toString('utf8');
+    let abortedDuringRun = false;
+    docker.run.mockImplementationOnce(async (spec: RunSpec): Promise<RunResult> => {
+      spec.onStdout?.(oversizeChunk);
+      abortedDuringRun = spec.abortSignal?.aborted ?? false;
+      return {
+        exitCode: 137,
+        durationMs: 42,
+        containerId: 'c_oom',
+        // Real docker-runner sets killedByUser=true after the abortSignal
+        // fires; we mirror that so the override path is exercised.
+        timedOut: false,
+        killedByUser: true,
+      };
+    });
+
+    await expect(
+      processor.process(
+        job({
+          scanJobId: 'job_1',
+          scannerName: 'nmap',
+          target: '127.0.0.1',
+          input: {},
+          engagementId: 'eng_1',
+        }),
+      ),
+    ).rejects.toThrow(/stdout output exceeded \d+ bytes/);
+
+    // Cap was hit synchronously from the first chunk, so the abort signal
+    // must have been raised before docker.run returned.
+    expect(abortedDuringRun).toBe(true);
+
+    // Storage upload and parse enqueue must NOT have happened — the output
+    // is unusable.
+    expect(storage.putObject).not.toHaveBeenCalled();
+    expect(parseQueue.add).not.toHaveBeenCalled();
+
+    // Status must be FAILED with the explicit cap-exceeded message — NOT
+    // CANCELLED (which is what the normal status mapping would produce for
+    // killedByUser=true).
+    expect(prisma.scanJob.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'job_1' },
+        data: expect.objectContaining({
+          status: 'FAILED',
+          errorMessage: expect.stringMatching(/stdout output exceeded \d+ bytes/),
+        }),
+      }),
+    );
+    const cancelledUpdates = (prisma.scanJob.update as jest.Mock).mock.calls.filter(
+      ([arg]) => (arg as { data: { status?: string } }).data.status === 'CANCELLED',
+    );
+    expect(cancelledUpdates).toHaveLength(0);
   });
 });
