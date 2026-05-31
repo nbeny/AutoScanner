@@ -151,6 +151,49 @@ describe('UnifiedAssetsService.facets', () => {
   });
 });
 
+describe('UnifiedAssetsService.detail', () => {
+  it('throws ForbiddenException when the engagement is not owned', async () => {
+    const prisma = {
+      asset: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'a1',
+          engagement: { ownerId: 'other_user' },
+        }),
+      },
+    } as never;
+    const svc = new UnifiedAssetsService(prisma);
+    await expect(svc.detail('me', 'a1')).rejects.toThrow(/Forbidden|forbidden/i);
+  });
+
+  it('returns asset detail with empty observations array', async () => {
+    const prisma = {
+      asset: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'a1',
+          type: 'SUBDOMAIN',
+          canonicalValue: 'api.example.com',
+          riskScore: 12.5,
+          firstSeenAt: new Date('2026-05-01'),
+          lastSeenAt: new Date('2026-05-02'),
+          engagement: { ownerId: 'me' },
+          ports: [],
+          findings: [],
+          technologies: [],
+          subdomain: { dnsRecords: [], ips: [] },
+          ipAddress: null,
+          domain: null,
+        }),
+      },
+      scanJob: { findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+    const svc = new UnifiedAssetsService(prisma);
+    const detail = await svc.detail('me', 'a1');
+    expect(detail.id).toBe('a1');
+    expect(detail.observations).toEqual([]);
+    expect(detail.riskScore).toBe(12.5);
+  });
+});
+
 describe('UnifiedAssetsService — filters + sort', () => {
   let prisma: jest.Mocked<PrismaService>;
   let svc: UnifiedAssetsService;
