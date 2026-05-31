@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { NotFoundError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import { Prisma, type AssetType } from '@prisma/client';
 
 import { UnifiedAssetObject } from './unified-asset.dto';
+import { AssetDetailObject } from './dto/asset-detail.object';
 import { AssetFacetsObject } from './dto/asset-facets.object';
 import { AssetFilters } from './dto/asset-filters.input';
 import { AssetSort } from './dto/asset-sort.enum';
@@ -204,6 +205,85 @@ export class UnifiedAssetsService {
       kindCounts: kindRows.map((r) => ({ kind: r.type, count: r._count._all })),
       severityCounts: sevRows.map((r) => ({ severity: r.severity, count: r._count._all })),
       topTechs: techRows.map((r) => ({ name: r.name, count: r._count._all })),
+      scannerSources: scanners.map((s) => s.scannerName),
+    };
+  }
+
+  async detail(userId: string, assetId: string): Promise<AssetDetailObject> {
+    const a = await this.prisma.asset.findFirst({
+      where: { id: assetId, deletedAt: null },
+      include: {
+        engagement: { select: { ownerId: true } },
+        ports: { include: { services: true } },
+        findings: true,
+        technologies: true,
+        subdomain: { include: { dnsRecords: true, ips: { include: { ip: true } } } },
+        domain: { include: { dnsRecords: true } },
+        ipAddress: { include: { subdomains: { include: { subdomain: true } } } },
+      },
+    });
+    if (!a) throw new NotFoundError('Asset', assetId);
+    if (a.engagement.ownerId !== userId) {
+      throw new ForbiddenException('Forbidden: asset belongs to another user');
+    }
+
+    const scanners = await this.prisma.scanJob.findMany({
+      where: { findings: { some: { assetId } } },
+      select: { scannerName: true },
+      distinct: ['scannerName'],
+    });
+
+    const ports = a.ports.map((p) => ({
+      id: p.id,
+      number: p.number,
+      protocol: p.protocol,
+      state: p.state,
+      lastSeenAt: p.lastSeenAt,
+    }));
+    const services = a.ports.flatMap((p) =>
+      p.services.map((s) => ({
+        id: s.id,
+        name: s.name,
+        product: s.product,
+        version: s.version,
+      })),
+    );
+    const dnsRecords = (a.subdomain?.dnsRecords ?? a.domain?.dnsRecords ?? []).map((r) => ({
+      id: r.id,
+      type: r.type,
+      name: r.name,
+      value: r.value,
+    }));
+
+    return {
+      id: a.id,
+      kind: a.type,
+      canonicalValue: a.canonicalValue,
+      riskScore: a.riskScore,
+      firstSeenAt: a.firstSeenAt,
+      lastSeenAt: a.lastSeenAt,
+      ports,
+      services,
+      technologies: a.technologies.map((t) => ({
+        id: t.id,
+        name: t.name,
+        version: t.version,
+        source: t.source,
+      })),
+      dnsRecords,
+      findings: a.findings.map((f) => ({
+        id: f.id,
+        title: f.title,
+        severity: f.severity,
+        location: f.location,
+        cveId: f.cveId,
+        templateId: f.templateId,
+        firstSeenAt: f.firstSeenAt,
+        lastSeenAt: f.lastSeenAt,
+      })),
+      ipAddresses: a.subdomain?.ips.map((j) => j.ip.canonicalValue) ?? [],
+      subdomains: a.ipAddress?.subdomains.map((j) => j.subdomain.canonicalValue) ?? [],
+      observations: [],
       scannerSources: scanners.map((s) => s.scannerName),
     };
   }
