@@ -13,6 +13,15 @@ import { QueueName, type ParseJobPayload, type ScanJobPayload } from '@autoscann
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, rawOutputKey, type ObjectStorage } from '@autoscanner/storage';
 
+// Per-scan capture cap. The docker sandbox limits container memory to ~2 GiB
+// (DEFAULT_MEMORY_MB in dockerode-runner) but a scanner can SHIP up to that
+// much output to stdout over its lifetime. With `concurrency: 4`, naively
+// accumulating chunks into a string lets a single runaway scanner OOM the
+// scan-worker (8 GiB sustained worst-case). Matches the parser-worker
+// download cap so the two stages agree on the maximum raw output size — a
+// scanner that exceeds this here would be rejected downstream anyway.
+export const MAX_RAW_OUTPUT_BYTES = 256 * 1024 * 1024;
+
 @Processor(QueueName.SCAN_JOBS, { concurrency: 4 })
 export class ScanJobProcessor extends WorkerHost {
   private readonly logger = new Logger(ScanJobProcessor.name);
@@ -69,9 +78,19 @@ export class ScanJobProcessor extends WorkerHost {
       user: scanner.docker.network === 'host' ? 'root' : undefined,
     };
 
+    // Only one stream's bytes ever land in MinIO — the other is dead-weight
+    // if we accumulate it. Resolve the captured stream up front so the
+    // onStdout/onStderr closures can skip buffering the discarded side.
+    const output = scanner.outputs[0];
+    const capturedStream = output.capture;
+
     let result: RunResult;
-    let stdoutBuffer = '';
-    let stderrBuffer = '';
+    // `string[] + join('')` rather than `string += chunk` — repeated `+=` on
+    // large strings is O(n²) in V8 once the rope optimisation gives up.
+    const capturedChunks: string[] = [];
+    let capturedBytes = 0;
+    let oversized = false;
+    const oversizeAbort = new AbortController();
 
     // If pub/sub is down, a chatty scanner (nuclei emits thousands of chunks)
     // produces one warn per chunk, drowning every other signal in the log.
@@ -90,15 +109,37 @@ export class ScanJobProcessor extends WorkerHost {
         });
     };
 
+    const captureChunk = (stream: 'stdout' | 'stderr', chunk: string): void => {
+      if (stream !== capturedStream || oversized) return;
+      // `Buffer.byteLength`, not `chunk.length`: chunks are JS strings (UTF-16
+      // code units); non-ASCII would under-count. The cap is a byte budget
+      // because the parser-worker download cap is too.
+      const bytes = Buffer.byteLength(chunk, 'utf8');
+      if (capturedBytes + bytes > MAX_RAW_OUTPUT_BYTES) {
+        oversized = true;
+        this.logger.error(
+          `scanJob=${payload.scanJobId} ${capturedStream} output exceeded ${MAX_RAW_OUTPUT_BYTES} bytes — killing container`,
+        );
+        // Kill the container instead of letting it run to completion. We
+        // already know the output is unusable; burning more CPU/disk on it
+        // just delays the FAILED status the orchestrator is waiting for.
+        oversizeAbort.abort();
+        return;
+      }
+      capturedChunks.push(chunk);
+      capturedBytes += bytes;
+    };
+
     try {
       result = await this.docker.run({
         ...runSpec,
+        abortSignal: oversizeAbort.signal,
         onStdout: (chunk) => {
-          stdoutBuffer += chunk;
+          captureChunk('stdout', chunk);
           safePublish('stdout', chunk);
         },
         onStderr: (chunk) => {
-          stderrBuffer += chunk;
+          captureChunk('stderr', chunk);
           safePublish('stderr', chunk);
         },
       });
@@ -115,7 +156,31 @@ export class ScanJobProcessor extends WorkerHost {
       throw err;
     }
 
-    const output = scanner.outputs[0];
+    // The abort-on-oversize path tripped `killedByUser` inside docker-runner,
+    // but this isn't a user cancellation — surface it as FAILED with an
+    // operator-readable message rather than the misleading CANCELLED status
+    // the normal mapping below would produce.
+    if (oversized) {
+      const message = `${capturedStream} output exceeded ${MAX_RAW_OUTPUT_BYTES} bytes`;
+      await this.prisma.scanJob
+        .update({
+          where: { id: payload.scanJobId },
+          data: {
+            status: 'FAILED',
+            completedAt: new Date(),
+            exitCode: result.exitCode,
+            durationMs: result.durationMs,
+            errorMessage: message,
+          },
+        })
+        .catch((updateErr) => {
+          this.logger.warn(
+            `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
+          );
+        });
+      throw new Error(`scanJob=${payload.scanJobId} ${message}`);
+    }
+
     const key = rawOutputKey({
       engagementId: payload.engagementId,
       scanId,
@@ -124,7 +189,7 @@ export class ScanJobProcessor extends WorkerHost {
       format: output.format,
     });
 
-    const body = output.capture === 'stdout' ? stdoutBuffer : stderrBuffer;
+    const body = capturedChunks.join('');
     try {
       await this.storage.ensureBucket('raw-outputs');
       await this.storage.putObject({
