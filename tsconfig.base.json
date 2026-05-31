@@ -29,6 +29,7 @@
       "@autoscanner/common": ["libs/common/src/index.ts"],
       "@autoscanner/config": ["libs/config/src/index.ts"],
       "@autoscanner/correlation": ["libs/correlation/src/index.ts"],
+      "@autoscanner/cve": ["libs/cve/src/index.ts"],
       "@autoscanner/database": ["libs/database/src/index.ts"],
       "@autoscanner/docker-runner": ["libs/docker-runner/src/index.ts"],
       "@autoscanner/insight": ["libs/insight/src/index.ts"],
