@@ -6,6 +6,7 @@ import { AssetsService } from './assets.service';
 import { UnifiedAssetsResolver } from './unified-assets.resolver';
 import { UnifiedAssetsService } from './unified-assets.service';
 
+import './dto/asset-facets.object';
 import './dto/asset-type.enum';
 import './dto/port-state.enum';
 import './dto/protocol.enum';

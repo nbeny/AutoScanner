@@ -129,6 +129,28 @@ describe('UnifiedAssetsService', () => {
   });
 });
 
+describe('UnifiedAssetsService.facets', () => {
+  it('returns kindCounts, severityCounts, topTechs, scannerSources', async () => {
+    const prisma = {
+      engagement: { findFirst: jest.fn().mockResolvedValue({ id: 'eng_1' }) },
+      asset: { groupBy: jest.fn().mockResolvedValue([{ type: 'DOMAIN', _count: { _all: 3 } }]) },
+      finding: {
+        groupBy: jest.fn().mockResolvedValue([{ severity: 'HIGH', _count: { _all: 2 } }]),
+      },
+      technology: {
+        groupBy: jest.fn().mockResolvedValue([{ name: 'nginx', _count: { _all: 4 } }]),
+      },
+      scanJob: { findMany: jest.fn().mockResolvedValue([{ scannerName: 'nuclei' }]) },
+    } as never;
+    const svc = new UnifiedAssetsService(prisma);
+    const facets = await svc.facets('user_1', 'eng_1', null);
+    expect(facets.kindCounts).toEqual([{ kind: 'DOMAIN', count: 3 }]);
+    expect(facets.severityCounts).toEqual([{ severity: 'HIGH', count: 2 }]);
+    expect(facets.topTechs[0]).toEqual({ name: 'nginx', count: 4 });
+    expect(facets.scannerSources).toContain('nuclei');
+  });
+});
+
 describe('UnifiedAssetsService — filters + sort', () => {
   let prisma: jest.Mocked<PrismaService>;
   let svc: UnifiedAssetsService;

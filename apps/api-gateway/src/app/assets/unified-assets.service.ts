@@ -4,6 +4,7 @@ import { PrismaService } from '@autoscanner/database';
 import { Prisma, type AssetType } from '@prisma/client';
 
 import { UnifiedAssetObject } from './unified-asset.dto';
+import { AssetFacetsObject } from './dto/asset-facets.object';
 import { AssetFilters } from './dto/asset-filters.input';
 import { AssetSort } from './dto/asset-sort.enum';
 
@@ -161,5 +162,49 @@ export class UnifiedAssetsService {
       LIMIT ${limit} OFFSET ${offset}
     `,
     );
+  }
+
+  async facets(
+    userId: string,
+    engagementId: string,
+    _filters: AssetFilters | null,
+  ): Promise<AssetFacetsObject> {
+    const engagement = await this.prisma.engagement.findFirst({
+      where: { id: engagementId, ownerId: userId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!engagement) throw new NotFoundError('Engagement', engagementId);
+
+    const [kindRows, sevRows, techRows, scanners] = await Promise.all([
+      this.prisma.asset.groupBy({
+        by: ['type'],
+        where: { engagementId, deletedAt: null },
+        _count: { _all: true },
+      }),
+      this.prisma.finding.groupBy({
+        by: ['severity'],
+        where: { asset: { engagementId, deletedAt: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.technology.groupBy({
+        by: ['name'],
+        where: { asset: { engagementId, deletedAt: null } },
+        _count: { _all: true },
+        orderBy: { _count: { name: 'desc' } },
+        take: 20,
+      }),
+      this.prisma.scanJob.findMany({
+        where: { scan: { engagementId } },
+        select: { scannerName: true },
+        distinct: ['scannerName'],
+      }),
+    ]);
+
+    return {
+      kindCounts: kindRows.map((r) => ({ kind: r.type, count: r._count._all })),
+      severityCounts: sevRows.map((r) => ({ severity: r.severity, count: r._count._all })),
+      topTechs: techRows.map((r) => ({ name: r.name, count: r._count._all })),
+      scannerSources: scanners.map((s) => s.scannerName),
+    };
   }
 }
