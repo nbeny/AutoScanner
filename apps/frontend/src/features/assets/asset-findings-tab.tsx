@@ -1,3 +1,5 @@
+import { CveInfoCell } from './cve-info-cell';
+
 interface Finding {
   id: string;
   title: string;
@@ -43,7 +45,9 @@ export function AssetFindingsTab({ findings }: { findings: Finding[] }) {
             <td>{f.title}</td>
             <td className="font-mono text-xs">{f.cveId ?? '—'}</td>
             <td className="font-mono text-xs truncate max-w-xs">{f.location ?? '—'}</td>
-            <td className="text-slate-500 text-xs">—</td>
+            <td className="text-slate-500 text-xs">
+              {f.cveId ? <CveInfoCell cveId={f.cveId} /> : <span>—</span>}
+            </td>
           </tr>
         ))}
       </tbody>

@@ -389,3 +389,17 @@ export const ASSET_DETAIL_QUERY = gql`
     }
   }
 `;
+
+export const CVE_INFO_QUERY = gql`
+  query CveInfo($cveId: String!) {
+    cveInfo(cveId: $cveId) {
+      cveId
+      cached
+      cvssV3Score
+      cvssV3Vector
+      severity
+      summary
+      fetchStatus
+    }
+  }
+`;
