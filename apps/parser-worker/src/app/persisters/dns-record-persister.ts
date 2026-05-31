@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@autoscanner/database';
 import type { NormalizedDnsRecord } from '@autoscanner/parsers';
+import type { Prisma } from '@prisma/client';
 
 import { canonicalize } from '@autoscanner/correlation';
 
@@ -98,7 +99,11 @@ export class DnsRecordPersister {
    * when we find the legacy `subdomainId: null` row we promote it by writing
    * the now-known `subdomainId` in the same update.
    */
-  async upsert(engagementId: string, record: NormalizedDnsRecord): Promise<void> {
+  async upsert(
+    engagementId: string,
+    record: NormalizedDnsRecord,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
     if (!VALID_DNS_RECORD_TYPES.has(record.recordType)) {
       this.logger.warn(
         `Skipping DnsRecord with unknown recordType '${record.recordType}' for host '${record.assetValue}'`,
@@ -109,9 +114,10 @@ export class DnsRecordPersister {
     const type = record.recordType as PrismaDnsRecordType;
     const name = canonicalize(record.assetValue, { type: 'SUBDOMAIN' });
     const value = normalizeRecordValue(type, record.value);
+    const client = tx ?? this.prisma;
 
     // Prefer Subdomain lookup, fall back to Domain.
-    const subdomain = await this.prisma.subdomain.findFirst({
+    const subdomain = await client.subdomain.findFirst({
       where: {
         engagementId,
         canonicalValue: name,
@@ -127,7 +133,7 @@ export class DnsRecordPersister {
       domainId = subdomain.domainId;
     } else {
       // Fall back: look up the Domain directly (e.g. apex domain passed to dnsx).
-      const domain = await this.prisma.domain.findFirst({
+      const domain = await client.domain.findFirst({
         where: {
           engagementId,
           canonicalValue: canonicalize(record.assetValue, { type: 'DOMAIN' }),
@@ -150,7 +156,7 @@ export class DnsRecordPersister {
     // rather than duplicated. When subdomainId is already null (apex/domain
     // fallback path), the OR collapses to a single-branch lookup with no
     // behavioural change.
-    const existing = await this.prisma.dnsRecord.findFirst({
+    const existing = await client.dnsRecord.findFirst({
       where: {
         domainId,
         type,
@@ -165,7 +171,7 @@ export class DnsRecordPersister {
     });
 
     if (existing) {
-      await this.prisma.dnsRecord.update({
+      await client.dnsRecord.update({
         where: { id: existing.id },
         data: {
           lastSeenAt: new Date(),
@@ -176,7 +182,7 @@ export class DnsRecordPersister {
       return;
     }
 
-    await this.prisma.dnsRecord.create({
+    await client.dnsRecord.create({
       data: {
         domainId,
         subdomainId,
