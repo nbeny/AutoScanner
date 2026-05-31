@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@autoscanner/database';
 import { findingDedupHash } from '@autoscanner/correlation';
 import type { NormalizedFinding } from '@autoscanner/parsers';
+import type { Prisma } from '@prisma/client';
 
 @Injectable()
 export class FindingPersister {
@@ -31,6 +32,7 @@ export class FindingPersister {
     assetId: string,
     finding: NormalizedFinding,
     assetCanonical: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
     const sig = finding.cveId ?? finding.templateId ?? finding.title;
     const dedupHash = findingDedupHash({
@@ -42,7 +44,8 @@ export class FindingPersister {
     });
 
     const now = new Date();
-    await this.prisma.finding.upsert({
+    const client = tx ?? this.prisma;
+    await client.finding.upsert({
       where: { assetId_dedupHash: { assetId, dedupHash } },
       create: {
         assetId,

@@ -59,6 +59,7 @@ describe('ParseJobProcessor', () => {
     prisma = {
       asset: {
         findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockResolvedValue({ id: 'asset_mock', findings: [], ports: [] }),
         create: jest.fn(async ({ data }) => ({ id: `asset_${data.canonicalValue}`, ...data })),
         update: jest.fn(async ({ data, where }) => ({ id: where.id, ...data })),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
