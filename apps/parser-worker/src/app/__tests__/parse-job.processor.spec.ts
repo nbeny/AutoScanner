@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 import { Logger } from '@nestjs/common';
-import type { Job } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
 import {
   DnsxJsonParser,
@@ -10,7 +10,7 @@ import {
   SubfinderJsonParser,
 } from '@autoscanner/parsers';
 import { NmapXmlParser } from '@autoscanner/parsers';
-import type { ParseJobPayload } from '@autoscanner/queues';
+import type { CveEnrichmentPayload, ParseJobPayload } from '@autoscanner/queues';
 import type { ObjectStorage } from '@autoscanner/storage';
 
 import { AssetMergeService } from '@autoscanner/correlation';
@@ -53,6 +53,7 @@ describe('ParseJobProcessor', () => {
   let storage: jest.Mocked<ObjectStorage>;
   let registry: ParserRegistry;
   let assetMerge: AssetMergeService;
+  let cveQueueMock: jest.Mocked<Pick<Queue<CveEnrichmentPayload>, 'add'>>;
   let processor: ParseJobProcessor;
 
   beforeEach(() => {
@@ -165,6 +166,8 @@ describe('ParseJobProcessor', () => {
     jest.spyOn(assetMerge, 'mergeIpAddresses').mockResolvedValue({ merged: 0 });
     jest.spyOn(assetMerge, 'dedupFindings').mockResolvedValue({ merged: 0 });
 
+    cveQueueMock = { add: jest.fn().mockResolvedValue({}) };
+
     processor = new ParseJobProcessor(
       registry,
       storage,
@@ -178,6 +181,7 @@ describe('ParseJobProcessor', () => {
       new DnsRecordPersister(prisma),
       new SubdomainIpPersister(prisma),
       prisma,
+      cveQueueMock as unknown as Queue<CveEnrichmentPayload>,
     );
   });
 
@@ -1272,6 +1276,95 @@ describe('ParseJobProcessor', () => {
       }
       // Upsert was called 4 total times across two runs (2 findings × 2 runs).
       expect(findingUpsert.upsert).toHaveBeenCalledTimes(4);
+    });
+
+    describe('CVE_ENRICHMENT enqueue after Finding persist', () => {
+      it('enqueues once per distinct cveId when findings have different cveIds', async () => {
+        // NUCLEI_JSONL has 2 findings: CVE-2021-44228 (cveId set) + exposed-grafana (no cveId).
+        // Expect exactly 1 enqueue call for CVE-2021-44228.
+        await processor.process(job(nucleiPayload));
+
+        expect(cveQueueMock.add).toHaveBeenCalledTimes(1);
+        expect(cveQueueMock.add).toHaveBeenCalledWith(
+          'enrich',
+          { cveId: 'CVE-2021-44228' },
+          { jobId: 'CVE-2021-44228' },
+        );
+      });
+
+      it('deduplicates the same cveId when multiple findings share it in one parse job', async () => {
+        // Two findings both with CVE-2021-44228 → only one enqueue.
+        const NUCLEI_DUPE_CVE = [
+          JSON.stringify({
+            'template-id': 'CVE-2021-44228',
+            info: {
+              name: 'Apache Log4j RCE',
+              severity: 'critical',
+              classification: { 'cve-id': ['CVE-2021-44228'] },
+            },
+            'matched-at': 'https://api.hackerone.com/login',
+          }),
+          JSON.stringify({
+            'template-id': 'CVE-2021-44228',
+            info: {
+              name: 'Apache Log4j RCE',
+              severity: 'critical',
+              classification: { 'cve-id': ['CVE-2021-44228'] },
+            },
+            'matched-at': 'https://api.hackerone.com/admin',
+          }),
+          '',
+        ].join('\n');
+
+        storage.getObject.mockResolvedValueOnce({
+          body: asStream(NUCLEI_DUPE_CVE),
+          contentLength: NUCLEI_DUPE_CVE.length,
+          contentType: 'application/x-ndjson',
+        });
+
+        await processor.process(job(nucleiPayload));
+
+        expect(cveQueueMock.add).toHaveBeenCalledTimes(1);
+        expect(cveQueueMock.add).toHaveBeenCalledWith(
+          'enrich',
+          { cveId: 'CVE-2021-44228' },
+          { jobId: 'CVE-2021-44228' },
+        );
+      });
+
+      it('does not enqueue when all findings have cveId: null/undefined', async () => {
+        const NUCLEI_NO_CVE = JSON.stringify({
+          'template-id': 'exposed-grafana',
+          info: { name: 'Grafana Panel', severity: 'info' },
+          'matched-at': 'https://api.hackerone.com/grafana/login',
+        });
+
+        storage.getObject.mockResolvedValueOnce({
+          body: asStream(NUCLEI_NO_CVE),
+          contentLength: NUCLEI_NO_CVE.length,
+          contentType: 'application/x-ndjson',
+        });
+
+        await processor.process(job(nucleiPayload));
+
+        expect(cveQueueMock.add).not.toHaveBeenCalled();
+      });
+
+      it('does not fail the parse job when cveQueue.add throws', async () => {
+        const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+        cveQueueMock.add.mockRejectedValueOnce(new Error('Redis connection lost'));
+
+        const result = await processor.process(job(nucleiPayload));
+
+        // Parse job still succeeded — findingsPersisted is non-zero.
+        expect(result.findingsPersisted).toBe(2);
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringMatching(
+            /CVE_ENRICHMENT enqueue failed.*CVE-2021-44228.*Redis connection lost/,
+          ),
+        );
+        warn.mockRestore();
+      });
     });
   });
 });
