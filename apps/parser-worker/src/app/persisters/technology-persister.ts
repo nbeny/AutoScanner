@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@autoscanner/database';
 import type { NormalizedTechnology } from '@autoscanner/parsers';
+import type { Prisma } from '@prisma/client';
 
 @Injectable()
 export class TechnologyPersister {
@@ -27,8 +28,14 @@ export class TechnologyPersister {
    * (assetId, name, version) key fails when version is undefined. Same
    * pattern as ServicePersister.
    */
-  async upsert(assetId: string, tech: NormalizedTechnology, scannerName: string): Promise<void> {
-    const existing = await this.prisma.technology.findFirst({
+  async upsert(
+    assetId: string,
+    tech: NormalizedTechnology,
+    scannerName: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = tx ?? this.prisma;
+    const existing = await client.technology.findFirst({
       where: {
         assetId,
         name: tech.name,
@@ -40,7 +47,7 @@ export class TechnologyPersister {
       const mergedCategories = tech.categories?.length
         ? Array.from(new Set([...existing.categories, ...tech.categories]))
         : undefined;
-      await this.prisma.technology.update({
+      await client.technology.update({
         where: { id: existing.id },
         data: {
           lastSeenAt: new Date(),
@@ -49,7 +56,7 @@ export class TechnologyPersister {
       });
       return;
     }
-    await this.prisma.technology.create({
+    await client.technology.create({
       data: {
         assetId,
         name: tech.name,
