@@ -72,18 +72,16 @@ describe('getRecentTemplateRuns', () => {
     const assetCount = jest.fn().mockResolvedValue(0);
     const prisma = {
       templateRun: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'r',
-              templateName: 't',
-              status: 'RUNNING',
-              startedAt: t0,
-              completedAt: null,
-              createdAt: t0,
-            },
-          ]),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'r',
+            templateName: 't',
+            status: 'RUNNING',
+            startedAt: t0,
+            completedAt: null,
+            createdAt: t0,
+          },
+        ]),
       },
       asset: { count: assetCount },
       finding: { count: jest.fn().mockResolvedValue(0) },
@@ -100,18 +98,16 @@ describe('getRecentTemplateRuns', () => {
     const assetCount = jest.fn().mockResolvedValue(0);
     const prisma = {
       templateRun: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'r',
-              templateName: 't',
-              status: 'PENDING',
-              startedAt: null,
-              completedAt: null,
-              createdAt: created,
-            },
-          ]),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'r',
+            templateName: 't',
+            status: 'PENDING',
+            startedAt: null,
+            completedAt: null,
+            createdAt: created,
+          },
+        ]),
       },
       asset: { count: assetCount },
       finding: { count: jest.fn().mockResolvedValue(0) },
@@ -127,18 +123,16 @@ describe('getRecentTemplateRuns', () => {
     const t0 = new Date('2026-05-01T10:00:00Z');
     const prisma = {
       templateRun: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'r',
-              templateName: 't',
-              status: 'RUNNING',
-              startedAt: t0,
-              completedAt: null,
-              createdAt: t0,
-            },
-          ]),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'r',
+            templateName: 't',
+            status: 'RUNNING',
+            startedAt: t0,
+            completedAt: null,
+            createdAt: t0,
+          },
+        ]),
       },
       asset: { count: jest.fn().mockResolvedValue(0) },
       finding: { count: jest.fn().mockResolvedValue(0) },
