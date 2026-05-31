@@ -9,6 +9,7 @@ export class TokenBucketRateLimiter {
   private readonly refillIntervalMs: number;
   private lastRefill: number;
   private waiters: Array<() => void> = [];
+  private timerPending = false;
 
   constructor(opts: TokenBucketOptions) {
     this.capacity = opts.capacity;
@@ -44,7 +45,18 @@ export class TokenBucketRateLimiter {
   }
 
   private scheduleNextRefill(): void {
+    if (this.timerPending) return;
+    this.timerPending = true;
     const delay = this.refillIntervalMs - (Date.now() - this.lastRefill);
-    setTimeout(() => this.refill(), Math.max(delay, 1));
+    setTimeout(
+      () => {
+        this.timerPending = false;
+        this.refill();
+        // If waiters remain after refill (because new capacity is still smaller than queue),
+        // schedule another refill for the following window.
+        if (this.waiters.length > 0) this.scheduleNextRefill();
+      },
+      Math.max(delay, 1),
+    );
   }
 }
