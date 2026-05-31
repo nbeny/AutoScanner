@@ -1,6 +1,7 @@
 import { NotFoundError } from '@autoscanner/common';
 import type { PrismaService } from '@autoscanner/database';
 
+import { AssetSort } from '../dto/asset-sort.enum';
 import { UnifiedAssetsService } from '../unified-assets.service';
 
 describe('UnifiedAssetsService', () => {
@@ -125,5 +126,36 @@ describe('UnifiedAssetsService', () => {
     (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([]);
 
     await expect(svc.list(userId, engagementId, { kinds: [] })).resolves.toEqual([]);
+  });
+});
+
+describe('UnifiedAssetsService — filters + sort', () => {
+  let prisma: jest.Mocked<PrismaService>;
+  let svc: UnifiedAssetsService;
+  beforeEach(() => {
+    prisma = {
+      engagement: { findFirst: jest.fn().mockResolvedValue({ id: 'eng_1' }) },
+      $queryRaw: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<PrismaService>;
+    svc = new UnifiedAssetsService(prisma);
+  });
+
+  it('defaults to RISK_SCORE DESC when sort is undefined', async () => {
+    await svc.list('user_1', 'eng_1', {});
+    const sqlArg = (prisma.$queryRaw as jest.Mock).mock.calls[0][0];
+    const stringified = sqlArg.strings.join(' ');
+    expect(stringified).toContain('"riskScore" DESC');
+  });
+
+  it('sorts by FIRST_SEEN_AT when requested', async () => {
+    await svc.list('user_1', 'eng_1', { sort: AssetSort.FIRST_SEEN_AT });
+    const sqlArg = (prisma.$queryRaw as jest.Mock).mock.calls[0][0];
+    expect(sqlArg.strings.join(' ')).toContain('"firstSeenAt" DESC');
+  });
+
+  it('applies severityHas as EXISTS subquery on Finding', async () => {
+    await svc.list('user_1', 'eng_1', { filters: { severityHas: ['CRITICAL', 'HIGH'] } });
+    const sqlArg = (prisma.$queryRaw as jest.Mock).mock.calls[0][0];
+    expect(sqlArg.strings.join(' ')).toMatch(/EXISTS[\s\S]+"Finding"/);
   });
 });

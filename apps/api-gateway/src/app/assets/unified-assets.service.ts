@@ -4,12 +4,16 @@ import { PrismaService } from '@autoscanner/database';
 import { Prisma, type AssetType } from '@prisma/client';
 
 import { UnifiedAssetObject } from './unified-asset.dto';
+import { AssetFilters } from './dto/asset-filters.input';
+import { AssetSort } from './dto/asset-sort.enum';
 
 export interface UnifiedAssetsListOptions {
   kinds?: AssetType[] | null;
   search?: string | null;
   limit?: number | null;
   offset?: number | null;
+  filters?: AssetFilters | null;
+  sort?: AssetSort | null;
 }
 
 const DEFAULT_LIMIT = 100;
@@ -44,10 +48,15 @@ function clampPagination(
  *   - `kinds`:  optional `AssetType[]`; an empty array is treated as "no filter".
  *   - `search`: case-insensitive substring on `canonicalValue` OR `displayName`.
  *               Trimmed; empty / whitespace-only is "no filter".
+ *   - `filters.severityHas`: keeps assets with at least one Finding of that severity.
+ *   - `filters.portRanges`: keeps assets with at least one OPEN port in any range.
+ *   - `filters.techNames`: keeps assets with at least one matching Technology name.
+ *   - `filters.scannerSources`: keeps assets touched by at least one of those scanners.
  * Pagination defaults: `limit=100` (clamped to [1, 500]), `offset=0` (clamped
  * to >= 0). Non-finite or non-integer limit/offset values fall back to the
- * defaults (see `clampPagination`). Sort order is `lastSeenAt DESC, id ASC`
- * for deterministic paging.
+ * defaults (see `clampPagination`). Default sort is `riskScore DESC, id ASC`.
+ * Other AssetSort values dispatch to `firstSeenAt DESC`, `lastSeenAt DESC`, or
+ * `canonicalValue ASC`.
  */
 @Injectable()
 export class UnifiedAssetsService {
@@ -76,15 +85,81 @@ export class UnifiedAssetsService {
       ? Prisma.sql`AND ("canonicalValue" ILIKE ${`%${search}%`} OR "displayName" ILIKE ${`%${search}%`})`
       : Prisma.empty;
 
-    return this.prisma.$queryRaw<UnifiedAssetObject[]>`
+    const filters = opts.filters ?? null;
+
+    const severityClause =
+      filters?.severityHas && filters.severityHas.length > 0
+        ? Prisma.sql`AND EXISTS (
+        SELECT 1 FROM "Finding" f
+        WHERE f."assetId" = asset_unified_view.id
+          AND f."severity"::text = ANY(${filters.severityHas.map(String)}::text[])
+      )`
+        : Prisma.empty;
+
+    const portClause =
+      filters?.portRanges && filters.portRanges.length > 0
+        ? Prisma.sql`AND EXISTS (
+        SELECT 1 FROM "Port" p
+        WHERE p."assetId" = asset_unified_view.id
+          AND p."state" = 'OPEN'
+          AND (${Prisma.join(
+            filters.portRanges.map((r) => Prisma.sql`(p."number" BETWEEN ${r.from} AND ${r.to})`),
+            ' OR ',
+          )})
+      )`
+        : Prisma.empty;
+
+    const techClause =
+      filters?.techNames && filters.techNames.length > 0
+        ? Prisma.sql`AND EXISTS (
+        SELECT 1 FROM "Technology" t
+        WHERE t."assetId" = asset_unified_view.id
+          AND lower(t."name") = ANY(${filters.techNames.map((n) => n.toLowerCase())}::text[])
+      )`
+        : Prisma.empty;
+
+    const scannerClause =
+      filters?.scannerSources && filters.scannerSources.length > 0
+        ? Prisma.sql`AND (
+        EXISTS (
+          SELECT 1 FROM "Finding" f
+          JOIN "ScanJob" j ON j.id = f."scanJobId"
+          WHERE f."assetId" = asset_unified_view.id
+            AND j."scannerName" = ANY(${filters.scannerSources}::text[])
+        )
+        OR EXISTS (
+          SELECT 1 FROM "Technology" t
+          WHERE t."assetId" = asset_unified_view.id
+            AND t."source" = ANY(${filters.scannerSources}::text[])
+        )
+      )`
+        : Prisma.empty;
+
+    const sort = opts.sort ?? AssetSort.RISK_SCORE;
+    const orderBy =
+      sort === AssetSort.RISK_SCORE
+        ? Prisma.sql`ORDER BY "riskScore" DESC, id ASC`
+        : sort === AssetSort.FIRST_SEEN_AT
+          ? Prisma.sql`ORDER BY "firstSeenAt" DESC, id ASC`
+          : sort === AssetSort.LAST_SEEN_AT
+            ? Prisma.sql`ORDER BY "lastSeenAt" DESC, id ASC`
+            : Prisma.sql`ORDER BY "canonicalValue" ASC, id ASC`;
+
+    return this.prisma.$queryRaw<UnifiedAssetObject[]>(
+      Prisma.sql`
       SELECT id, "engagementId", kind, "canonicalValue", "displayName",
              "firstSeenAt", "lastSeenAt", "riskScore", attrs
       FROM asset_unified_view
       WHERE "engagementId" = ${engagementId}
         ${kindsClause}
         ${searchClause}
-      ORDER BY "lastSeenAt" DESC, id ASC
+        ${severityClause}
+        ${portClause}
+        ${techClause}
+        ${scannerClause}
+      ${orderBy}
       LIMIT ${limit} OFFSET ${offset}
-    `;
+    `,
+    );
   }
 }
