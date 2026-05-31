@@ -322,6 +322,13 @@ enum ObservationKind {
   FINDING_RAISED
 }
 
+enum CveFetchStatus {
+  OK
+  NOT_FOUND
+  RATE_LIMITED
+  ERROR
+}
+
 model AssetObservation {
   id          String          @id @default(cuid())
   assetId     String
@@ -512,4 +519,22 @@ model TemplateRun {
 
   @@index([engagementId])
   @@index([status])
+}
+
+model CveCache {
+  cveId        String         @id
+  cvssV3Score  Float?
+  cvssV3Vector String?
+  severity     Severity?
+  summary      String?
+  publishedAt  DateTime?
+  lastModified DateTime?
+  fetchedAt    DateTime       @default(now())
+  expiresAt    DateTime
+  fetchStatus  CveFetchStatus @default(OK)
+  attemptCount Int            @default(0)
+  lastError    String?
+
+  @@index([expiresAt])
+  @@index([fetchStatus])
 }
