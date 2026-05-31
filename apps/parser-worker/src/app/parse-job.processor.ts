@@ -185,7 +185,13 @@ export class ParseJobProcessor extends WorkerHost {
     for (const port of out.ports) {
       const assetId = assetIdByValue.get(port.assetValue.toLowerCase());
       if (!assetId) continue;
-      const id = await this.portPersister.upsert(assetId, port);
+      const id = await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction(async (tx) => {
+          const portId = await this.portPersister.upsert(assetId, port, tx);
+          await recomputeRiskScoreForAsset(tx, assetId);
+          return portId;
+        }),
+      );
       portIdByKey.set(portKey(port), id);
       portsPersisted++;
     }

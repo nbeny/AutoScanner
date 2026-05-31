@@ -1,13 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@autoscanner/database';
+import type { Prisma } from '@prisma/client';
 import type { NormalizedPort } from '@autoscanner/parsers';
 
 @Injectable()
 export class PortPersister {
   constructor(private readonly prisma: PrismaService) {}
 
-  async upsert(assetId: string, port: NormalizedPort): Promise<string> {
-    const row = await this.prisma.port.upsert({
+  async upsert(
+    assetId: string,
+    port: NormalizedPort,
+    tx?: Prisma.TransactionClient,
+  ): Promise<string> {
+    const client = tx ?? this.prisma;
+    const row = await client.port.upsert({
       where: {
         assetId_number_protocol: { assetId, number: port.number, protocol: port.protocol },
       },
