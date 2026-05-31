@@ -379,6 +379,13 @@ export const ASSET_DETAIL_QUERY = gql`
       ipAddresses
       subdomains
       scannerSources
+      observations {
+        id
+        kind
+        scannerName
+        ts
+        payload
+      }
     }
   }
 `;
