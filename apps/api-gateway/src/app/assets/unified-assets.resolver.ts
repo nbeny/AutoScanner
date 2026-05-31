@@ -4,6 +4,8 @@ import type { User } from '@prisma/client';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AssetFilters } from './dto/asset-filters.input';
+import { AssetSort } from './dto/asset-sort.enum';
 import { AssetType } from './dto/asset-type.enum';
 import { UnifiedAssetObject } from './unified-asset.dto';
 import { UnifiedAssetsService } from './unified-assets.service';
@@ -32,7 +34,11 @@ export class UnifiedAssetsResolver {
     search?: string | null,
     @Args('limit', { type: () => Int, defaultValue: 100 }) limit?: number,
     @Args('offset', { type: () => Int, defaultValue: 0 }) offset?: number,
+    @Args('filters', { type: () => AssetFilters, nullable: true })
+    filters?: AssetFilters | null,
+    @Args('sort', { type: () => AssetSort, nullable: true })
+    sort?: AssetSort | null,
   ): Promise<UnifiedAssetObject[]> {
-    return this.svc.list(user.id, engagementId, { kinds, search, limit, offset });
+    return this.svc.list(user.id, engagementId, { kinds, search, limit, offset, filters, sort });
   }
 }
