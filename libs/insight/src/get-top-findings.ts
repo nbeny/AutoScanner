@@ -27,6 +27,7 @@ export async function getTopFindings(
 ): Promise<TopFinding[]> {
   const rows = await prisma.finding.findMany({
     where: { asset: { engagementId, deletedAt: null } },
+    orderBy: { firstSeenAt: 'asc' },
     select: {
       assetId: true,
       dedupHash: true,
