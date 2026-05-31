@@ -127,6 +127,9 @@ describe('ParseJobProcessor', () => {
         upsert: jest.fn().mockResolvedValue({}),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
+      assetObservation: {
+        create: jest.fn().mockResolvedValue({ id: 'obs_mock' }),
+      },
       $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown> | unknown[]) => {
         if (typeof cb === 'function') return cb(prisma);
         // Array form: execute each operation
