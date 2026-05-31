@@ -216,3 +216,68 @@ export const TEMPLATE_RUN_QUERY = gql`
     }
   }
 `;
+
+export const ENGAGEMENT_OVERVIEW_QUERY = gql`
+  query EngagementOverview($engagementId: ID!) {
+    engagementOverview(engagementId: $engagementId) {
+      domains
+      subdomains
+      ipAddresses
+      openPorts
+      uniqueTechs
+      findingsBySeverity {
+        critical
+        high
+        medium
+        low
+        info
+      }
+    }
+  }
+`;
+
+export const TOP_FINDINGS_QUERY = gql`
+  query TopFindings($engagementId: ID!, $limit: Int) {
+    topFindings(engagementId: $engagementId, limit: $limit) {
+      dedupHash
+      title
+      severity
+      cveId
+      affectedAssetCount
+      scannerSources
+      firstSeenAt
+      lastSeenAt
+      exampleAssetId
+    }
+  }
+`;
+
+export const TOP_ASSETS_QUERY = gql`
+  query TopAssets($engagementId: ID!, $limit: Int) {
+    topAssets(engagementId: $engagementId, limit: $limit) {
+      id
+      kind
+      canonicalValue
+      firstSeenAt
+      lastSeenAt
+      findingsCount
+      criticalCount
+      highCount
+    }
+  }
+`;
+
+export const RECENT_TEMPLATE_RUNS_QUERY = gql`
+  query RecentTemplateRuns($engagementId: ID!, $limit: Int) {
+    recentTemplateRuns(engagementId: $engagementId, limit: $limit) {
+      id
+      templateName
+      status
+      startedAt
+      completedAt
+      durationMs
+      newAssetsCount
+      newFindingsCount
+    }
+  }
+`;
