@@ -15,6 +15,7 @@ import {
   AssetMergeService,
   canonicalize,
   recomputeRiskScoreForAsset,
+  writeObservation,
 } from '@autoscanner/correlation';
 import { Prisma } from '@prisma/client';
 import { AssetPersister } from './persisters/asset-persister';
@@ -128,6 +129,11 @@ export class ParseJobProcessor extends WorkerHost {
         this.logger.warn('P2034 serialization conflict; retrying once');
         return await fn();
       }
+      // P2002 (unique constraint) can occur when concurrent workers race on the
+      // same asset. Retry once so the loser can fall back to the update branch.
+      if ((err as { code?: string }).code === 'P2002') {
+        return await fn();
+      }
       throw err;
     }
   }
@@ -158,7 +164,37 @@ export class ParseJobProcessor extends WorkerHost {
     for (const asset of out.assets) {
       if (asset.type === 'IP') continue;
       const probe = httpProbeByValue.get(asset.value.toLowerCase());
-      const id = await this.assetPersister.upsert(payload.engagementId, asset, probe);
+      const id = await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction(async (tx) => {
+          const upsertedId = await this.assetPersister.upsert(
+            payload.engagementId,
+            asset,
+            probe,
+            tx,
+          );
+          if (!upsertedId) return null;
+          await writeObservation(tx, {
+            assetId: upsertedId,
+            scanJobId: payload.scanJobId,
+            scannerName: payload.scannerName,
+            kind: 'DISCOVERED',
+            payload: { assetValue: asset.value, assetType: asset.type },
+          });
+          if (
+            probe &&
+            (probe.status !== undefined || probe.title !== undefined || probe.server !== undefined)
+          ) {
+            await writeObservation(tx, {
+              assetId: upsertedId,
+              scanJobId: payload.scanJobId,
+              scannerName: payload.scannerName,
+              kind: 'HTTP_PROBED',
+              payload: { status: probe.status, title: probe.title, server: probe.server },
+            });
+          }
+          return upsertedId;
+        }),
+      );
       if (!id) continue;
       assetIdByValue.set(asset.value.toLowerCase(), id);
       assetsPersisted++;
@@ -171,7 +207,20 @@ export class ParseJobProcessor extends WorkerHost {
     let ipAddressesPersisted = 0;
     for (const asset of out.assets) {
       if (asset.type !== 'IP') continue;
-      const id = await this.ipAddressPersister.upsert(payload.engagementId, asset);
+      const id = await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction(async (tx) => {
+          const upsertedId = await this.ipAddressPersister.upsert(payload.engagementId, asset, tx);
+          if (!upsertedId) return null;
+          await writeObservation(tx, {
+            assetId: upsertedId,
+            scanJobId: payload.scanJobId,
+            scannerName: payload.scannerName,
+            kind: 'DISCOVERED',
+            payload: { assetValue: asset.value, assetType: 'IP' },
+          });
+          return upsertedId;
+        }),
+      );
       if (!id) continue;
       const canonicalIpKey = canonicalize(asset.value, { type: 'IP_ADDRESS' });
       ipAssetIdByValue.set(canonicalIpKey, id);
@@ -188,6 +237,13 @@ export class ParseJobProcessor extends WorkerHost {
       const id = await this.withRetryOnSerializationConflict(() =>
         this.prisma.$transaction(async (tx) => {
           const portId = await this.portPersister.upsert(assetId, port, tx);
+          await writeObservation(tx, {
+            assetId,
+            scanJobId: payload.scanJobId,
+            scannerName: payload.scannerName,
+            kind: 'PORT_OPEN',
+            payload: { number: port.number, protocol: port.protocol, state: port.state },
+          });
           await recomputeRiskScoreForAsset(tx, assetId);
           return portId;
         }),
@@ -209,7 +265,22 @@ export class ParseJobProcessor extends WorkerHost {
             where: { id: portId },
             select: { assetId: true },
           });
-          if (port) await recomputeRiskScoreForAsset(tx, port.assetId);
+          if (port) {
+            await writeObservation(tx, {
+              assetId: port.assetId,
+              scanJobId: payload.scanJobId,
+              scannerName: payload.scannerName,
+              kind: 'SERVICE_DETECTED',
+              payload: {
+                portNumber: svc.portNumber,
+                protocol: svc.protocol,
+                name: svc.name,
+                product: svc.product,
+                version: svc.version,
+              },
+            });
+            await recomputeRiskScoreForAsset(tx, port.assetId);
+          }
         }),
       );
       servicesPersisted++;
@@ -219,7 +290,18 @@ export class ParseJobProcessor extends WorkerHost {
     for (const tech of out.technologies) {
       const assetId = assetIdByValue.get(tech.assetValue.toLowerCase());
       if (!assetId) continue;
-      await this.technologyPersister.upsert(assetId, tech, payload.scannerName);
+      await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction(async (tx) => {
+          await this.technologyPersister.upsert(assetId, tech, payload.scannerName, tx);
+          await writeObservation(tx, {
+            assetId,
+            scanJobId: payload.scanJobId,
+            scannerName: payload.scannerName,
+            kind: 'TECH_DETECTED',
+            payload: { name: tech.name, version: tech.version, categories: tech.categories },
+          });
+        }),
+      );
       technologiesPersisted++;
     }
 
@@ -271,6 +353,19 @@ export class ParseJobProcessor extends WorkerHost {
             canonicalHost ?? '',
             tx,
           );
+          await writeObservation(tx, {
+            assetId: assetId!,
+            scanJobId: payload.scanJobId,
+            scannerName: payload.scannerName,
+            kind: 'FINDING_RAISED',
+            payload: {
+              title: finding.title,
+              severity: finding.severity,
+              cveId: finding.cveId,
+              templateId: finding.templateId,
+              location: finding.location,
+            },
+          });
           await recomputeRiskScoreForAsset(tx, assetId!);
         }),
       );
@@ -280,7 +375,38 @@ export class ParseJobProcessor extends WorkerHost {
     // DNS records: look up Subdomain/Domain and create DnsRecord rows.
     let dnsRecordsPersisted = 0;
     for (const record of out.dnsRecords) {
-      await this.dnsRecordPersister.upsert(payload.engagementId, record);
+      await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction(async (tx) => {
+          await this.dnsRecordPersister.upsert(payload.engagementId, record, tx);
+          const canonicalHost = canonicalize(record.assetValue, { type: 'SUBDOMAIN' });
+          let observationAssetId = assetIdByValue.get(canonicalHost);
+          if (!observationAssetId) {
+            const fallback = await tx.asset.findFirst({
+              where: {
+                engagementId: payload.engagementId,
+                canonicalValue: canonicalHost,
+                deletedAt: null,
+              },
+              select: { id: true },
+            });
+            observationAssetId = fallback?.id;
+          }
+          if (observationAssetId) {
+            await writeObservation(tx, {
+              assetId: observationAssetId,
+              scanJobId: payload.scanJobId,
+              scannerName: payload.scannerName,
+              kind: 'DNS_RECORD',
+              payload: {
+                recordType: record.recordType,
+                name: record.assetValue,
+                value: record.value,
+                ttl: record.ttl,
+              },
+            });
+          }
+        }),
+      );
       dnsRecordsPersisted++;
     }
 
@@ -292,22 +418,36 @@ export class ParseJobProcessor extends WorkerHost {
       const canonicalIp = canonicalize(record.value, { type: 'IP_ADDRESS' });
       if (!ipAssetIdByValue.has(canonicalIp)) continue;
 
-      // Look up Subdomain id for the host.
       const canonicalHost = canonicalize(record.assetValue, { type: 'SUBDOMAIN' });
-      const subdomain = await this.prisma.subdomain.findFirst({
-        where: { engagementId: payload.engagementId, canonicalValue: canonicalHost },
-        select: { id: true },
-      });
-      if (!subdomain) continue;
 
-      // Look up IpAddress id (not the Asset id) for the SubdomainIp join.
-      const ipAddress = await this.prisma.ipAddress.findFirst({
-        where: { engagementId: payload.engagementId, canonicalValue: canonicalIp },
-        select: { id: true },
-      });
-      if (!ipAddress) continue;
+      await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction(async (tx) => {
+          const subdomain = await tx.subdomain.findFirst({
+            where: { engagementId: payload.engagementId, canonicalValue: canonicalHost },
+            select: { id: true },
+          });
+          if (!subdomain) return;
 
-      await this.subdomainIpPersister.upsert(subdomain.id, ipAddress.id);
+          const ipAddress = await tx.ipAddress.findFirst({
+            where: { engagementId: payload.engagementId, canonicalValue: canonicalIp },
+            select: { id: true },
+          });
+          if (!ipAddress) return;
+
+          await this.subdomainIpPersister.upsert(subdomain.id, ipAddress.id, tx);
+
+          const subdomainAssetId = assetIdByValue.get(canonicalHost);
+          if (subdomainAssetId) {
+            await writeObservation(tx, {
+              assetId: subdomainAssetId,
+              scanJobId: payload.scanJobId,
+              scannerName: payload.scannerName,
+              kind: 'RESOLVED',
+              payload: { ip: canonicalIp },
+            });
+          }
+        }),
+      );
       subdomainIpsPersisted++;
     }
 
