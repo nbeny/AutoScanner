@@ -1,4 +1,5 @@
 import { useQuery } from '@apollo/client';
+import { useNavigate } from 'react-router-dom';
 import { TOP_ASSETS_QUERY } from '../../../lib/graphql/queries';
 
 type AssetKind =
@@ -30,6 +31,7 @@ export function TopAssetsList({
   engagementId: string;
   limit?: number;
 }) {
+  const navigate = useNavigate();
   const { data, loading, error } = useQuery<{ topAssets: TopAsset[] }>(TOP_ASSETS_QUERY, {
     variables: { engagementId, limit },
   });
@@ -59,7 +61,8 @@ export function TopAssetsList({
         {items.map((a) => (
           <li
             key={a.id}
-            className="border-t border-slate-800 pt-2 first:border-t-0 first:pt-0 flex items-center gap-3"
+            onClick={() => navigate(`/engagements/${engagementId}/assets/${a.id}`)}
+            className="border-t border-slate-800 pt-2 first:border-t-0 first:pt-0 flex items-center gap-3 cursor-pointer hover:bg-slate-800/40 rounded px-1"
           >
             <span className="text-[10px] uppercase tracking-wide bg-slate-800 text-slate-300 rounded px-1.5 py-0.5">
               {a.kind}
