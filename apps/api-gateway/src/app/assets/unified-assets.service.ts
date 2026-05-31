@@ -233,6 +233,19 @@ export class UnifiedAssetsService {
       distinct: ['scannerName'],
     });
 
+    const observations = await this.prisma.assetObservation.findMany({
+      where: { assetId },
+      orderBy: { observedAt: 'desc' },
+      take: 200,
+      select: {
+        id: true,
+        kind: true,
+        scannerName: true,
+        observedAt: true,
+        payload: true,
+      },
+    });
+
     const ports = a.ports.map((p) => ({
       id: p.id,
       number: p.number,
@@ -283,7 +296,13 @@ export class UnifiedAssetsService {
       })),
       ipAddresses: a.subdomain?.ips.map((j) => j.ip.canonicalValue) ?? [],
       subdomains: a.ipAddress?.subdomains.map((j) => j.subdomain.canonicalValue) ?? [],
-      observations: [],
+      observations: observations.map((o) => ({
+        id: o.id,
+        kind: o.kind,
+        scannerName: o.scannerName,
+        ts: o.observedAt,
+        payload: o.payload as unknown,
+      })),
       scannerSources: scanners.map((s) => s.scannerName),
     };
   }
