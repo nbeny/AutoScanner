@@ -120,6 +120,13 @@ export interface RunStepArgs {
 export class StepExecutor implements OnModuleDestroy {
   private readonly logger = new Logger(StepExecutor.name);
   private readonly pollIntervalMs: number;
+  // Single shared `message` listener + per-channel dispatch map. Previously we
+  // attached one `redis.on('message', ...)` per in-flight dispatch, which made
+  // a wide fan-out (e.g. naabu over a /24) trip Node's default 10-listener cap
+  // and required `setMaxListeners(0)` as a band-aid. With a single listener
+  // the cap is irrelevant and there's no per-dispatch listener leak risk.
+  private readonly channelHandlers = new Map<string, () => void>();
+  private listenerBound = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -131,6 +138,17 @@ export class StepExecutor implements OnModuleDestroy {
     @Optional() options?: StepExecutorOptions,
   ) {
     this.pollIntervalMs = options?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+  }
+
+  private bindListenerOnce(): void {
+    if (this.listenerBound) return;
+    this.listenerBound = true;
+    this.redis.on('message', (channel: string) => {
+      // No payload parsing — the future `scanjob:done:<id>` push is just a
+      // wake-up; `checkOnce` always re-reads the authoritative status from
+      // Postgres.
+      this.channelHandlers.get(channel)?.();
+    });
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -208,23 +226,18 @@ export class StepExecutor implements OnModuleDestroy {
     const scanJobId = randomUUID();
     const channel = scanJobDoneChannel(scanJobId);
 
-    // Capture the wait's settlement callbacks so the on('message') listener
-    // we register *before* subscribe can drive them once the row exists.
+    // Capture the wait's settlement callbacks so the shared `message`
+    // dispatcher can drive them once the row exists.
     let finishOk: () => void = () => undefined;
     let finishErr: (err: Error) => void = () => undefined;
 
-    const onMessage = (incomingChannel: string, _msg: string): void => {
-      if (incomingChannel !== channel) return;
+    this.bindListenerOnce();
+    // Register the per-channel handler BEFORE subscribe so any future publisher
+    // emitting between subscribe and row-creation is dispatched correctly.
+    this.channelHandlers.set(channel, () => {
       // Push notification: re-query DB for the authoritative status.
       void this.checkOnce(scanJobId, finishOk, finishErr);
-    };
-    try {
-      this.redis.on('message', onMessage);
-    } catch (err) {
-      this.logger.warn(
-        `Redis on('message') hook failed for ${scanJobId}: ${(err as Error).message}`,
-      );
-    }
+    });
 
     // SUBSCRIBE FIRST (C1) — await so any publisher emitting after this
     // point is delivered. Failure is non-fatal: polling is load-bearing.
@@ -265,7 +278,7 @@ export class StepExecutor implements OnModuleDestroy {
     } catch (err) {
       // Row creation failed — tear down the subscription we opened above
       // and rethrow. There's nothing to wait for.
-      this.removeListener(onMessage);
+      this.channelHandlers.delete(channel);
       await this.safeUnsubscribe(channel);
       throw err;
     }
@@ -310,7 +323,7 @@ export class StepExecutor implements OnModuleDestroy {
           `scanJob=${scanJobId} FAILED-status reconciliation failed: ${(scanJobUpdate.reason as Error).message}`,
         );
       }
-      this.removeListener(onMessage);
+      this.channelHandlers.delete(channel);
       await this.safeUnsubscribe(channel);
       throw err;
     }
@@ -323,7 +336,6 @@ export class StepExecutor implements OnModuleDestroy {
       channel,
       budgetMs,
       signal,
-      onMessageListener: onMessage,
       bindCallbacks: (ok, err) => {
         finishOk = ok;
         finishErr = err;
@@ -358,10 +370,9 @@ export class StepExecutor implements OnModuleDestroy {
     channel: string;
     budgetMs: number;
     signal: AbortSignal;
-    onMessageListener: (channel: string, message: string) => void;
     bindCallbacks: (ok: () => void, err: (err: Error) => void) => void;
   }): Promise<void> {
-    const { scanJobId, channel, budgetMs, signal, onMessageListener, bindCallbacks } = args;
+    const { scanJobId, channel, budgetMs, signal, bindCallbacks } = args;
 
     return new Promise<void>((resolve, reject) => {
       let settled = false;
@@ -382,7 +393,7 @@ export class StepExecutor implements OnModuleDestroy {
           }
           abortListener = null;
         }
-        this.removeListener(onMessageListener);
+        this.channelHandlers.delete(channel);
         void this.safeUnsubscribe(channel);
       };
 
@@ -406,8 +417,8 @@ export class StepExecutor implements OnModuleDestroy {
         reject(err);
       };
 
-      // Hand the callbacks back to dispatchOne so the on('message') listener
-      // it registered before subscribe can drive completion.
+      // Hand the callbacks back to dispatchOne so the shared message
+      // dispatcher can drive completion via the channelHandlers map.
       bindCallbacks(finishOk, finishErr);
 
       // I1: sibling-failure cancellation. If the shared AbortController is
@@ -428,14 +439,6 @@ export class StepExecutor implements OnModuleDestroy {
         finishErr(new StepTimeoutError(scanJobId, budgetMs));
       }, budgetMs);
     });
-  }
-
-  private removeListener(listener: (channel: string, message: string) => void): void {
-    try {
-      this.redis.off('message', listener);
-    } catch {
-      // ignore — best effort
-    }
   }
 
   private async safeUnsubscribe(channel: string): Promise<void> {

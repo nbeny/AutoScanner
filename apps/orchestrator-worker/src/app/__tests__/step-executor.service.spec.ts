@@ -83,7 +83,6 @@ function makeRedis(): jest.Mocked<OrchestratorRedisSubscriber> {
     subscribe: jest.fn().mockResolvedValue(undefined),
     unsubscribe: jest.fn().mockResolvedValue(undefined),
     on: jest.fn(),
-    off: jest.fn(),
     quit: jest.fn().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<OrchestratorRedisSubscriber>;
 }
@@ -414,6 +413,44 @@ describe('StepExecutor.runStep — multi-target enqueue', () => {
     );
   });
 
+  it('binds the redis `message` listener at most once regardless of fan-out', async () => {
+    // Pre-refactor this attached one listener per in-flight ScanJob, which on
+    // a wide fan-out (naabu over a /24) tripped Node's default 10-listener
+    // cap and required `setMaxListeners(0)` as a band-aid. Pin the new
+    // single-listener contract so a future refactor can't silently regress it.
+    const prisma = makePrisma();
+    (prisma.subdomain.findMany as jest.Mock).mockResolvedValueOnce([
+      { canonicalValue: 'a.acme.com' },
+      { canonicalValue: 'b.acme.com' },
+      { canonicalValue: 'c.acme.com' },
+    ]);
+    (prisma.scanJob.findUnique as jest.Mock).mockImplementation(
+      ({ where }: { where: { id: string } }) =>
+        Promise.resolve({ id: where.id, status: 'COMPLETED' }),
+    );
+
+    const redis = makeRedis();
+    const exec = build(prisma, makeScannerRegistry(60_000), makeScanQueue(), redis, 5_000);
+
+    const step: TemplateStep = {
+      scannerName: 'httpx',
+      inputs: {},
+      target: { kind: 'context', path: 'subdomains' },
+    };
+
+    const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 });
+    await flushMicrotasks(15);
+    await jest.advanceTimersByTimeAsync(5_000);
+    await promise;
+
+    const messageListenerCalls = (redis.on as jest.Mock).mock.calls.filter(
+      ([event]) => event === 'message',
+    );
+    expect(messageListenerCalls).toHaveLength(1);
+    // Subscribes are still per-channel (one per ScanJob) — that's expected.
+    expect(redis.subscribe).toHaveBeenCalledTimes(3);
+  });
+
   it('extracts only static inputs from step.inputs (context inputs are skipped in Phase 2)', async () => {
     const prisma = makePrisma();
     (prisma.scanJob.findUnique as jest.Mock).mockResolvedValue({
@@ -678,7 +715,10 @@ describe('StepExecutor.runStep — enqueue failure reconciliation', () => {
     });
     // Subscriber must be torn down so we don't leak the redis listener.
     expect(redis.unsubscribe).toHaveBeenCalled();
-    expect(redis.off).toHaveBeenCalled();
+    // No `redis.off` assertion: the executor uses a single shared `message`
+    // listener and unregisters per-channel handlers via an internal Map, so
+    // there's no per-dispatch `off()` call to observe. `unsubscribe()` is the
+    // observable teardown signal.
   });
 
   it('still re-throws the original enqueue error when the FAILED-status updates themselves fail', async () => {

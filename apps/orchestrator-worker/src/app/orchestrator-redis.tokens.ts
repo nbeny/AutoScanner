@@ -15,8 +15,11 @@ export const ORCHESTRATOR_REDIS_SUBSCRIBER = Symbol('ORCHESTRATOR_REDIS_SUBSCRIB
 export interface OrchestratorRedisSubscriber {
   subscribe(channel: string): Promise<unknown>;
   unsubscribe(channel: string): Promise<unknown>;
+  // A single shared `message` listener is bound at most once (see
+  // `StepExecutor.bindListenerOnce`). Per-channel dispatch is done via a
+  // Map; there is no `off()` because we never unbind. Keeping the surface
+  // narrow makes the test double honest.
   on(event: 'message', listener: (channel: string, message: string) => void): void;
-  off(event: 'message', listener: (channel: string, message: string) => void): void;
   quit(): Promise<unknown>;
 }
 
