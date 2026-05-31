@@ -11,7 +11,12 @@ import { QueueName, type ParseJobPayload } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 import { PrismaService } from '@autoscanner/database';
 
-import { AssetMergeService, canonicalize } from '@autoscanner/correlation';
+import {
+  AssetMergeService,
+  canonicalize,
+  recomputeRiskScoreForAsset,
+} from '@autoscanner/correlation';
+import { Prisma } from '@prisma/client';
 import { AssetPersister } from './persisters/asset-persister';
 import { DnsRecordPersister } from './persisters/dns-record-persister';
 import { FindingPersister } from './persisters/finding-persister';
@@ -112,6 +117,18 @@ export class ParseJobProcessor extends WorkerHost {
         `correlation pass (${kind}) failed: ${err instanceof Error ? err.message : String(err)}`,
         err instanceof Error ? err.stack : undefined,
       );
+    }
+  }
+
+  private async withRetryOnSerializationConflict<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034') {
+        this.logger.warn('P2034 serialization conflict; retrying once');
+        return await fn();
+      }
+      throw err;
     }
   }
 
@@ -230,7 +247,18 @@ export class ParseJobProcessor extends WorkerHost {
         );
         continue;
       }
-      await this.findingPersister.upsert(payload.scanJobId, assetId, finding, canonicalHost ?? '');
+      await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction(async (tx) => {
+          await this.findingPersister.upsert(
+            payload.scanJobId,
+            assetId!,
+            finding,
+            canonicalHost ?? '',
+            tx,
+          );
+          await recomputeRiskScoreForAsset(tx, assetId!);
+        }),
+      );
       findingsPersisted++;
     }
 
