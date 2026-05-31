@@ -281,3 +281,104 @@ export const RECENT_TEMPLATE_RUNS_QUERY = gql`
     }
   }
 `;
+
+export const UNIFIED_ASSETS_SCORED_QUERY = gql`
+  query UnifiedAssetsScored(
+    $engagementId: ID!
+    $kinds: [AssetType!]
+    $search: String
+    $limit: Int = 100
+    $offset: Int = 0
+    $filters: AssetFilters
+    $sort: AssetSort
+  ) {
+    unifiedAssets(
+      engagementId: $engagementId
+      kinds: $kinds
+      search: $search
+      limit: $limit
+      offset: $offset
+      filters: $filters
+      sort: $sort
+    ) {
+      id
+      kind
+      canonicalValue
+      displayName
+      firstSeenAt
+      lastSeenAt
+      riskScore
+    }
+  }
+`;
+
+export const ASSET_FACETS_QUERY = gql`
+  query AssetFacets($engagementId: ID!, $filters: AssetFilters) {
+    assetFacets(engagementId: $engagementId, filters: $filters) {
+      kindCounts {
+        kind
+        count
+      }
+      severityCounts {
+        severity
+        count
+      }
+      topTechs {
+        name
+        count
+      }
+      scannerSources
+    }
+  }
+`;
+
+export const ASSET_DETAIL_QUERY = gql`
+  query AssetDetail($id: ID!) {
+    assetDetail(id: $id) {
+      id
+      kind
+      canonicalValue
+      riskScore
+      firstSeenAt
+      lastSeenAt
+      ports {
+        id
+        number
+        protocol
+        state
+        lastSeenAt
+      }
+      services {
+        id
+        name
+        product
+        version
+      }
+      technologies {
+        id
+        name
+        version
+        source
+      }
+      dnsRecords {
+        id
+        type
+        name
+        value
+      }
+      findings {
+        id
+        title
+        severity
+        location
+        cveId
+        templateId
+        firstSeenAt
+        lastSeenAt
+      }
+      ipAddresses
+      subdomains
+      scannerSources
+    }
+  }
+`;
