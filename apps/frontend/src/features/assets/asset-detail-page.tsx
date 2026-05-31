@@ -6,7 +6,7 @@ import { AssetHeader } from './asset-header';
 import { AssetNetworkTab } from './asset-network-tab';
 import { AssetTechTab } from './asset-tech-tab';
 import { AssetFindingsTab } from './asset-findings-tab';
-import { AssetProvenanceTab } from './asset-provenance-tab';
+import { AssetProvenanceTab, type AssetProvenanceObservation } from './asset-provenance-tab';
 
 type Tab = 'provenance' | 'network' | 'tech' | 'findings';
 const TABS: { key: Tab; label: string }[] = [
@@ -66,7 +66,11 @@ export function AssetDetailPage() {
       </nav>
 
       <section>
-        {tab === 'provenance' ? <AssetProvenanceTab /> : null}
+        {tab === 'provenance' ? (
+          <AssetProvenanceTab
+            observations={(a.observations ?? []) as AssetProvenanceObservation[]}
+          />
+        ) : null}
         {tab === 'network' ? (
           <AssetNetworkTab
             kind={a.kind}
