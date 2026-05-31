@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { EngagementAssetsTab } from './engagement-assets-tab';
 import { FindingsTable } from '../findings/findings-table';
+import { EngagementSynthesisPage } from './synthesis/engagement-synthesis-page';
 
 type TabKey = 'overview' | 'domains' | 'subdomains' | 'ips' | 'technologies' | 'findings';
 
@@ -50,19 +51,7 @@ export function EngagementPage() {
       </nav>
 
       <section>
-        {tab === 'overview' ? (
-          <div className="space-y-3 bg-slate-900 rounded p-4">
-            <p className="text-sm text-slate-300">
-              Use the tabs above to explore assets and findings, or run a scan.
-            </p>
-            <Link
-              to={`/engagements/${engagementId}/scans`}
-              className="text-indigo-400 hover:underline text-sm"
-            >
-              Run scans →
-            </Link>
-          </div>
-        ) : null}
+        {tab === 'overview' ? <EngagementSynthesisPage engagementId={engagementId} /> : null}
         {tab === 'domains' ? (
           <EngagementAssetsTab engagementId={engagementId} kind="DOMAIN" />
         ) : null}
