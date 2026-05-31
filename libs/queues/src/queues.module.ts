@@ -19,6 +19,7 @@ import { QueueName } from './queue-names';
       { name: QueueName.SCAN_JOBS },
       { name: QueueName.PARSE_JOBS },
       { name: QueueName.TEMPLATE_RUNS },
+      { name: QueueName.CVE_ENRICHMENT },
     ),
   ],
   exports: [BullModule],

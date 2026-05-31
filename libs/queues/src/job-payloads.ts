@@ -22,10 +22,15 @@ export interface TemplateRunPayload {
   engagementId: string;
 }
 
+export interface CveEnrichmentPayload {
+  cveId: string;
+}
+
 export interface QueuePayloadMap {
   [QueueName.SCAN_JOBS]: ScanJobPayload;
   [QueueName.PARSE_JOBS]: ParseJobPayload;
   [QueueName.TEMPLATE_RUNS]: TemplateRunPayload;
+  [QueueName.CVE_ENRICHMENT]: CveEnrichmentPayload;
 }
 
 export type PayloadFor<Q extends QueueName> = QueuePayloadMap[Q];
