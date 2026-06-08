@@ -1,5 +1,16 @@
-import { NvdClient, NvdNotFoundError, NvdRateLimitedError } from '../nvd-client';
+import { NvdClient, NvdNotFoundError, NvdRateLimitedError, parseRetryAfter } from '../nvd-client';
 import { TokenBucketRateLimiter } from '../rate-limiter';
+
+function rateLimited429(retryAfterHeader: string | null) {
+  return {
+    ok: false,
+    status: 429,
+    headers: {
+      get: (name: string) => (name.toLowerCase() === 'retry-after' ? retryAfterHeader : null),
+    },
+    text: async () => 'rate limited',
+  };
+}
 
 function makeClient(fetchImpl: jest.Mock) {
   return new NvdClient({
@@ -61,14 +72,31 @@ describe('NvdClient', () => {
   });
 
   it('throws NvdRateLimitedError on 429', async () => {
-    const fetchImpl = jest.fn().mockResolvedValue({
-      ok: false,
-      status: 429,
-      text: async () => 'rate limited',
-    });
+    const fetchImpl = jest.fn().mockResolvedValue(rateLimited429(null));
     await expect(makeClient(fetchImpl).fetchCve('CVE-2024-1')).rejects.toBeInstanceOf(
       NvdRateLimitedError,
     );
+  });
+
+  it('attaches Retry-After (delta-seconds) to NvdRateLimitedError', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(rateLimited429('30'));
+    try {
+      await makeClient(fetchImpl).fetchCve('CVE-2024-1');
+      throw new Error('expected throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(NvdRateLimitedError);
+      expect((err as NvdRateLimitedError).retryAfterMs).toBe(30_000);
+    }
+  });
+
+  it('attaches null retryAfterMs when Retry-After header is absent', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(rateLimited429(null));
+    try {
+      await makeClient(fetchImpl).fetchCve('CVE-2024-1');
+      throw new Error('expected throw');
+    } catch (err) {
+      expect((err as NvdRateLimitedError).retryAfterMs).toBeNull();
+    }
   });
 
   it('retries 500 with backoff and eventually succeeds', async () => {
@@ -128,5 +156,26 @@ describe('NvdClient', () => {
     await client.fetchCve('CVE-2024-3');
     const headers = (fetchImpl.mock.calls[0][1] as { headers: Record<string, string> }).headers;
     expect(headers.apiKey).toBe('KEY');
+  });
+});
+
+describe('parseRetryAfter', () => {
+  const NOW = Date.parse('2026-06-08T12:00:00Z');
+
+  it('parses non-negative integer seconds to ms', () => {
+    expect(parseRetryAfter('30', NOW)).toBe(30_000);
+    expect(parseRetryAfter('0', NOW)).toBe(0);
+  });
+
+  it('parses HTTP-date to ms-from-now and clamps past dates to 0', () => {
+    expect(parseRetryAfter('Mon, 08 Jun 2026 12:00:30 GMT', NOW)).toBe(30_000);
+    expect(parseRetryAfter('Mon, 08 Jun 2026 11:00:00 GMT', NOW)).toBe(0);
+  });
+
+  it('returns null for absent, blank, or unparseable values', () => {
+    expect(parseRetryAfter(null, NOW)).toBeNull();
+    expect(parseRetryAfter('', NOW)).toBeNull();
+    expect(parseRetryAfter('   ', NOW)).toBeNull();
+    expect(parseRetryAfter('not-a-date', NOW)).toBeNull();
   });
 });

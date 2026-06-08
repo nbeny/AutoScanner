@@ -10,10 +10,36 @@ export class NvdNotFoundError extends Error {
 }
 
 export class NvdRateLimitedError extends Error {
-  constructor() {
+  /**
+   * Milliseconds the caller should wait before retrying, parsed from the
+   * 429 response's `Retry-After` header (RFC 7231 §7.1.3 — either a
+   * non-negative integer of seconds or an HTTP-date). `null` when the
+   * header was absent or unparseable.
+   */
+  readonly retryAfterMs: number | null;
+
+  constructor(retryAfterMs: number | null = null) {
     super('NVD rate-limited (HTTP 429)');
     this.name = 'NvdRateLimitedError';
+    this.retryAfterMs = retryAfterMs;
   }
+}
+
+/**
+ * Parse RFC 7231 `Retry-After`. Returns ms ≥ 0 or null if absent/invalid.
+ * Per RFC the value is either delta-seconds (a non-negative integer) or
+ * an HTTP-date. We accept both and clamp negatives to 0.
+ */
+export function parseRetryAfter(headerValue: string | null, nowMs: number): number | null {
+  if (!headerValue) return null;
+  const trimmed = headerValue.trim();
+  if (trimmed === '') return null;
+  if (/^\d+$/.test(trimmed)) {
+    return Math.max(0, Number(trimmed) * 1000);
+  }
+  const dateMs = Date.parse(trimmed);
+  if (Number.isNaN(dateMs)) return null;
+  return Math.max(0, dateMs - nowMs);
 }
 
 export interface NvdCveData {
@@ -78,7 +104,13 @@ export class NvdClient {
         });
 
         if (response.status === 404) throw new NvdNotFoundError(cveId);
-        if (response.status === 429) throw new NvdRateLimitedError();
+        if (response.status === 429) {
+          const retryAfter = parseRetryAfter(
+            response.headers?.get?.('retry-after') ?? null,
+            Date.now(),
+          );
+          throw new NvdRateLimitedError(retryAfter);
+        }
         if (response.status >= 500) {
           lastErr = new Error(`NVD HTTP ${response.status}`);
           await this.sleep(this.backoffMs(attempt));
