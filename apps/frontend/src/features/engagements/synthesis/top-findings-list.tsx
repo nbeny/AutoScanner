@@ -1,5 +1,6 @@
 import { useQuery } from '@apollo/client';
 import { TOP_FINDINGS_QUERY } from '../../../lib/graphql/queries';
+import { CveInfoCell } from '../../assets/cve-info-cell';
 
 type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
 
@@ -68,7 +69,12 @@ export function TopFindingsList({
                 {f.severity}
               </span>
               <span className="font-medium text-slate-100">{f.title}</span>
-              {f.cveId ? <span className="font-mono text-xs text-slate-400">{f.cveId}</span> : null}
+              {f.cveId ? (
+                <>
+                  <span className="font-mono text-xs text-slate-400">{f.cveId}</span>
+                  <CveInfoCell cveId={f.cveId} />
+                </>
+              ) : null}
               <span className="text-xs text-slate-400 ml-auto">
                 {f.affectedAssetCount === 1 ? '1 asset' : `${f.affectedAssetCount} assets`}
               </span>
