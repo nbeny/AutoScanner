@@ -38,7 +38,11 @@ const QUERIES_BY_KIND: Record<EngagementUpdateKind, string[]> = {
     'AssetDetail',
   ],
   [EngagementUpdateKind.OBSERVATION_ADDED]: ['AssetDetail'],
-  [EngagementUpdateKind.TEMPLATE_RUN_STATUS_CHANGED]: ['RecentTemplateRuns', 'TemplateRun'],
+  [EngagementUpdateKind.TEMPLATE_RUN_STATUS_CHANGED]: [
+    'RecentTemplateRuns',
+    'EngagementOverview',
+    'TemplateRun',
+  ],
   [EngagementUpdateKind.CVE_ENRICHED]: ['CveInfo', 'Findings', 'TopFindings', 'AssetDetail'],
 };
 
