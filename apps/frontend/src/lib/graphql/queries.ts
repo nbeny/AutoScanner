@@ -390,6 +390,18 @@ export const ASSET_DETAIL_QUERY = gql`
   }
 `;
 
+export const ENGAGEMENT_UPDATED_SUBSCRIPTION = gql`
+  subscription EngagementUpdated($engagementId: ID!) {
+    engagementUpdated(engagementId: $engagementId) {
+      kind
+      engagementId
+      assetId
+      templateRunId
+      ts
+    }
+  }
+`;
+
 export const CVE_INFO_QUERY = gql`
   query CveInfo($cveId: String!) {
     cveInfo(cveId: $cveId) {

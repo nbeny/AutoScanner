@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { EngagementAssetsTab, ScoredAssetsPanel } from './engagement-assets-tab';
 import { FindingsTable } from '../findings/findings-table';
 import { EngagementSynthesisPage } from './synthesis/engagement-synthesis-page';
+import { useEngagementUpdates } from './use-engagement-updates';
 
 type TabKey =
   | 'overview'
@@ -26,6 +27,8 @@ const TABS: { key: TabKey; label: string }[] = [
 export function EngagementPage() {
   const { engagementId } = useParams<{ engagementId: string }>();
   const [tab, setTab] = useState<TabKey>('overview');
+
+  useEngagementUpdates(engagementId);
 
   if (!engagementId) return <p className="p-8">Missing engagement id.</p>;
 
