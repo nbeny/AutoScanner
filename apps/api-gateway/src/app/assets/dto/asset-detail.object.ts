@@ -58,6 +58,13 @@ export class AssetObservationDetail {
   @Field(() => GraphQLJSON, { nullable: true }) payload?: unknown;
 }
 
+@ObjectType('AssetObservationPage')
+export class AssetObservationPage {
+  @Field(() => [AssetObservationDetail]) items!: AssetObservationDetail[];
+  @Field(() => String, { nullable: true }) nextCursor!: string | null;
+  @Field(() => Boolean) hasMore!: boolean;
+}
+
 @ObjectType('AssetDetail')
 export class AssetDetailObject {
   @Field(() => ID) id!: string;

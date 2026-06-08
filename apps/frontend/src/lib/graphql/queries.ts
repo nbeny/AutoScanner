@@ -390,6 +390,22 @@ export const ASSET_DETAIL_QUERY = gql`
   }
 `;
 
+export const ASSET_OBSERVATIONS_QUERY = gql`
+  query AssetObservations($assetId: ID!, $after: String, $limit: Int) {
+    assetObservations(assetId: $assetId, after: $after, limit: $limit) {
+      items {
+        id
+        kind
+        scannerName
+        ts
+        payload
+      }
+      nextCursor
+      hasMore
+    }
+  }
+`;
+
 export const ENGAGEMENT_UPDATED_SUBSCRIPTION = gql`
   subscription EngagementUpdated($engagementId: ID!) {
     engagementUpdated(engagementId: $engagementId) {

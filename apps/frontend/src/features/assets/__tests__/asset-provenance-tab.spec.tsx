@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import { AssetProvenanceTab } from '../asset-provenance-tab';
 
 const sample = [
@@ -48,5 +48,24 @@ describe('AssetProvenanceTab', () => {
     expect(headings).toHaveLength(2);
     expect(headings[0]).toHaveTextContent('2026-05-31');
     expect(headings[1]).toHaveTextContent('2026-05-30');
+  });
+
+  it('does not render Show older button when hasMore is false', () => {
+    render(<AssetProvenanceTab observations={sample} hasMore={false} onLoadMore={() => {}} />);
+    expect(screen.queryByRole('button', { name: /show older/i })).toBeNull();
+  });
+
+  it('renders Show older button and fires onLoadMore when clicked', () => {
+    const onLoadMore = vi.fn();
+    render(<AssetProvenanceTab observations={sample} hasMore onLoadMore={onLoadMore} />);
+    const btn = screen.getByRole('button', { name: /show older/i });
+    fireEvent.click(btn);
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables the button and shows a loading label while fetching more', () => {
+    render(<AssetProvenanceTab observations={sample} hasMore loadingMore onLoadMore={() => {}} />);
+    const btn = screen.getByRole('button', { name: /chargement/i });
+    expect(btn).toBeDisabled();
   });
 });

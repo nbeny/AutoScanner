@@ -266,6 +266,128 @@ describe('UnifiedAssetsService.detail', () => {
   });
 });
 
+describe('UnifiedAssetsService.listObservations', () => {
+  const userId = 'me';
+  const assetId = 'a1';
+
+  function makePrismaWith(findManyImpl: jest.Mock): jest.Mocked<PrismaService> {
+    return {
+      asset: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: assetId,
+          engagement: { ownerId: userId },
+        }),
+      },
+      assetObservation: { findMany: findManyImpl },
+    } as never;
+  }
+
+  it('throws ForbiddenException when the asset belongs to another user', async () => {
+    const prisma = {
+      asset: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: assetId,
+          engagement: { ownerId: 'other_user' },
+        }),
+      },
+      assetObservation: { findMany: jest.fn() },
+    } as never;
+    const svc = new UnifiedAssetsService(prisma);
+    await expect(svc.listObservations(userId, assetId, null, null)).rejects.toThrow(
+      /Forbidden|forbidden/i,
+    );
+  });
+
+  it('throws NotFoundError when the asset does not exist', async () => {
+    const prisma = {
+      asset: { findFirst: jest.fn().mockResolvedValue(null) },
+      assetObservation: { findMany: jest.fn() },
+    } as never;
+    const svc = new UnifiedAssetsService(prisma);
+    await expect(svc.listObservations(userId, assetId, null, null)).rejects.toThrow(NotFoundError);
+  });
+
+  it('defaults to limit=200 and requests take+1 to detect hasMore', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const svc = new UnifiedAssetsService(makePrismaWith(findMany));
+    await svc.listObservations(userId, assetId, null, null);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { assetId },
+        orderBy: [{ observedAt: 'desc' }, { id: 'desc' }],
+        take: 201,
+      }),
+    );
+  });
+
+  it('clamps limit to the 500 max', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const svc = new UnifiedAssetsService(makePrismaWith(findMany));
+    await svc.listObservations(userId, assetId, null, 5000);
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 501 }));
+  });
+
+  it('clamps limit to 1 minimum', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const svc = new UnifiedAssetsService(makePrismaWith(findMany));
+    await svc.listObservations(userId, assetId, null, 0);
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 2 }));
+  });
+
+  it('returns hasMore=true and a cursor when there is an extra row', async () => {
+    const ts1 = new Date('2026-06-08T12:00:00Z');
+    const ts2 = new Date('2026-06-08T11:00:00Z');
+    const ts3 = new Date('2026-06-08T10:00:00Z');
+    const findMany = jest.fn().mockResolvedValue([
+      { id: 'o1', kind: 'K', scannerName: 's', observedAt: ts1, payload: null },
+      { id: 'o2', kind: 'K', scannerName: 's', observedAt: ts2, payload: null },
+      { id: 'o3', kind: 'K', scannerName: 's', observedAt: ts3, payload: null },
+    ]);
+    const svc = new UnifiedAssetsService(makePrismaWith(findMany));
+    const page = await svc.listObservations(userId, assetId, null, 2);
+    expect(page.items).toHaveLength(2);
+    expect(page.hasMore).toBe(true);
+    expect(page.nextCursor).not.toBeNull();
+    // Cursor encodes the LAST returned row (o2/ts2), not the extra row.
+    const decoded = Buffer.from(page.nextCursor as string, 'base64').toString('utf8');
+    expect(decoded).toBe(`${ts2.toISOString()}|o2`);
+  });
+
+  it('returns hasMore=false and nextCursor=null on the last page', async () => {
+    const ts = new Date('2026-06-08T12:00:00Z');
+    const findMany = jest
+      .fn()
+      .mockResolvedValue([
+        { id: 'o1', kind: 'K', scannerName: 's', observedAt: ts, payload: null },
+      ]);
+    const svc = new UnifiedAssetsService(makePrismaWith(findMany));
+    const page = await svc.listObservations(userId, assetId, null, 200);
+    expect(page.items).toHaveLength(1);
+    expect(page.hasMore).toBe(false);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it('decodes the after cursor and filters by (observedAt, id) keyset', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const svc = new UnifiedAssetsService(makePrismaWith(findMany));
+    const cursorTs = new Date('2026-06-08T11:00:00Z');
+    const cursor = Buffer.from(`${cursorTs.toISOString()}|o2`).toString('base64');
+    await svc.listObservations(userId, assetId, cursor, 100);
+    const call = findMany.mock.calls[0][0];
+    expect(call.where).toEqual({
+      assetId,
+      OR: [{ observedAt: { lt: cursorTs } }, { observedAt: cursorTs, id: { lt: 'o2' } }],
+    });
+  });
+
+  it('ignores a malformed cursor and returns the first page', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const svc = new UnifiedAssetsService(makePrismaWith(findMany));
+    await svc.listObservations(userId, assetId, 'not-base64-or-anything', null);
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { assetId } }));
+  });
+});
+
 describe('UnifiedAssetsService — filters + sort', () => {
   let prisma: jest.Mocked<PrismaService>;
   let svc: UnifiedAssetsService;

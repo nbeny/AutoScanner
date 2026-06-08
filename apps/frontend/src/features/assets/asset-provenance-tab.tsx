@@ -10,6 +10,9 @@ export interface AssetProvenanceObservation {
 
 export interface AssetProvenanceTabProps {
   observations: AssetProvenanceObservation[];
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 const KIND_BADGE: Record<string, string> = {
@@ -32,7 +35,12 @@ function timeOfDay(iso: string): string {
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
-export function AssetProvenanceTab({ observations }: AssetProvenanceTabProps) {
+export function AssetProvenanceTab({
+  observations,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
+}: AssetProvenanceTabProps) {
   const grouped = useMemo(() => {
     const map = new Map<string, AssetProvenanceObservation[]>();
     for (const o of observations) {
@@ -85,10 +93,17 @@ export function AssetProvenanceTab({ observations }: AssetProvenanceTabProps) {
           </ul>
         </section>
       ))}
-      {observations.length >= 200 ? (
-        <p className="text-xs text-slate-500">
-          Affichage des 200 observations les plus récentes. Cap UI — Phase 3.3.a.
-        </p>
+      {hasMore && onLoadMore ? (
+        <div className="flex items-center justify-center pt-2">
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loadingMore ? 'Chargement…' : 'Show older'}
+          </button>
+        </div>
       ) : null}
     </div>
   );
