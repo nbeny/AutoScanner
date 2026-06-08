@@ -6,13 +6,15 @@ import { join } from 'node:path';
 
 import { AppConfigModule, AppConfigService } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
-import { PrismaModule } from '@autoscanner/database';
+import { PrismaModule, PrismaService } from '@autoscanner/database';
 import { StorageModule } from '@autoscanner/storage';
 
+import { authenticateWsConnection } from './auth/ws-auth';
 import { formatGraphqlError } from './graphql-error.formatter';
 import { AssetsModule } from './assets/assets.module';
 import { AuthModule } from './auth/auth.module';
 import { DnsRecordsModule } from './dns-records/dns-records.module';
+import { EngagementEventsModule } from './engagement-events/engagement-events.module';
 import { EngagementsModule } from './engagements/engagements.module';
 import { FindingsModule } from './findings/findings.module';
 import { HealthModule } from './health/health.module';
@@ -30,24 +32,40 @@ import { UsersModule } from './users/users.module';
     StorageModule,
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
-      imports: [AppConfigModule],
-      inject: [AppConfigService],
-      useFactory: (cfg: AppConfigService) => ({
+      imports: [AppConfigModule, PrismaModule],
+      inject: [AppConfigService, PrismaService],
+      useFactory: (cfg: AppConfigService, prisma: PrismaService) => ({
         autoSchemaFile: join(process.cwd(), 'apps/api-gateway/src/schema.gql'),
         sortSchema: true,
         playground: false,
         introspection: !cfg.isProd,
         path: '/graphql',
         subscriptions: {
-          'graphql-ws': { path: '/graphql' },
+          'graphql-ws': {
+            path: '/graphql',
+            onConnect: async (ctx: { connectionParams?: Record<string, unknown> }) => {
+              const params = ctx.connectionParams as { authorization?: string } | undefined;
+              const user = await authenticateWsConnection(params, cfg, prisma);
+              return { user };
+            },
+          },
         },
-        context: ({ req, res }: { req: unknown; res: unknown }) => ({ req, res }),
+        context: ({
+          req,
+          res,
+          extra,
+        }: {
+          req?: unknown;
+          res?: unknown;
+          extra?: { user?: unknown };
+        }) => ({ req, res, user: extra?.user }),
         formatError: formatGraphqlError,
       }),
     }),
     AssetsModule,
     AuthModule,
     DnsRecordsModule,
+    EngagementEventsModule,
     EngagementsModule,
     FindingsModule,
     HealthModule,
