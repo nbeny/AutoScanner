@@ -72,6 +72,31 @@ export interface Finding {
   id: string;
   title: string;
   severity: string;
+  cveId?: string | null;
+}
+
+export interface AssetObservation {
+  id: string;
+  kind: string;
+  scannerName: string;
+  ts: string;
+}
+
+export interface AssetDetail {
+  id: string;
+  kind: string;
+  canonicalValue: string;
+  observations: AssetObservation[];
+}
+
+export interface CveInfo {
+  cveId: string;
+  cached: boolean;
+  cvssV3Score: number | null;
+  cvssV3Vector: string | null;
+  severity: string | null;
+  summary: string | null;
+  fetchStatus: 'OK' | 'NOT_FOUND' | 'RATE_LIMITED' | 'ERROR' | 'PENDING';
 }
 
 export interface Scan {
