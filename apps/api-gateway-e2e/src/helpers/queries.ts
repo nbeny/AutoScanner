@@ -1,5 +1,5 @@
 import type { GraphQLClient } from 'graphql-request';
-import type { Asset, DnsRecord, Finding, Scan, TemplateRun } from './types';
+import type { Asset, AssetDetail, CveInfo, DnsRecord, Finding, Scan, TemplateRun } from './types';
 
 /** Fetches assets with ports + technologies — the fat shape used by recon specs. */
 export async function queryAssetsFull(gql: GraphQLClient, engagementId: string): Promise<Asset[]> {
@@ -92,12 +92,58 @@ export async function queryFindings(gql: GraphQLClient, engagementId: string): P
           id
           title
           severity
+          cveId
         }
       }
     `,
     { engagementId },
   );
   return res.findings;
+}
+
+export async function queryAssetDetailWithObservations(
+  gql: GraphQLClient,
+  id: string,
+): Promise<AssetDetail> {
+  const res = await gql.request<{ assetDetail: AssetDetail }>(
+    /* GraphQL */ `
+      query AD($id: ID!) {
+        assetDetail(id: $id) {
+          id
+          kind
+          canonicalValue
+          observations {
+            id
+            kind
+            scannerName
+            ts
+          }
+        }
+      }
+    `,
+    { id },
+  );
+  return res.assetDetail;
+}
+
+export async function queryCveInfo(gql: GraphQLClient, cveId: string): Promise<CveInfo> {
+  const res = await gql.request<{ cveInfo: CveInfo }>(
+    /* GraphQL */ `
+      query CI($cveId: String!) {
+        cveInfo(cveId: $cveId) {
+          cveId
+          cached
+          cvssV3Score
+          cvssV3Vector
+          severity
+          summary
+          fetchStatus
+        }
+      }
+    `,
+    { cveId },
+  );
+  return res.cveInfo;
 }
 
 export async function queryScan(gql: GraphQLClient, id: string): Promise<Scan> {
