@@ -8,6 +8,7 @@ import {
   ENGAGEMENT_EVENTS_SUBSCRIBE_CLIENT,
   EngagementEventsSubscriberService,
 } from './engagement-events-subscriber.service';
+import { EngagementUpdatedResolver } from './engagement-updated.resolver';
 
 const subscribeClient: Provider = {
   provide: ENGAGEMENT_EVENTS_SUBSCRIBE_CLIENT,
@@ -17,7 +18,7 @@ const subscribeClient: Provider = {
 
 @Module({
   imports: [AppConfigModule, PrismaModule],
-  providers: [subscribeClient, EngagementEventsSubscriberService],
+  providers: [subscribeClient, EngagementEventsSubscriberService, EngagementUpdatedResolver],
   exports: [EngagementEventsSubscriberService],
 })
 export class EngagementEventsModule {}
