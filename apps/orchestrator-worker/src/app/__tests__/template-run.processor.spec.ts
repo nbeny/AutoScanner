@@ -3,9 +3,17 @@ import type { PrismaService } from '@autoscanner/database';
 import type { TemplateRunPayload } from '@autoscanner/queues';
 import type { TemplateDefinition } from '@autoscanner/templates';
 import { TemplateRegistry } from '@autoscanner/templates';
+import {
+  EngagementUpdateKind,
+  type EngagementEventsPublisher,
+} from '@autoscanner/engagement-events';
 
 import type { StepExecutor } from '../step-executor.service';
 import { TemplateRunProcessor } from '../template-run.processor';
+
+function makeEvents(): jest.Mocked<EngagementEventsPublisher> {
+  return { publish: jest.fn().mockResolvedValue(undefined) };
+}
 
 type TemplateRunRow = {
   id: string;
@@ -97,7 +105,7 @@ describe('TemplateRunProcessor', () => {
     const prisma = makePrisma(row);
     const registry = makeRegistry();
     const executor = makeExecutor();
-    const proc = new TemplateRunProcessor(prisma, registry, executor);
+    const proc = new TemplateRunProcessor(prisma, registry, executor, makeEvents());
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 
@@ -158,7 +166,7 @@ describe('TemplateRunProcessor', () => {
     const row = makeRow({ status: 'RUNNING', currentStepIndex: 1, startedAt: new Date() });
     const prisma = makePrisma(row);
     const executor = makeExecutor();
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 
@@ -172,7 +180,7 @@ describe('TemplateRunProcessor', () => {
     const prisma = makePrisma(row);
     const executor = makeExecutor();
     executor.runStep.mockRejectedValueOnce(new Error('docker boom'));
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
 
     await expect(
       proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
@@ -194,7 +202,7 @@ describe('TemplateRunProcessor', () => {
     const row = makeRow({ status: 'CANCELLED' });
     const prisma = makePrisma(row);
     const executor = makeExecutor();
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 
@@ -206,7 +214,7 @@ describe('TemplateRunProcessor', () => {
     const row = makeRow({ status: 'COMPLETED' });
     const prisma = makePrisma(row);
     const executor = makeExecutor();
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 
@@ -226,11 +234,73 @@ describe('TemplateRunProcessor', () => {
       .mockResolvedValueOnce({}) // flip to RUNNING
       .mockResolvedValueOnce({}) // currentStepIndex = 0
       .mockRejectedValueOnce(new Error('db is down')); // FAILED reconciliation
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
 
     await expect(
       proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
     ).rejects.toThrow('docker boom');
+  });
+
+  describe('TEMPLATE_RUN_STATUS_CHANGED publication', () => {
+    it('publishes RUNNING and COMPLETED transitions on happy path', async () => {
+      const row = makeRow({ status: 'PENDING', currentStepIndex: 0 });
+      const prisma = makePrisma(row);
+      const events = makeEvents();
+      const proc = new TemplateRunProcessor(prisma, makeRegistry(), makeExecutor(), events);
+
+      await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
+
+      expect(events.publish).toHaveBeenCalledTimes(2);
+      for (const [ev] of events.publish.mock.calls) {
+        expect(ev.kind).toBe(EngagementUpdateKind.TEMPLATE_RUN_STATUS_CHANGED);
+        expect(ev.engagementId).toBe('eng_1');
+        expect(ev.templateRunId).toBe('run_1');
+      }
+    });
+
+    it('publishes RUNNING and FAILED when a step throws', async () => {
+      const row = makeRow({ status: 'PENDING' });
+      const prisma = makePrisma(row);
+      const executor = makeExecutor();
+      executor.runStep.mockRejectedValueOnce(new Error('docker boom'));
+      const events = makeEvents();
+      const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, events);
+
+      await expect(
+        proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
+      ).rejects.toThrow('docker boom');
+
+      expect(events.publish).toHaveBeenCalledTimes(2);
+      const kinds = events.publish.mock.calls.map(([ev]) => ev.kind);
+      expect(kinds).toEqual([
+        EngagementUpdateKind.TEMPLATE_RUN_STATUS_CHANGED,
+        EngagementUpdateKind.TEMPLATE_RUN_STATUS_CHANGED,
+      ]);
+    });
+
+    it('does not publish for early-return CANCELLED/COMPLETED rows', async () => {
+      const row = makeRow({ status: 'CANCELLED' });
+      const prisma = makePrisma(row);
+      const events = makeEvents();
+      const proc = new TemplateRunProcessor(prisma, makeRegistry(), makeExecutor(), events);
+
+      await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
+
+      expect(events.publish).not.toHaveBeenCalled();
+    });
+
+    it('does not throw when publisher rejects', async () => {
+      const row = makeRow({ status: 'PENDING' });
+      const prisma = makePrisma(row);
+      const events: jest.Mocked<EngagementEventsPublisher> = {
+        publish: jest.fn().mockRejectedValue(new Error('redis down')),
+      };
+      const proc = new TemplateRunProcessor(prisma, makeRegistry(), makeExecutor(), events);
+
+      await expect(
+        proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
+      ).resolves.toBeUndefined();
+    });
   });
 
   it('preserves existing startedAt on resume (does not overwrite)', async () => {
@@ -238,7 +308,7 @@ describe('TemplateRunProcessor', () => {
     const row = makeRow({ status: 'RUNNING', currentStepIndex: 0, startedAt });
     const prisma = makePrisma(row);
     const executor = makeExecutor();
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor);
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 

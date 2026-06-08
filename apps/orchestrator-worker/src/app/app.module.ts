@@ -12,6 +12,7 @@ import { NucleiScannerModule } from '@autoscanner/scanners-nuclei';
 import { SubfinderScannerModule } from '@autoscanner/scanners-subfinder';
 import { HttpxScannerModule } from '@autoscanner/scanners-httpx';
 import { TemplatesModule } from '@autoscanner/templates';
+import { EngagementEventsModule } from '@autoscanner/engagement-events';
 
 import { ContextBuilder } from './context-builder.service';
 import {
@@ -52,6 +53,7 @@ const redisSubscriber: Provider = {
     DnsxScannerModule,
     NaabuScannerModule,
     NucleiScannerModule,
+    EngagementEventsModule.forRoot(),
   ],
   providers: [redisSubscriber, ContextBuilder, StepExecutor, TemplateRunProcessor],
 })

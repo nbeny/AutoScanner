@@ -1,10 +1,15 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 
 import { PrismaService } from '@autoscanner/database';
 import { QueueName, type TemplateRunPayload } from '@autoscanner/queues';
 import { TemplateRegistry } from '@autoscanner/templates';
+import {
+  ENGAGEMENT_EVENTS_PUBLISHER,
+  EngagementUpdateKind,
+  type EngagementEventsPublisher,
+} from '@autoscanner/engagement-events';
 
 import { StepExecutor } from './step-executor.service';
 
@@ -34,8 +39,25 @@ export class TemplateRunProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly registry: TemplateRegistry,
     private readonly executor: StepExecutor,
+    @Inject(ENGAGEMENT_EVENTS_PUBLISHER)
+    private readonly events: EngagementEventsPublisher,
   ) {
     super();
+  }
+
+  private publishStatusChange(engagementId: string, templateRunId: string): void {
+    this.events
+      .publish({
+        kind: EngagementUpdateKind.TEMPLATE_RUN_STATUS_CHANGED,
+        engagementId,
+        templateRunId,
+        ts: new Date().toISOString(),
+      })
+      .catch((err: unknown) => {
+        this.logger.warn(
+          `TEMPLATE_RUN_STATUS_CHANGED publish failed for ${templateRunId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
   }
 
   async process(job: Job<TemplateRunPayload>): Promise<void> {
@@ -60,6 +82,7 @@ export class TemplateRunProcessor extends WorkerHost {
         startedAt: run.startedAt ?? new Date(),
       },
     });
+    this.publishStatusChange(run.engagementId, run.id);
 
     this.logger.log(
       `TemplateRun ${run.id} (${run.templateName}) starting at step ${run.currentStepIndex}/${template.steps.length}`,
@@ -86,6 +109,7 @@ export class TemplateRunProcessor extends WorkerHost {
           completedAt: new Date(),
         },
       });
+      this.publishStatusChange(run.engagementId, run.id);
       this.logger.log(`TemplateRun ${run.id} COMPLETED`);
     } catch (err) {
       const message = (err as Error).message;
@@ -109,6 +133,7 @@ export class TemplateRunProcessor extends WorkerHost {
             `TemplateRun ${run.id} status reconciliation failed: ${(updateErr as Error).message}`,
           );
         });
+      this.publishStatusChange(run.engagementId, run.id);
       throw err;
     }
   }
