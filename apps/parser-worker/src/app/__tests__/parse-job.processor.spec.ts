@@ -12,6 +12,10 @@ import {
 import { NmapXmlParser } from '@autoscanner/parsers';
 import type { CveEnrichmentPayload, ParseJobPayload } from '@autoscanner/queues';
 import type { ObjectStorage } from '@autoscanner/storage';
+import {
+  EngagementUpdateKind,
+  type EngagementEventsPublisher,
+} from '@autoscanner/engagement-events';
 
 import { AssetMergeService } from '@autoscanner/correlation';
 
@@ -54,6 +58,7 @@ describe('ParseJobProcessor', () => {
   let registry: ParserRegistry;
   let assetMerge: AssetMergeService;
   let cveQueueMock: jest.Mocked<Pick<Queue<CveEnrichmentPayload>, 'add'>>;
+  let eventsMock: jest.Mocked<EngagementEventsPublisher>;
   let processor: ParseJobProcessor;
 
   beforeEach(() => {
@@ -167,6 +172,7 @@ describe('ParseJobProcessor', () => {
     jest.spyOn(assetMerge, 'dedupFindings').mockResolvedValue({ merged: 0 });
 
     cveQueueMock = { add: jest.fn().mockResolvedValue({}) };
+    eventsMock = { publish: jest.fn().mockResolvedValue(undefined) };
 
     processor = new ParseJobProcessor(
       registry,
@@ -182,6 +188,7 @@ describe('ParseJobProcessor', () => {
       new SubdomainIpPersister(prisma),
       prisma,
       cveQueueMock as unknown as Queue<CveEnrichmentPayload>,
+      eventsMock,
     );
   });
 
@@ -1365,6 +1372,42 @@ describe('ParseJobProcessor', () => {
         );
         warn.mockRestore();
       });
+    });
+  });
+
+  describe('EngagementEvents publication', () => {
+    it('publishes ASSET_ADDED for each newly persisted Asset (IP and non-IP)', async () => {
+      await processor.process(job(payload));
+
+      const kinds = eventsMock.publish.mock.calls.map(([ev]) => ev.kind);
+      expect(kinds.filter((k) => k === EngagementUpdateKind.ASSET_ADDED).length).toBe(2);
+      for (const [ev] of eventsMock.publish.mock.calls) {
+        expect(ev.engagementId).toBe('eng_1');
+        expect(typeof ev.ts).toBe('string');
+      }
+    });
+
+    it('publishes ASSET_RISK_CHANGED after port persists (nmap emits 2 ports)', async () => {
+      await processor.process(job(payload));
+
+      const riskEvents = eventsMock.publish.mock.calls
+        .map(([ev]) => ev)
+        .filter((ev) => ev.kind === EngagementUpdateKind.ASSET_RISK_CHANGED);
+      expect(riskEvents.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('publishes OBSERVATION_ADDED at least once per persist op', async () => {
+      await processor.process(job(payload));
+
+      const obsCount = eventsMock.publish.mock.calls.filter(
+        ([ev]) => ev.kind === EngagementUpdateKind.OBSERVATION_ADDED,
+      ).length;
+      expect(obsCount).toBeGreaterThan(0);
+    });
+
+    it('does not throw when publisher rejects (swallowed by void)', async () => {
+      eventsMock.publish.mockRejectedValue(new Error('redis down'));
+      await expect(processor.process(job(payload))).resolves.toBeDefined();
     });
   });
 });

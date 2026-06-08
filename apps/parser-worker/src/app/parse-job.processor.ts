@@ -10,6 +10,11 @@ import {
 import { QueueName, type ParseJobPayload, type CveEnrichmentPayload } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 import { PrismaService } from '@autoscanner/database';
+import {
+  ENGAGEMENT_EVENTS_PUBLISHER,
+  EngagementUpdateKind,
+  type EngagementEventsPublisher,
+} from '@autoscanner/engagement-events';
 
 import {
   AssetMergeService,
@@ -56,8 +61,29 @@ export class ParseJobProcessor extends WorkerHost {
     private readonly subdomainIpPersister: SubdomainIpPersister,
     private readonly prisma: PrismaService,
     @InjectQueue(QueueName.CVE_ENRICHMENT) private readonly cveQueue: Queue<CveEnrichmentPayload>,
+    @Inject(ENGAGEMENT_EVENTS_PUBLISHER)
+    private readonly events: EngagementEventsPublisher,
   ) {
     super();
+  }
+
+  private publish(
+    engagementId: string,
+    kind: EngagementUpdateKind,
+    extra: { assetId?: string } = {},
+  ): void {
+    this.events
+      .publish({
+        kind,
+        engagementId,
+        assetId: extra.assetId,
+        ts: new Date().toISOString(),
+      })
+      .catch((err: unknown) => {
+        this.logger.warn(
+          `Engagement event publish failed (${kind}): ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
   }
 
   async process(job: Job<ParseJobPayload>): Promise<ParseJobResult> {
@@ -223,6 +249,8 @@ export class ParseJobProcessor extends WorkerHost {
       if (!id) continue;
       assetIdByValue.set(asset.value.toLowerCase(), id);
       assetsPersisted++;
+      this.publish(payload.engagementId, EngagementUpdateKind.ASSET_ADDED, { assetId: id });
+      this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId: id });
     }
 
     // IP assets: IpAddressPersister owns the IpAddress row + Asset pivot.
@@ -252,6 +280,8 @@ export class ParseJobProcessor extends WorkerHost {
       // Merge into assetIdByValue so ports/services can resolve the IP's Asset id.
       assetIdByValue.set(asset.value.toLowerCase(), id);
       ipAddressesPersisted++;
+      this.publish(payload.engagementId, EngagementUpdateKind.ASSET_ADDED, { assetId: id });
+      this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId: id });
     }
 
     const portIdByKey = new Map<string, string>();
@@ -275,6 +305,8 @@ export class ParseJobProcessor extends WorkerHost {
       );
       portIdByKey.set(portKey(port), id);
       portsPersisted++;
+      this.publish(payload.engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, { assetId });
+      this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId });
     }
 
     let servicesPersisted = 0;
@@ -283,7 +315,7 @@ export class ParseJobProcessor extends WorkerHost {
         portKey({ assetValue: svc.assetValue, number: svc.portNumber, protocol: svc.protocol }),
       );
       if (!portId) continue;
-      await this.withRetryOnSerializationConflict(() =>
+      const svcAssetId = await this.withRetryOnSerializationConflict(() =>
         this.prisma.$transaction(async (tx) => {
           await this.servicePersister.upsert(portId, svc, tx);
           const port = await tx.port.findUnique({
@@ -305,10 +337,20 @@ export class ParseJobProcessor extends WorkerHost {
               },
             });
             await recomputeRiskScoreForAsset(tx, port.assetId);
+            return port.assetId;
           }
+          return null;
         }),
       );
       servicesPersisted++;
+      if (svcAssetId) {
+        this.publish(payload.engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, {
+          assetId: svcAssetId,
+        });
+        this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, {
+          assetId: svcAssetId,
+        });
+      }
     }
 
     let technologiesPersisted = 0;
@@ -328,6 +370,7 @@ export class ParseJobProcessor extends WorkerHost {
         }),
       );
       technologiesPersisted++;
+      this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId });
     }
 
     let findingsPersisted = 0;
@@ -395,6 +438,9 @@ export class ParseJobProcessor extends WorkerHost {
         }),
       );
       findingsPersisted++;
+      this.publish(payload.engagementId, EngagementUpdateKind.FINDING_RAISED, { assetId });
+      this.publish(payload.engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, { assetId });
+      this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId });
     }
 
     // DNS records: look up Subdomain/Domain and create DnsRecord rows.

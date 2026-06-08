@@ -7,6 +7,7 @@ import { PrismaModule } from '@autoscanner/database';
 import { QueuesModule } from '@autoscanner/queues';
 import { ParsersModule } from '@autoscanner/parsers';
 import { StorageModule } from '@autoscanner/storage';
+import { EngagementEventsModule } from '@autoscanner/engagement-events';
 
 import { ParseJobProcessor } from './parse-job.processor';
 import { AssetPersister } from './persisters/asset-persister';
@@ -27,6 +28,7 @@ import { TechnologyPersister } from './persisters/technology-persister';
     QueuesModule,
     StorageModule,
     ParsersModule,
+    EngagementEventsModule.forRoot(),
   ],
   providers: [
     ParseJobProcessor,
