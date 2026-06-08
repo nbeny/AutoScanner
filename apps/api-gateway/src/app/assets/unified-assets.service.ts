@@ -4,10 +4,46 @@ import { PrismaService } from '@autoscanner/database';
 import { Prisma, type AssetType } from '@prisma/client';
 
 import { UnifiedAssetObject } from './unified-asset.dto';
-import { AssetDetailObject } from './dto/asset-detail.object';
+import { AssetDetailObject, AssetObservationPage } from './dto/asset-detail.object';
 import { AssetFacetsObject } from './dto/asset-facets.object';
 import { AssetFilters } from './dto/asset-filters.input';
 import { AssetSort } from './dto/asset-sort.enum';
+
+const OBSERVATIONS_DEFAULT_LIMIT = 200;
+const OBSERVATIONS_MAX_LIMIT = 500;
+const OBSERVATION_CURSOR_SEPARATOR = '|';
+
+interface ObservationCursor {
+  observedAt: Date;
+  id: string;
+}
+
+/**
+ * Cursor format: base64("<ISO timestamp>|<id>"). We need both fields because
+ * many observations share the same `observedAt` (parser writes a batch per
+ * scanJob in a single tx), so sorting by timestamp alone is ambiguous; the
+ * id tie-breaks deterministically.
+ */
+function encodeObservationCursor(observedAt: Date, id: string): string {
+  return Buffer.from(`${observedAt.toISOString()}${OBSERVATION_CURSOR_SEPARATOR}${id}`).toString(
+    'base64',
+  );
+}
+
+function decodeObservationCursor(cursor: string): ObservationCursor | null {
+  try {
+    const raw = Buffer.from(cursor, 'base64').toString('utf8');
+    const sepIdx = raw.indexOf(OBSERVATION_CURSOR_SEPARATOR);
+    if (sepIdx < 0) return null;
+    const iso = raw.slice(0, sepIdx);
+    const id = raw.slice(sepIdx + 1);
+    const observedAt = new Date(iso);
+    if (Number.isNaN(observedAt.getTime()) || id === '') return null;
+    return { observedAt, id };
+  } catch {
+    return null;
+  }
+}
 
 export interface UnifiedAssetsListOptions {
   kinds?: AssetType[] | null;
@@ -304,6 +340,75 @@ export class UnifiedAssetsService {
         payload: o.payload as unknown,
       })),
       scannerSources: scanners.map((s) => s.scannerName),
+    };
+  }
+
+  /**
+   * Cursor-paginated provenance listing. The initial assetDetail load
+   * returns the most recent 200 observations; this method lets the UI
+   * fetch older pages without re-issuing the (much heavier) full detail
+   * query each time. Spec §4.4: "UI cap à 200 items par chargement de
+   * l'onglet Provenance + Show older".
+   */
+  async listObservations(
+    userId: string,
+    assetId: string,
+    after: string | null | undefined,
+    limit: number | null | undefined,
+  ): Promise<AssetObservationPage> {
+    const asset = await this.prisma.asset.findFirst({
+      where: { id: assetId, deletedAt: null },
+      select: { id: true, engagement: { select: { ownerId: true } } },
+    });
+    if (!asset) throw new NotFoundError('Asset', assetId);
+    if (asset.engagement.ownerId !== userId) {
+      throw new ForbiddenException('Forbidden: asset belongs to another user');
+    }
+
+    const rawLimit = Number.isFinite(limit)
+      ? Math.trunc(limit as number)
+      : OBSERVATIONS_DEFAULT_LIMIT;
+    const take = Math.min(Math.max(rawLimit, 1), OBSERVATIONS_MAX_LIMIT);
+
+    const cursor = after ? decodeObservationCursor(after) : null;
+    const where: Prisma.AssetObservationWhereInput = cursor
+      ? {
+          assetId,
+          OR: [
+            { observedAt: { lt: cursor.observedAt } },
+            { observedAt: cursor.observedAt, id: { lt: cursor.id } },
+          ],
+        }
+      : { assetId };
+
+    const rows = await this.prisma.assetObservation.findMany({
+      where,
+      orderBy: [{ observedAt: 'desc' }, { id: 'desc' }],
+      take: take + 1,
+      select: {
+        id: true,
+        kind: true,
+        scannerName: true,
+        observedAt: true,
+        payload: true,
+      },
+    });
+
+    const hasMore = rows.length > take;
+    const page = hasMore ? rows.slice(0, take) : rows;
+    const last = page[page.length - 1];
+    const nextCursor = hasMore && last ? encodeObservationCursor(last.observedAt, last.id) : null;
+
+    return {
+      items: page.map((o) => ({
+        id: o.id,
+        kind: o.kind,
+        scannerName: o.scannerName,
+        ts: o.observedAt,
+        payload: o.payload as unknown,
+      })),
+      nextCursor,
+      hasMore,
     };
   }
 }
