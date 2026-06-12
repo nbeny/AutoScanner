@@ -20,6 +20,7 @@ import { QueueName } from './queue-names';
       { name: QueueName.PARSE_JOBS },
       { name: QueueName.TEMPLATE_RUNS },
       { name: QueueName.CVE_ENRICHMENT },
+      { name: QueueName.REPORT_JOBS },
     ),
   ],
   exports: [BullModule],
