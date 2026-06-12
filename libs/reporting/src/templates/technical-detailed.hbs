@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{engagement.name}} — Rapport technique détaillé</title>
+    <style>
+      @page { size: A4; margin: 16mm; }
+      body { font-family: -apple-system, "Segoe UI", sans-serif; color: #111; font-size: 10pt; }
+      h1 { font-size: 22pt; }
+      h2 { font-size: 14pt; border-bottom: 1px solid #999; margin-top: 18pt; }
+      h3 { font-size: 12pt; margin-top: 12pt; }
+      .asset { page-break-inside: avoid; margin-top: 14pt; }
+      .meta { color: #666; font-size: 9pt; }
+      .pill { display: inline-block; background: #f3f4f6; border-radius: 3px; padding: 1pt 5pt; font-size: 9pt; margin-right: 4pt; }
+      table { width: 100%; border-collapse: collapse; margin-top: 6pt; }
+      th, td { text-align: left; padding: 3pt 5pt; border-bottom: 1px solid #ddd; vertical-align: top; }
+      th { background: #f3f4f6; font-size: 9pt; text-transform: uppercase; }
+      .evidence { background: #f9fafb; padding: 4pt; font-family: "Menlo", "Consolas", monospace; font-size: 8.5pt; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>{{engagement.name}}</h1>
+    <p class="meta">Rapport technique détaillé · {{formatDate generatedAt}}</p>
+
+    {{#each assets}}
+      <div class="asset">
+        <h2>{{canonicalValue}} <small class="meta">({{kind}})</small></h2>
+        <p>
+          <span class="pill">Risk {{riskScore}} ({{riskBucket riskScore}})</span>
+          <span class="pill">Première observation : {{formatDate firstSeenAt}}</span>
+          <span class="pill">Dernière observation : {{formatDate lastSeenAt}}</span>
+        </p>
+
+        {{#if ports.length}}
+          <h3>Ports / services</h3>
+          <table>
+            <thead><tr><th>Port</th><th>Protocole</th><th>État</th><th>Service</th></tr></thead>
+            <tbody>
+              {{#each ports}}
+                <tr><td>{{number}}</td><td>{{protocol}}</td><td>{{state}}</td><td>{{serviceName}} {{serviceVersion}}</td></tr>
+              {{/each}}
+            </tbody>
+          </table>
+        {{/if}}
+
+        {{#if technologies.length}}
+          <h3>Technologies</h3>
+          <p>{{#each technologies}}<span class="pill">{{name}} {{version}}</span>{{/each}}</p>
+        {{/if}}
+
+        {{#if findings.length}}
+          <h3>Findings</h3>
+          {{#each findings}}
+            <div style="margin-top:6pt">
+              <strong>{{severityBadge severity}} {{title}}</strong>
+              {{#if cveId}} <span class="pill">{{cveId}} · {{cvss cvssV3Score}}</span>{{/if}}
+              {{#if description}}<p>{{description}}</p>{{/if}}
+              {{#if evidence}}<div class="evidence">{{truncate evidence 800}}</div>{{/if}}
+            </div>
+          {{/each}}
+        {{/if}}
+      </div>
+    {{/each}}
+  </body>
+</html>

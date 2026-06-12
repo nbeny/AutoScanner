@@ -1,0 +1,22 @@
+{
+  "name": "reporting",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/reporting/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/reporting"],
+      "options": {
+        "jestConfig": "libs/reporting/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/reporting/tsconfig.lib.json"
+      }
+    }
+  }
+}

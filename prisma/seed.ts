@@ -3,8 +3,78 @@ import { config as loadEnv } from 'dotenv';
 loadEnv();
 
 import argon2 from 'argon2';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient, ReportFormat } from '@prisma/client';
 import { BUILTIN_TEMPLATES } from '@autoscanner/templates';
+import { TEMPLATE_SOURCES } from '@autoscanner/reporting';
+
+const REPORT_TEMPLATES: {
+  slug: string;
+  name: string;
+  description: string;
+  format: ReportFormat;
+  templateSource: string;
+}[] = [
+  {
+    slug: 'executive-summary-pdf',
+    name: 'Executive summary (PDF)',
+    description: '1-2 pages PDF: scorecard, top findings, recommandations.',
+    format: ReportFormat.PDF,
+    templateSource: TEMPLATE_SOURCES.executiveSummary,
+  },
+  {
+    slug: 'technical-detailed-pdf',
+    name: 'Technical detailed (PDF)',
+    description: 'PDF: rapport par asset (ports/services/tech/findings).',
+    format: ReportFormat.PDF,
+    templateSource: TEMPLATE_SOURCES.technicalDetailed,
+  },
+  {
+    slug: 'findings-csv',
+    name: 'Findings export (CSV)',
+    description: 'CSV: une ligne par finding, colonnes complètes.',
+    format: ReportFormat.CSV,
+    templateSource: '',
+  },
+  {
+    slug: 'sarif-export',
+    name: 'SARIF export',
+    description: 'SARIF 2.1.0 pour intégration CI/CD.',
+    format: ReportFormat.SARIF,
+    templateSource: '',
+  },
+  {
+    slug: 'json-full-export',
+    name: 'Full JSON export',
+    description: "Dump JSON complet de l'engagement (engagement, scans, assets, findings).",
+    format: ReportFormat.JSON,
+    templateSource: '',
+  },
+];
+
+async function seedReportTemplates(prisma: PrismaClient): Promise<void> {
+  for (const tpl of REPORT_TEMPLATES) {
+    await prisma.reportTemplate.upsert({
+      where: { slug: tpl.slug },
+      update: {
+        name: tpl.name,
+        description: tpl.description,
+        format: tpl.format,
+        templateSource: tpl.templateSource,
+        isDefault: true,
+      },
+      create: {
+        slug: tpl.slug,
+        name: tpl.name,
+        description: tpl.description,
+        format: tpl.format,
+        templateSource: tpl.templateSource,
+        isDefault: true,
+      },
+    });
+    // eslint-disable-next-line no-console
+    console.log(`[seed] upserted report template: ${tpl.slug}`);
+  }
+}
 
 async function seedOperator(prisma: PrismaClient): Promise<void> {
   const email = process.env.OPERATOR_EMAIL;
@@ -56,6 +126,7 @@ async function main(): Promise<void> {
   try {
     await seedOperator(prisma);
     await seedBuiltinTemplates(prisma);
+    await seedReportTemplates(prisma);
   } finally {
     await prisma.$disconnect();
   }
