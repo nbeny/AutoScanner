@@ -341,6 +341,7 @@ export const ASSET_DETAIL_QUERY = gql`
       riskScore
       firstSeenAt
       lastSeenAt
+      deletedAt
       ports {
         id
         number

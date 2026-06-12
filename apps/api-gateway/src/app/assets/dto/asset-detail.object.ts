@@ -73,6 +73,7 @@ export class AssetDetailObject {
   @Field(() => Float) riskScore!: number;
   @Field(() => Date) firstSeenAt!: Date;
   @Field(() => Date) lastSeenAt!: Date;
+  @Field(() => Date, { nullable: true }) deletedAt!: Date | null;
 
   @Field(() => [PortDetail]) ports!: PortDetail[];
   @Field(() => [ServiceDetail]) services!: ServiceDetail[];
