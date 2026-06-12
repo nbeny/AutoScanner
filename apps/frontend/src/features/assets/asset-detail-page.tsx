@@ -89,6 +89,7 @@ export function AssetDetailPage() {
         firstSeenAt={a.firstSeenAt}
         lastSeenAt={a.lastSeenAt}
         scannerSources={a.scannerSources}
+        deletedAt={a.deletedAt}
       />
 
       <nav className="flex gap-2 border-b border-slate-800">

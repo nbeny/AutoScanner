@@ -246,8 +246,11 @@ export class UnifiedAssetsService {
   }
 
   async detail(userId: string, assetId: string): Promise<AssetDetailObject> {
+    // Spec §4.5: soft-deleted assets remain reachable so the UI can render a
+    // read-only banner ("Supprimé le X"). No redirect, no 404 — the resolver
+    // returns the row with `deletedAt` populated and the frontend decides.
     const a = await this.prisma.asset.findFirst({
-      where: { id: assetId, deletedAt: null },
+      where: { id: assetId },
       include: {
         engagement: { select: { ownerId: true } },
         ports: { include: { services: true } },
@@ -311,6 +314,7 @@ export class UnifiedAssetsService {
       riskScore: a.riskScore,
       firstSeenAt: a.firstSeenAt,
       lastSeenAt: a.lastSeenAt,
+      deletedAt: a.deletedAt,
       ports,
       services,
       technologies: a.technologies.map((t) => ({
@@ -356,8 +360,10 @@ export class UnifiedAssetsService {
     after: string | null | undefined,
     limit: number | null | undefined,
   ): Promise<AssetObservationPage> {
+    // Spec §4.5: observations remain readable for soft-deleted assets so the
+    // detail page can keep the Provenance tab populated in read-only mode.
     const asset = await this.prisma.asset.findFirst({
-      where: { id: assetId, deletedAt: null },
+      where: { id: assetId },
       select: { id: true, engagement: { select: { ownerId: true } } },
     });
     if (!asset) throw new NotFoundError('Asset', assetId);

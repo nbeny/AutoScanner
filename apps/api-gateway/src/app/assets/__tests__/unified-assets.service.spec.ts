@@ -194,6 +194,41 @@ describe('UnifiedAssetsService.detail', () => {
     expect(detail.riskScore).toBe(12.5);
   });
 
+  it('still returns soft-deleted assets with deletedAt populated (spec §4.5)', async () => {
+    const deletedAt = new Date('2026-06-01T00:00:00Z');
+    const findFirst = jest.fn().mockResolvedValue({
+      id: 'a_deleted',
+      type: 'SUBDOMAIN',
+      canonicalValue: 'gone.example.com',
+      riskScore: 7,
+      firstSeenAt: new Date('2026-05-01'),
+      lastSeenAt: new Date('2026-05-15'),
+      deletedAt,
+      engagement: { ownerId: 'me' },
+      ports: [],
+      findings: [],
+      technologies: [],
+      subdomain: { dnsRecords: [], ips: [] },
+      ipAddress: null,
+      domain: null,
+    });
+    const prisma = {
+      asset: { findFirst },
+      scanJob: { findMany: jest.fn().mockResolvedValue([]) },
+      assetObservation: { findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+
+    const svc = new UnifiedAssetsService(prisma);
+    const detail = await svc.detail('me', 'a_deleted');
+
+    expect(detail.deletedAt).toBe(deletedAt);
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'a_deleted' },
+      }),
+    );
+  });
+
   it('returns mapped observations with ts field from observedAt', async () => {
     const assetId = 'a2';
     const ts1 = new Date('2026-05-30T10:00:00Z');
