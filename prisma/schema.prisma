@@ -32,6 +32,7 @@ model User {
   scansCreated        Scan[]
   templateRunsCreated TemplateRun[]
   reportsCreated      Report[]
+  schedulesCreated    Schedule[]
 
   @@index([deletedAt])
 }
@@ -88,6 +89,7 @@ model Engagement {
   ipAddresses  IpAddress[]
   templateRuns TemplateRun[]
   reports      Report[]
+  schedules    Schedule[]
 
   @@index([ownerId])
   @@index([status])
@@ -489,7 +491,8 @@ model ScanTemplate {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  runs TemplateRun[]
+  runs      TemplateRun[]
+  schedules Schedule[]
 }
 
 enum TemplateRunStatus {
@@ -512,6 +515,7 @@ model TemplateRun {
   completedAt      DateTime?
   errorMessage     String?
   createdById      String
+  scheduleId       String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -522,6 +526,7 @@ model TemplateRun {
 
   @@index([engagementId])
   @@index([status])
+  @@index([scheduleId])
 }
 
 model CveCache {
@@ -599,4 +604,35 @@ model Report {
   @@index([engagementId, createdAt(sort: Desc)])
   @@index([status])
   @@index([createdById])
+}
+
+// =====================================================================
+// SCHEDULER (Phase 5.1)
+// =====================================================================
+
+model Schedule {
+  id                String    @id @default(cuid())
+  engagementId      String
+  templateId        String
+  name              String
+  cronExpr          String
+  timezone          String    @default("UTC")
+  targets           String[]
+  config            Json?
+  enabled           Boolean   @default(true)
+  lastRunAt         DateTime?
+  nextRunAt         DateTime?
+  lastTemplateRunId String?
+  createdById       String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  engagement Engagement   @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  template   ScanTemplate @relation(fields: [templateId], references: [id])
+  createdBy  User         @relation(fields: [createdById], references: [id])
+
+  @@index([engagementId])
+  @@index([enabled, nextRunAt])
+  @@index([deletedAt])
 }
