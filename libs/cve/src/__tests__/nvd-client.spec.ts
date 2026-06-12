@@ -179,3 +179,28 @@ describe('parseRetryAfter', () => {
     expect(parseRetryAfter('not-a-date', NOW)).toBeNull();
   });
 });
+
+// Spec §5: opt-in sanity-check that hits the real NVD API. Gated on
+// NVD_E2E=1 so unit-test runs and CI without outbound network stay
+// hermetic. CVE-2014-0160 (Heartbleed) is picked because it is well
+// established and unlikely to be retracted from the NVD catalog.
+const nvdE2e = process.env.NVD_E2E === '1' ? describe : describe.skip;
+nvdE2e('NvdClient — real NVD sanity check (NVD_E2E=1)', () => {
+  jest.setTimeout(30_000);
+
+  it('fetches CVE-2014-0160 (Heartbleed) with a CVSS v3 score', async () => {
+    const client = new NvdClient({
+      apiKey: process.env.NVD_API_KEY || undefined,
+      rateLimiter: new TokenBucketRateLimiter({
+        capacity: process.env.NVD_API_KEY ? 50 : 5,
+        refillIntervalMs: 30_000,
+      }),
+    });
+    const cve = await client.fetchCve('CVE-2014-0160');
+    expect(cve.cveId).toBe('CVE-2014-0160');
+    expect(typeof cve.summary).toBe('string');
+    expect((cve.summary as string).length).toBeGreaterThan(20);
+    expect(cve.cvssV3Score).toBeGreaterThan(0);
+    expect(cve.publishedAt).toBeInstanceOf(Date);
+  });
+});
