@@ -432,3 +432,54 @@ export const CVE_INFO_QUERY = gql`
     }
   }
 `;
+
+export const REPORTS_QUERY = gql`
+  query Reports($engagementId: ID!) {
+    reports(engagementId: $engagementId) {
+      id
+      format
+      status
+      sizeBytes
+      contentType
+      errorMessage
+      createdAt
+      startedAt
+      completedAt
+      downloadUrl
+      template {
+        id
+        slug
+        name
+        format
+      }
+    }
+  }
+`;
+
+export const REPORT_TEMPLATES_QUERY = gql`
+  query ReportTemplates {
+    reportTemplates {
+      id
+      slug
+      name
+      description
+      format
+      isDefault
+    }
+  }
+`;
+
+export const GENERATE_REPORT_MUTATION = gql`
+  mutation GenerateReport($input: GenerateReportInput!) {
+    generateReport(input: $input) {
+      id
+      status
+      format
+      template {
+        id
+        slug
+        name
+      }
+    }
+  }
+`;
