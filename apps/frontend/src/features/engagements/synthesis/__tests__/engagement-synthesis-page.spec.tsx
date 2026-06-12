@@ -5,6 +5,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import {
   ENGAGEMENT_OVERVIEW_QUERY,
   RECENT_TEMPLATE_RUNS_QUERY,
+  REPORTS_QUERY,
+  REPORT_TEMPLATES_QUERY,
   TOP_ASSETS_QUERY,
   TOP_FINDINGS_QUERY,
 } from '../../../../lib/graphql/queries';
@@ -48,6 +50,14 @@ const mocks = [
     request: { query: RECENT_TEMPLATE_RUNS_QUERY, variables: { engagementId, limit: 5 } },
     result: { data: { recentTemplateRuns: [] } },
   },
+  {
+    request: { query: REPORT_TEMPLATES_QUERY },
+    result: { data: { reportTemplates: [] } },
+  },
+  {
+    request: { query: REPORTS_QUERY, variables: { engagementId } },
+    result: { data: { reports: [] } },
+  },
 ];
 
 describe('<EngagementSynthesisPage />', () => {
@@ -67,5 +77,6 @@ describe('<EngagementSynthesisPage />', () => {
     expect(screen.getByLabelText('top-findings-container')).toBeInTheDocument();
     expect(screen.getByLabelText('top-assets-container')).toBeInTheDocument();
     expect(screen.getByLabelText('recent-template-runs-container')).toBeInTheDocument();
+    expect(screen.getByLabelText('recent-reports-container')).toBeInTheDocument();
   });
 });

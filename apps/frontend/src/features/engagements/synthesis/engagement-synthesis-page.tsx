@@ -4,11 +4,14 @@ import { RecentRunsTimeline } from './recent-runs-timeline';
 import { SeverityDonut } from './severity-donut';
 import { TopAssetsList } from './top-assets-list';
 import { TopFindingsList } from './top-findings-list';
+import { GenerateReportButton } from '../../reports/generate-report-button';
+import { RecentReportsPanel } from '../../reports/recent-reports-panel';
 
 export function EngagementSynthesisPage({ engagementId }: { engagementId: string }) {
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-end items-center gap-3">
+        <GenerateReportButton engagementId={engagementId} />
         <Link
           to={`/engagements/${engagementId}/scans`}
           className="text-indigo-400 hover:underline text-sm"
@@ -39,6 +42,10 @@ export function EngagementSynthesisPage({ engagementId }: { engagementId: string
 
       <div aria-label="recent-template-runs-container">
         <RecentRunsTimeline engagementId={engagementId} />
+      </div>
+
+      <div aria-label="recent-reports-container">
+        <RecentReportsPanel engagementId={engagementId} />
       </div>
     </div>
   );
