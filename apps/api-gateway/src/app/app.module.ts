@@ -20,6 +20,7 @@ import { FindingsModule } from './findings/findings.module';
 import { HealthModule } from './health/health.module';
 import { InsightModule } from './insight/insight.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { ReportsModule } from './reports/reports.module';
 import { ScansModule } from './scans/scans.module';
 import { TemplatesModule } from './templates/templates.module';
 import { UsersModule } from './users/users.module';
@@ -71,6 +72,7 @@ import { UsersModule } from './users/users.module';
     HealthModule,
     InsightModule,
     MetricsModule,
+    ReportsModule,
     ScansModule,
     TemplatesModule,
     UsersModule,
