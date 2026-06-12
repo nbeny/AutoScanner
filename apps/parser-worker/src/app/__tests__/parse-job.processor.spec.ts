@@ -135,6 +135,7 @@ describe('ParseJobProcessor', () => {
       },
       assetObservation: {
         create: jest.fn().mockResolvedValue({ id: 'obs_mock' }),
+        count: jest.fn().mockResolvedValue(0),
       },
       $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown> | unknown[]) => {
         if (typeof cb === 'function') return cb(prisma);
@@ -1408,6 +1409,49 @@ describe('ParseJobProcessor', () => {
     it('does not throw when publisher rejects (swallowed by void)', async () => {
       eventsMock.publish.mockRejectedValue(new Error('redis down'));
       await expect(processor.process(job(payload))).resolves.toBeDefined();
+    });
+  });
+
+  describe('AssetObservation volume cap (spec §4.4)', () => {
+    it('logs a WARN once when observation count exceeds 10 000 for the scanJob', async () => {
+      (prisma.assetObservation.count as jest.Mock).mockResolvedValue(10_001);
+      const warn = jest.spyOn(processor['logger'], 'warn').mockImplementation();
+
+      await processor.process(job(payload));
+
+      const crossed = warn.mock.calls.filter(([msg]) =>
+        String(msg).includes('crossed observation volume threshold'),
+      );
+      expect(crossed.length).toBe(1);
+      expect(String(crossed[0][0])).toContain('scanJob=job_1');
+      expect(String(crossed[0][0])).toContain('10001');
+      warn.mockRestore();
+    });
+
+    it('does not WARN when observation count is at or below the threshold', async () => {
+      (prisma.assetObservation.count as jest.Mock).mockResolvedValue(10_000);
+      const warn = jest.spyOn(processor['logger'], 'warn').mockImplementation();
+
+      await processor.process(job(payload));
+
+      const crossed = warn.mock.calls.filter(([msg]) =>
+        String(msg).includes('crossed observation volume threshold'),
+      );
+      expect(crossed.length).toBe(0);
+      warn.mockRestore();
+    });
+
+    it('does not fail the job when the count query throws', async () => {
+      (prisma.assetObservation.count as jest.Mock).mockRejectedValue(new Error('db down'));
+      const warn = jest.spyOn(processor['logger'], 'warn').mockImplementation();
+
+      await expect(processor.process(job(payload))).resolves.toBeDefined();
+
+      const failed = warn.mock.calls.filter(([msg]) =>
+        String(msg).includes('observation volume check failed'),
+      );
+      expect(failed.length).toBe(1);
+      warn.mockRestore();
     });
   });
 });
