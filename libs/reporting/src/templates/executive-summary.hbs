@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{engagement.name}} — Synthèse exécutive</title>
+    <style>
+      @page { size: A4; margin: 16mm; }
+      body { font-family: -apple-system, "Segoe UI", sans-serif; color: #111; font-size: 11pt; }
+      h1 { font-size: 22pt; margin-bottom: 4pt; }
+      h2 { font-size: 14pt; margin-top: 18pt; border-bottom: 1px solid #999; padding-bottom: 2pt; }
+      .meta { color: #666; font-size: 9pt; }
+      table { width: 100%; border-collapse: collapse; margin-top: 6pt; }
+      th, td { text-align: left; padding: 4pt 6pt; border-bottom: 1px solid #ddd; vertical-align: top; }
+      th { background: #f3f4f6; font-size: 9pt; text-transform: uppercase; }
+      .scorecard { display: flex; gap: 16pt; margin-top: 10pt; }
+      .card { background: #f9fafb; border: 1px solid #e5e7eb; padding: 10pt; border-radius: 4pt; flex: 1; }
+      .card .label { font-size: 9pt; color: #555; }
+      .card .value { font-size: 20pt; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <h1>{{engagement.name}}</h1>
+    <p class="meta">
+      Client : <strong>{{engagement.clientName}}</strong> · Rapport généré le {{formatDate generatedAt}}
+    </p>
+
+    <h2>Scorecard</h2>
+    <div class="scorecard">
+      <div class="card">
+        <div class="label">Assets découverts</div>
+        <div class="value">{{count assets}}</div>
+      </div>
+      <div class="card">
+        <div class="label">Findings ouvertes</div>
+        <div class="value">{{count findings}}</div>
+      </div>
+      <div class="card">
+        <div class="label">Risk score moyen</div>
+        <div class="value">{{avgRiskScore}} <small style="font-size:10pt">({{riskBucket avgRiskScore}})</small></div>
+      </div>
+    </div>
+
+    <h2>Top 10 findings</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Sévérité</th>
+          <th>Asset</th>
+          <th>Titre</th>
+          <th>CVE</th>
+          <th>CVSS</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each topFindings}}
+          <tr>
+            <td>{{severityBadge severity}}</td>
+            <td>{{assetCanonicalValue}}</td>
+            <td>{{truncate title 80}}</td>
+            <td>{{cveId}}</td>
+            <td>{{cvss cvssV3Score}}</td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+
+    <h2>Recommandations</h2>
+    <ol>
+      {{#each recommendations}}
+        <li>{{this}}</li>
+      {{/each}}
+    </ol>
+  </body>
+</html>

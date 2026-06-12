@@ -31,6 +31,7 @@ model User {
   engagements         Engagement[]
   scansCreated        Scan[]
   templateRunsCreated TemplateRun[]
+  reportsCreated      Report[]
 
   @@index([deletedAt])
 }
@@ -86,6 +87,7 @@ model Engagement {
   subdomains   Subdomain[]
   ipAddresses  IpAddress[]
   templateRuns TemplateRun[]
+  reports      Report[]
 
   @@index([ownerId])
   @@index([status])
@@ -196,6 +198,7 @@ model Scan {
   createdBy   User         @relation(fields: [createdById], references: [id])
   jobs        ScanJob[]
   templateRun TemplateRun? @relation(fields: [templateRunId], references: [id], onDelete: Cascade)
+  reports     Report[]
 
   @@index([engagementId])
   @@index([status])
@@ -537,4 +540,63 @@ model CveCache {
 
   @@index([expiresAt])
   @@index([fetchStatus])
+}
+
+// =====================================================================
+// REPORTING (Phase 4)
+// =====================================================================
+
+enum ReportFormat {
+  PDF
+  CSV
+  SARIF
+  JSON
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATING
+  READY
+  FAILED
+}
+
+model ReportTemplate {
+  id             String       @id @default(cuid())
+  slug           String       @unique
+  name           String
+  description    String?
+  format         ReportFormat
+  templateSource String       @db.Text
+  isDefault      Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  reports Report[]
+}
+
+model Report {
+  id           String       @id @default(cuid())
+  engagementId String
+  scanId       String?
+  templateId   String
+  format       ReportFormat
+  status       ReportStatus @default(PENDING)
+  filters      Json?
+  storageKey   String?
+  sizeBytes    Int?
+  contentType  String?
+  errorMessage String?
+  createdById  String
+  createdAt    DateTime     @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  engagement Engagement     @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  scan       Scan?          @relation(fields: [scanId], references: [id], onDelete: SetNull)
+  template   ReportTemplate @relation(fields: [templateId], references: [id])
+  createdBy  User           @relation(fields: [createdById], references: [id])
+
+  @@index([engagementId, createdAt(sort: Desc)])
+  @@index([status])
+  @@index([createdById])
 }
