@@ -121,6 +121,8 @@ export class ParseJobProcessor extends WorkerHost {
       `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted}`,
     );
 
+    await this.warnIfObservationVolumeExceeded(payload.scanJobId);
+
     // Enqueue CVE_ENRICHMENT jobs for each distinct cveId found in the persisted
     // findings. Each enqueue is wrapped individually so one failure doesn't
     // prevent subsequent cveIds from being enqueued. Failures are logged as
@@ -168,6 +170,21 @@ export class ParseJobProcessor extends WorkerHost {
       this.logger.warn(
         `correlation pass (${kind}) failed: ${err instanceof Error ? err.message : String(err)}`,
         err instanceof Error ? err.stack : undefined,
+      );
+    }
+  }
+
+  private async warnIfObservationVolumeExceeded(scanJobId: string): Promise<void> {
+    try {
+      const count = await this.prisma.assetObservation.count({ where: { scanJobId } });
+      if (count > OBSERVATION_WARN_THRESHOLD) {
+        this.logger.warn(
+          `scanJob=${scanJobId} crossed observation volume threshold: ${count} > ${OBSERVATION_WARN_THRESHOLD} (spec §4.4 — continuing to write, no drop)`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `observation volume check failed for scanJob=${scanJobId}: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
@@ -566,6 +583,11 @@ function urlToCanonicalHost(location: string | undefined): string | undefined {
 // /16 ≈ 10-50 MiB, large nuclei JSON ≈ 50-200 MiB) and surfaces oversize
 // inputs as a clear FAILED job — operator-actionable, not a process crash.
 export const MAX_RAW_OUTPUT_BYTES = 256 * 1024 * 1024;
+
+// Spec §4.4: WARN — but continue writing — when AssetObservation rows for a
+// single scanJob exceed this threshold. Large nuclei runs can plausibly hit it;
+// the warn surfaces volume pressure without dropping observations.
+export const OBSERVATION_WARN_THRESHOLD = 10_000;
 
 async function streamToBuffer(stream: Readable, maxBytes: number): Promise<Buffer> {
   const chunks: Buffer[] = [];
