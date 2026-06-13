@@ -90,7 +90,7 @@ describeCorr('Phase 7 — correlation-v2 end-to-end', () => {
       expect(typeof first.id).toBe('string');
       expect(first.id.length).toBeGreaterThan(0);
       expect(typeof first.title).toBe('string');
-      expect(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'INFORMATIONAL']).toContain(first.severity);
+      expect(['INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).toContain(first.severity);
       expect(['OPEN', 'TRIAGED', 'CONFIRMED', 'FALSE_POSITIVE', 'RESOLVED']).toContain(
         first.status,
       );

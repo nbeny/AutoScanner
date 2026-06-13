@@ -1290,6 +1290,23 @@ describe('ParseJobProcessor', () => {
       warn.mockRestore();
     });
 
+    it('does not rethrow when the risk-recompute pass fails — persistence already succeeded', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      // finding.findMany is only called by runRiskRecomputePass; reject it to
+      // exercise the pass-level catch (job must still complete).
+      (prisma.finding.findMany as jest.Mock).mockRejectedValueOnce(
+        new Error('boom: recompute query failed'),
+      );
+
+      await processor.process(job(nucleiPayload));
+
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringMatching(/risk recompute pass failed.*boom: recompute query failed/),
+        expect.any(String),
+      );
+      warn.mockRestore();
+    });
+
     it('processing the same fixture twice produces no duplicate Finding rows (upsert key collision)', async () => {
       // Two passes; second uses the same nuclei output.
       await processor.process(job(nucleiPayload));
