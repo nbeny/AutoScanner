@@ -61,6 +61,45 @@ export function canonicalIp(value: string): string {
   }
 }
 
+const DEFAULT_PORTS: Record<string, string> = { 'http:': '80', 'https:': '443' };
+
+/**
+ * Canonicalize a URL.
+ *
+ * - Trim whitespace.
+ * - If there is no scheme, prepend `https://`.
+ * - Parse with the WHATWG `URL` API (lowercases protocol + host automatically).
+ * - Strip the fragment.
+ * - Sort query params alphabetically.
+ * - Strip a lone trailing `?` when there are no params.
+ * - On any parse error, return `input.trim().toLowerCase()` (never throws).
+ *
+ * Preserves path case (`/Path` stays `/Path`) and non-default ports.
+ */
+export function canonicalizeUrl(input: string): string {
+  const trimmed = input.trim();
+  const withScheme = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const u = new URL(withScheme);
+    // Strip fragment.
+    u.hash = '';
+    // URL already omits default ports, but normalise explicitly for safety.
+    if (u.port && DEFAULT_PORTS[u.protocol] === u.port) {
+      u.port = '';
+    }
+    // Ensure bare-host URLs have a pathname of '/'.
+    if (!u.pathname) {
+      u.pathname = '/';
+    }
+    // Sort query params.
+    u.searchParams.sort();
+    // Build the final string and strip a lone trailing '?'.
+    return u.toString().replace(/\?$/, '');
+  } catch {
+    return trimmed.toLowerCase();
+  }
+}
+
 /**
  * Legacy canonicalize entry point — single source of truth for canonicalising
  * host-like values on the persister side. Kept for backward compatibility

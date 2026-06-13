@@ -71,6 +71,13 @@ export interface NormalizedHttpProbe {
   server?: string;
 }
 
+export interface NormalizedEndpoint {
+  url: string;
+  method?: string;
+  statusCode?: number;
+  contentLength?: number;
+}
+
 export interface NormalizedOutput {
   assets: NormalizedAsset[];
   ports: NormalizedPort[];
@@ -80,6 +87,7 @@ export interface NormalizedOutput {
   findings: NormalizedFinding[];
   credentials: NormalizedCredential[];
   httpProbes: NormalizedHttpProbe[];
+  endpoints: NormalizedEndpoint[];
   raw?: unknown;
 }
 
@@ -108,5 +116,6 @@ export function emptyNormalizedOutput(): NormalizedOutput {
     findings: [],
     credentials: [],
     httpProbes: [],
+    endpoints: [],
   };
 }

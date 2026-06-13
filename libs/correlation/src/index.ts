@@ -1,4 +1,4 @@
-export { canonicalDomain, canonicalIp, canonicalize } from './canonical';
+export { canonicalDomain, canonicalIp, canonicalize, canonicalizeUrl } from './canonical';
 export type { CanonicalizeOptions } from './canonical';
 export { findingDedupHash } from './finding-dedup';
 export type { FindingDedupHashInput } from './finding-dedup';
