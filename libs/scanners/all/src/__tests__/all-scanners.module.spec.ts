@@ -22,6 +22,7 @@ describe('AllScannersModule', () => {
       'assetfinder',
       'puredns',
       'katana',
+      'gau',
     ]) {
       expect(registry.has(name)).toBe(true);
     }
