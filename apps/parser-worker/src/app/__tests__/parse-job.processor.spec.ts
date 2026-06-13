@@ -29,6 +29,8 @@ import { ServicePersister } from '../persisters/service-persister';
 import { SubdomainIpPersister } from '../persisters/subdomain-ip-persister';
 import { TechnologyPersister } from '../persisters/technology-persister';
 import { EndpointPersister } from '../persisters/endpoint-persister';
+import { EmailPersister } from '../persisters/email-persister';
+import { OrgMetadataPersister } from '../persisters/org-metadata-persister';
 
 const NMAP_XML = `<?xml version="1.0"?>
 <nmaprun>
@@ -192,6 +194,8 @@ describe('ParseJobProcessor', () => {
       new DnsRecordPersister(prisma),
       new SubdomainIpPersister(prisma),
       new EndpointPersister(prisma),
+      new EmailPersister(prisma),
+      new OrgMetadataPersister(prisma),
       prisma,
       cveQueueMock as unknown as Queue<CveEnrichmentPayload>,
       eventsMock,
@@ -279,6 +283,8 @@ describe('ParseJobProcessor', () => {
       dnsRecordsPersisted: 0,
       subdomainIpsPersisted: 0,
       endpointsPersisted: 0,
+      emailsPersisted: 0,
+      orgMetadataPersisted: 0,
     });
   });
 

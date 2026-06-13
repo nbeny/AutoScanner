@@ -32,6 +32,8 @@ import { ServicePersister } from './persisters/service-persister';
 import { SubdomainIpPersister } from './persisters/subdomain-ip-persister';
 import { TechnologyPersister } from './persisters/technology-persister';
 import { EndpointPersister } from './persisters/endpoint-persister';
+import { EmailPersister } from './persisters/email-persister';
+import { OrgMetadataPersister } from './persisters/org-metadata-persister';
 
 export interface ParseJobResult {
   assetsPersisted: number;
@@ -43,6 +45,8 @@ export interface ParseJobResult {
   dnsRecordsPersisted: number;
   subdomainIpsPersisted: number;
   endpointsPersisted: number;
+  emailsPersisted: number;
+  orgMetadataPersisted: number;
 }
 
 @Processor(QueueName.PARSE_JOBS, { concurrency: 4 })
@@ -62,6 +66,8 @@ export class ParseJobProcessor extends WorkerHost {
     private readonly dnsRecordPersister: DnsRecordPersister,
     private readonly subdomainIpPersister: SubdomainIpPersister,
     private readonly endpointPersister: EndpointPersister,
+    private readonly emailPersister: EmailPersister,
+    private readonly orgMetadataPersister: OrgMetadataPersister,
     private readonly prisma: PrismaService,
     @InjectQueue(QueueName.CVE_ENRICHMENT) private readonly cveQueue: Queue<CveEnrichmentPayload>,
     @Inject(ENGAGEMENT_EVENTS_PUBLISHER)
@@ -121,7 +127,7 @@ export class ParseJobProcessor extends WorkerHost {
 
     const result = await this.persist(payload, output);
     this.logger.log(
-      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted} endpoints=${result.endpointsPersisted}`,
+      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted} endpoints=${result.endpointsPersisted} emails=${result.emailsPersisted} orgMetadata=${result.orgMetadataPersisted}`,
     );
 
     await this.warnIfObservationVolumeExceeded(payload.scanJobId);
@@ -562,6 +568,28 @@ export class ParseJobProcessor extends WorkerHost {
       );
     }
 
+    // OSINT entities (emails / org metadata) — independent of host linking.
+    const ctx = {
+      scanJobId: payload.scanJobId,
+      scannerName: payload.scannerName,
+      target: payload.target,
+      engagementId: payload.engagementId,
+    };
+    let emailsPersisted = 0;
+    if (out.emails?.length > 0) {
+      emailsPersisted = await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction((tx) => this.emailPersister.upsert(out.emails, ctx, tx)),
+      );
+    }
+    let orgMetadataPersisted = 0;
+    if (out.orgMetadata?.length > 0) {
+      orgMetadataPersisted = await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction((tx) =>
+          this.orgMetadataPersister.upsert(out.orgMetadata, ctx, tx),
+        ),
+      );
+    }
+
     return {
       assetsPersisted,
       portsPersisted,
@@ -572,6 +600,8 @@ export class ParseJobProcessor extends WorkerHost {
       dnsRecordsPersisted,
       subdomainIpsPersisted,
       endpointsPersisted,
+      emailsPersisted,
+      orgMetadataPersisted,
     };
   }
 }
