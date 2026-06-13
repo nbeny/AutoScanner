@@ -7,6 +7,7 @@ import {
   UNIFIED_ASSETS_SCORED_QUERY,
 } from '../../lib/graphql/queries';
 import { EngagementAssetsFacets, type AssetFiltersState } from './engagement-assets-facets';
+import { formatDate } from '../../lib/format-date';
 
 export type AssetKind = 'DOMAIN' | 'SUBDOMAIN' | 'IP' | 'TECHNOLOGY';
 
@@ -40,14 +41,6 @@ const KIND_LABEL: Record<AssetKind, string> = {
   IP: 'IPs',
   TECHNOLOGY: 'Technologies',
 };
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toISOString().slice(0, 19).replace('T', ' ');
-  } catch {
-    return iso;
-  }
-}
 
 function TechnologiesPanel({ engagementId }: { engagementId: string }) {
   const { data, loading, error, refetch } = useQuery<{ assets: TechnologyAssetRow[] }>(

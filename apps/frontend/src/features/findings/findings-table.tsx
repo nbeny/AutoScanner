@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@apollo/client';
 import { FINDINGS_QUERY } from '../../lib/graphql/queries';
+import { formatDate } from '../../lib/format-date';
 
 const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'] as const;
 type Severity = (typeof SEVERITIES)[number];
@@ -23,14 +24,6 @@ const SEVERITY_STYLE: Record<Severity, string> = {
   LOW: 'bg-blue-600 text-blue-50',
   INFO: 'bg-slate-600 text-slate-50',
 };
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toISOString().slice(0, 19).replace('T', ' ');
-  } catch {
-    return iso;
-  }
-}
 
 export function FindingsTable({ engagementId }: { engagementId: string }) {
   // Track which severities are currently checked. When the full set is

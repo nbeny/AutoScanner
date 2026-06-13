@@ -5,20 +5,13 @@ import {
   DELETE_API_CREDENTIAL,
   SET_API_CREDENTIAL,
 } from '../../lib/graphql/queries';
+import { formatDate } from '../../lib/format-date';
 
 type ApiProvider = 'SHODAN' | 'CENSYS';
 
 interface ApiCredentialInfo {
   provider: ApiProvider;
   createdAt: string;
-}
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toISOString().slice(0, 19).replace('T', ' ');
-  } catch {
-    return iso;
-  }
 }
 
 const PROVIDERS: ApiProvider[] = ['SHODAN', 'CENSYS'];
