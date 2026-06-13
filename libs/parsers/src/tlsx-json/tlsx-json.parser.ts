@@ -63,12 +63,17 @@ export class TlsxJsonParser implements Parser {
         expired: !!parsed.expired,
       });
 
+      // Finding.location must be a parseable URL: the parser-worker resolves
+      // the owning asset via `new URL(location).hostname`. tlsx emits a bare
+      // host, so prefix a scheme (consistent with nuclei's URL-form locations).
+      const findingLocation = `https://${host}`;
+
       if (parsed.expired) {
         out.findings.push({
           scannerName: 'tlsx',
           title: 'Expired TLS certificate',
           severity: 'MEDIUM',
-          location: host,
+          location: findingLocation,
         });
       }
 
@@ -77,7 +82,7 @@ export class TlsxJsonParser implements Parser {
           scannerName: 'tlsx',
           title: 'Self-signed TLS certificate',
           severity: 'LOW',
-          location: host,
+          location: findingLocation,
         });
       }
 
@@ -86,7 +91,7 @@ export class TlsxJsonParser implements Parser {
           scannerName: 'tlsx',
           title: `Weak TLS version: ${parsed.tls_version}`,
           severity: 'MEDIUM',
-          location: host,
+          location: findingLocation,
         });
       }
     }
