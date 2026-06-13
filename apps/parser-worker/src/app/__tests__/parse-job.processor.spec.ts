@@ -66,10 +66,17 @@ describe('ParseJobProcessor', () => {
     prisma = {
       asset: {
         findFirst: jest.fn().mockResolvedValue(null),
-        findUnique: jest.fn().mockResolvedValue({ id: 'asset_mock', findings: [], ports: [] }),
+        // v2: returns correlatedFindings (not findings) for recomputeRiskScoreForAsset
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: 'asset_mock', correlatedFindings: [], ports: [] }),
         create: jest.fn(async ({ data }) => ({ id: `asset_${data.canonicalValue}`, ...data })),
         update: jest.fn(async ({ data, where }) => ({ id: where.id, ...data })),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      // v2: CveCache lookup for CVSS scores in recomputeRiskScoreForAsset
+      cveCache: {
+        findMany: jest.fn().mockResolvedValue([]),
       },
       port: {
         upsert: jest.fn(async ({ create }) => ({

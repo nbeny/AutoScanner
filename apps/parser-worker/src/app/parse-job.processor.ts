@@ -161,6 +161,14 @@ export class ParseJobProcessor extends WorkerHost {
       correlatedFindings = n;
     });
 
+    // Risk-score v2: recompute risk for all assets in the engagement that have
+    // findings, AFTER the correlate pass, so computeRiskScore sees the updated
+    // CorrelatedFinding clusters (count-once + CVSS). The per-persist calls
+    // above keep port/service bonuses up-to-date during ingestion; this pass
+    // finalises the cluster-based contribution. Best-effort — parse job reports
+    // success even if this pass fails.
+    await this.runRiskRecomputePass(payload.engagementId);
+
     const finalResult = { ...result, correlatedFindings };
     this.logger.log(
       `parseJob scanJob=${payload.scanJobId} assets=${finalResult.assetsPersisted} ports=${finalResult.portsPersisted} services=${finalResult.servicesPersisted} findings=${finalResult.findingsPersisted} technologies=${finalResult.technologiesPersisted} ipAddresses=${finalResult.ipAddressesPersisted} dnsRecords=${finalResult.dnsRecordsPersisted} subdomainIps=${finalResult.subdomainIpsPersisted} correlatedFindings=${finalResult.correlatedFindings}`,
@@ -205,6 +213,52 @@ export class ParseJobProcessor extends WorkerHost {
     } catch (err) {
       this.logger.warn(
         `correlation pass (correlate findings) failed: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+    }
+  }
+
+  /**
+   * Recompute risk scores for all assets in the engagement that have findings,
+   * AFTER the correlate pass has run.  This ensures riskScore reflects the v2
+   * formula (count-once over CorrelatedFinding clusters + CVSS) rather than
+   * the interim per-persist values written during ingestion.
+   *
+   * Each asset is recomputed in its own retried transaction so one conflict
+   * does not abort the whole pass.  Best-effort: failures are logged as
+   * warnings and do NOT fail the parse job.
+   */
+  private async runRiskRecomputePass(engagementId: string): Promise<void> {
+    try {
+      // Find all distinct assets that have at least one finding in this
+      // engagement.  We use the findings table rather than correlatedFindings
+      // because an asset may have findings that haven't been clustered yet (e.g.
+      // if the correlate pass failed) and we still want to recompute them.
+      const assetRows = await this.prisma.finding.findMany({
+        where: { asset: { engagementId } },
+        select: { assetId: true },
+        distinct: ['assetId'],
+      });
+      const assetIds = assetRows.map((r) => r.assetId);
+
+      for (const assetId of assetIds) {
+        try {
+          await this.withRetryOnSerializationConflict(() =>
+            this.prisma.$transaction(async (tx) => {
+              await recomputeRiskScoreForAsset(tx, assetId);
+            }),
+          );
+          this.publish(engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, { assetId });
+        } catch (err) {
+          this.logger.warn(
+            `risk recompute failed for asset ${assetId}: ${err instanceof Error ? err.message : String(err)}`,
+            err instanceof Error ? err.stack : undefined,
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `risk recompute pass failed: ${err instanceof Error ? err.message : String(err)}`,
         err instanceof Error ? err.stack : undefined,
       );
     }
