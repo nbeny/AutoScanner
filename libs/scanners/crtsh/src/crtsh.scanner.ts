@@ -27,7 +27,9 @@ export const CrtshScanner: ScannerDefinition<CrtshInputType> = {
         '-s',
         '-H',
         'User-Agent: autoscanner',
-        `https://crt.sh/?q=%25.${target}&output=json`,
+        // target is scope-validated to a domain, but encode it anyway so a
+        // stray special char can't alter the query string (defense in depth).
+        `https://crt.sh/?q=%25.${encodeURIComponent(target)}&output=json`,
       ],
     };
   },
