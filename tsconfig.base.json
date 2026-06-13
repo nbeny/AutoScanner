@@ -40,6 +40,7 @@
       "@autoscanner/queues": ["libs/queues/src/index.ts"],
       "@autoscanner/reporting": ["libs/reporting/src/index.ts"],
       "@autoscanner/scanner-sdk": ["libs/scanner-sdk/src/index.ts"],
+      "@autoscanner/scanners-all": ["libs/scanners/all/src/index.ts"],
       "@autoscanner/scanners-dnsx": ["libs/scanners/dnsx/src/index.ts"],
       "@autoscanner/scanners-httpx": ["libs/scanners/httpx/src/index.ts"],
       "@autoscanner/scanners-naabu": ["libs/scanners/naabu/src/index.ts"],
