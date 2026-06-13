@@ -125,6 +125,45 @@ Input type: `RunTemplateInput { engagementId: ID!, templateName: String!, target
 > **amass** runs passive-only (no active DNS requests).  
 > **puredns** brute-forces using a small bundled wordlist. `runTemplate` takes no per-scanner options, so to override the wordlist run `puredns` standalone via `runScan` with a `{ "wordlist": "/path/in/image" }` input (or `{ "mode": "resolve" }` to validate a host list instead of brute-forcing).
 
+### Phase 6.2 — web content / endpoints
+
+Three web-content scanners discover URLs served by in-scope hosts:
+
+| Scanner  | Image                                       | Notes                                       |
+| -------- | ------------------------------------------- | ------------------------------------------- |
+| `katana` | `projectdiscovery/katana:latest` (registry) | Active crawl; pull before running the suite |
+| `gau`    | `autoscanner/gau:1.0` (custom build)        | Passive URL discovery via public archives   |
+| `ffuf`   | `autoscanner/ffuf:1.0` (custom build)       | Directory brute-force with bundled wordlist |
+
+Custom images are built by `pnpm scanners:build` alongside the Phase 6.1 images.
+
+Discovered URLs are stored as **Endpoint** entities (`id`, `url`, `method`, `source`, `lastSeenAt`), surfaced in the UI as an **Endpoints** tab per engagement.
+
+#### Run the template
+
+```graphql
+mutation {
+  runTemplate(input: { engagementId: "<id>", templateName: "web-content", target: "client.com" }) {
+    id
+    status
+  }
+}
+```
+
+#### Query endpoints
+
+```graphql
+query {
+  endpoints(engagementId: "<id>") {
+    id
+    url
+    method
+    source
+    lastSeenAt
+  }
+}
+```
+
 ## Routes
 
 | Verb   | Path                              | Notes                                                                                                   |
