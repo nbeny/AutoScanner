@@ -33,6 +33,7 @@ model User {
   templateRunsCreated TemplateRun[]
   reportsCreated      Report[]
   schedulesCreated    Schedule[]
+  apiCredentials      ApiCredential[]
 
   @@index([deletedAt])
 }
@@ -91,6 +92,8 @@ model Engagement {
   reports      Report[]
   schedules    Schedule[]
   endpoints    Endpoint[]
+  emails       Email[]
+  orgMetadata  OrgMetadata[]
 
   @@index([ownerId])
   @@index([status])
@@ -455,6 +458,63 @@ model Endpoint {
   @@unique([engagementId, canonicalUrl, method])
   @@index([engagementId])
   @@index([subdomainId])
+}
+
+enum OrgMetadataKind {
+  WHOIS
+  ASN
+  ORG
+  NETBLOCK
+  OTHER
+}
+
+enum ApiProvider {
+  SHODAN
+  CENSYS
+}
+
+model Email {
+  id           String   @id @default(cuid())
+  engagementId String
+  address      String
+  source       String
+  firstSeenAt  DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+  metadata     Json?
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@unique([engagementId, address])
+  @@index([engagementId])
+}
+
+model OrgMetadata {
+  id           String          @id @default(cuid())
+  engagementId String
+  kind         OrgMetadataKind
+  data         Json
+  source       String
+  firstSeenAt  DateTime        @default(now())
+  lastSeenAt   DateTime        @default(now())
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@unique([engagementId, kind, source])
+  @@index([engagementId])
+}
+
+model ApiCredential {
+  id         String      @id @default(cuid())
+  ownerId    String
+  provider   ApiProvider
+  ciphertext Bytes
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, provider])
+  @@index([ownerId])
 }
 
 enum DnsRecordType {
