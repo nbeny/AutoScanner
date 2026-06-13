@@ -1,0 +1,22 @@
+{
+  "name": "scanners-katana",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/katana/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/katana"],
+      "options": {
+        "jestConfig": "libs/scanners/katana/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/katana/tsconfig.lib.json"
+      }
+    }
+  }
+}

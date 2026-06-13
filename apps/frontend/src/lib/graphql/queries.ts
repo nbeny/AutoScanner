@@ -483,3 +483,78 @@ export const GENERATE_REPORT_MUTATION = gql`
     }
   }
 `;
+
+export const ENDPOINTS_QUERY = gql`
+  query EngagementEndpoints($engagementId: ID!) {
+    endpoints(engagementId: $engagementId) {
+      id
+      url
+      method
+      statusCode
+      contentLength
+      source
+      lastSeenAt
+    }
+  }
+`;
+
+export const EMAILS_QUERY = gql`
+  query Emails($engagementId: ID!) {
+    emails(engagementId: $engagementId) {
+      id
+      address
+      source
+      lastSeenAt
+    }
+  }
+`;
+
+export const ORG_METADATA_QUERY = gql`
+  query OrgMetadata($engagementId: ID!) {
+    orgMetadata(engagementId: $engagementId) {
+      id
+      kind
+      source
+      data
+      lastSeenAt
+    }
+  }
+`;
+
+export const API_CREDENTIALS_QUERY = gql`
+  query ApiCredentials {
+    apiCredentials {
+      provider
+      createdAt
+    }
+  }
+`;
+
+export const SET_API_CREDENTIAL = gql`
+  mutation SetApiCredential($provider: ApiProvider!, $secret: String!) {
+    setApiCredential(provider: $provider, secret: $secret)
+  }
+`;
+
+export const DELETE_API_CREDENTIAL = gql`
+  mutation DeleteApiCredential($provider: ApiProvider!) {
+    deleteApiCredential(provider: $provider)
+  }
+`;
+
+export const TLS_CERTIFICATES_QUERY = gql`
+  query EngagementTlsCertificates($engagementId: ID!) {
+    tlsCertificates(engagementId: $engagementId) {
+      id
+      host
+      subjectCn
+      issuerCn
+      notAfter
+      tlsVersion
+      selfSigned
+      expired
+      source
+      lastSeenAt
+    }
+  }
+`;

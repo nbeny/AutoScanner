@@ -1,0 +1,22 @@
+{
+  "name": "scanners-gau",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/gau/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/gau"],
+      "options": {
+        "jestConfig": "libs/scanners/gau/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/gau/tsconfig.lib.json"
+      }
+    }
+  }
+}

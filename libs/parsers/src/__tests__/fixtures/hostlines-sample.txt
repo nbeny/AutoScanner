@@ -1,0 +1,8 @@
+www.hackerone.com
+api.hackerone.com
+
+API.Hackerone.com
+docs.hackerone.com.
+# comment line should be ignored
+support.hackerone.com
+www.hackerone.com

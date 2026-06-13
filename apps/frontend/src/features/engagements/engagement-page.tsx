@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { EngagementAssetsTab, ScoredAssetsPanel } from './engagement-assets-tab';
+import { EngagementEndpointsTab } from './engagement-endpoints-tab';
+import { EngagementOsintTab } from './engagement-osint-tab';
+import { EngagementTlsTab } from './engagement-tls-tab';
 import { FindingsTable } from '../findings/findings-table';
 import { EngagementSynthesisPage } from './synthesis/engagement-synthesis-page';
 import { useEngagementUpdates } from './use-engagement-updates';
@@ -12,6 +15,9 @@ type TabKey =
   | 'subdomains'
   | 'ips'
   | 'technologies'
+  | 'endpoints'
+  | 'osint'
+  | 'tls'
   | 'findings';
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -21,6 +27,9 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'subdomains', label: 'Subdomains' },
   { key: 'ips', label: 'IPs' },
   { key: 'technologies', label: 'Technologies' },
+  { key: 'endpoints', label: 'Endpoints' },
+  { key: 'osint', label: 'OSINT' },
+  { key: 'tls', label: 'TLS' },
   { key: 'findings', label: 'Findings' },
 ];
 
@@ -74,6 +83,9 @@ export function EngagementPage() {
         {tab === 'technologies' ? (
           <EngagementAssetsTab engagementId={engagementId} kind="TECHNOLOGY" />
         ) : null}
+        {tab === 'endpoints' ? <EngagementEndpointsTab engagementId={engagementId} /> : null}
+        {tab === 'osint' ? <EngagementOsintTab engagementId={engagementId} /> : null}
+        {tab === 'tls' ? <EngagementTlsTab engagementId={engagementId} /> : null}
         {tab === 'findings' ? <FindingsTable engagementId={engagementId} /> : null}
       </section>
     </div>

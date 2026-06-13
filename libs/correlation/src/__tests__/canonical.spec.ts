@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 
-import { canonicalDomain, canonicalIp, canonicalize } from '../canonical';
+import { canonicalDomain, canonicalIp, canonicalize, canonicalizeUrl } from '../canonical';
 
 describe('canonicalize() — legacy parity', () => {
   describe('DOMAIN / SUBDOMAIN', () => {
@@ -95,6 +95,34 @@ describe('canonicalDomain()', () => {
         return once === twice;
       }),
     );
+  });
+});
+
+describe('canonicalizeUrl()', () => {
+  it('lowercases scheme+host, sorts query params, strips default port 80, strips fragment', () => {
+    expect(canonicalizeUrl('HTTP://Example.com:80/Path?b=2&a=1#frag')).toBe(
+      'http://example.com/Path?a=1&b=2',
+    );
+  });
+
+  it('strips default https port 443, ensures trailing slash on bare host', () => {
+    expect(canonicalizeUrl('https://Example.com:443')).toBe('https://example.com/');
+  });
+
+  it('preserves trailing slash in path', () => {
+    expect(canonicalizeUrl('https://example.com/a/')).toBe('https://example.com/a/');
+  });
+
+  it('prepends https:// when no scheme is present', () => {
+    expect(canonicalizeUrl('example.com/x')).toBe('https://example.com/x');
+  });
+
+  it('keeps non-default port', () => {
+    expect(canonicalizeUrl('http://example.com:8080/y')).toBe('http://example.com:8080/y');
+  });
+
+  it('falls back to trimmed+lowercased original on invalid URL without throwing', () => {
+    expect(canonicalizeUrl('   not a url   ')).toBe('not a url');
   });
 });
 

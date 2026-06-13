@@ -222,6 +222,13 @@ jobs:
           docker pull projectdiscovery/subfinder:latest
           docker pull projectdiscovery/httpx:latest
 
+      # Build the custom scanner images so their Dockerfiles are smoke-tested
+      # on every run. The recon-passive-deep e2e (which would also need
+      # findomain/amass pulled) is opt-in via E2E_RUN_RECON_DEEP and is not
+      # enabled in this job, so we don't pull those registry images here.
+      - name: Build custom scanner images (smoke-test)
+        run: pnpm scanners:build
+
       - name: Build backend apps
         run: pnpm nx run-many -t build -p api-gateway,scan-worker,parser-worker,orchestrator-worker --parallel=3
 

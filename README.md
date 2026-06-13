@@ -83,6 +83,218 @@ pnpm nx e2e api-gateway-e2e
 
 Without those env vars the suite skips, so CI stays green when no live stack is available.
 
+## Phase 6.1 — broad passive recon
+
+Four new scanners join the passive discovery stack:
+
+| Scanner       | Image                                        | Notes                                    |
+| ------------- | -------------------------------------------- | ---------------------------------------- |
+| `findomain`   | `edu4rdshl/findomain:9.0.4` (registry)       | Passive subdomain enumeration            |
+| `amass`       | `caffix/amass:v4.2.0` (registry)             | Passive mode only (`-passive`)           |
+| `assetfinder` | `autoscanner/assetfinder:1.0` (custom build) | Subdomain enumeration via public sources |
+| `puredns`     | `autoscanner/puredns:1.0` (custom build)     | DNS bruteforce with a bundled wordlist   |
+
+A new `recon-passive-deep` template chains all five passive discovery scanners through resolution and probing:
+**subfinder → assetfinder → findomain → amass → puredns → dnsx → httpx**
+
+### Build the custom scanner images
+
+The two custom images must be built before running `assetfinder` or `puredns` locally or in CI. Docker must be running.
+
+```bash
+pnpm scanners:build
+```
+
+This builds `autoscanner/assetfinder:1.0` and `autoscanner/puredns:1.0` via `tools/scanners/build-images.sh`.
+
+### Run the template
+
+```graphql
+mutation {
+  runTemplate(
+    input: { engagementId: "<id>", templateName: "recon-passive-deep", target: "client.com" }
+  ) {
+    id
+    status
+  }
+}
+```
+
+Input type: `RunTemplateInput { engagementId: ID!, templateName: String!, target: String! }`.
+
+> **amass** runs passive-only (no active DNS requests).  
+> **puredns** brute-forces using a small bundled wordlist. `runTemplate` takes no per-scanner options, so to override the wordlist run `puredns` standalone via `runScan` with a `{ "wordlist": "/path/in/image" }` input (or `{ "mode": "resolve" }` to validate a host list instead of brute-forcing).
+
+### Phase 6.2 — web content / endpoints
+
+Four web-content scanners discover URLs served by in-scope hosts:
+
+| Scanner    | Image                                       | Notes                                                               |
+| ---------- | ------------------------------------------- | ------------------------------------------------------------------- |
+| `katana`   | `projectdiscovery/katana:latest` (registry) | Active crawl; pull before running the suite                         |
+| `gau`      | `autoscanner/gau:1.0` (custom build)        | Passive URL discovery via public archives                           |
+| `ffuf`     | `autoscanner/ffuf:1.0` (custom build)       | Directory brute-force with bundled wordlist                         |
+| `gobuster` | `autoscanner/gobuster:1.0` (custom build)   | Directory brute-force via gobuster — results stored as **Endpoint** |
+
+Custom images are built by `pnpm scanners:build` alongside the Phase 6.1 images.
+
+Discovered URLs are stored as **Endpoint** entities (`id`, `url`, `method`, `source`, `lastSeenAt`), surfaced in the UI as an **Endpoints** tab per engagement. All four scanners reuse this existing surface; no new entity types are introduced.
+
+#### Run the template
+
+```graphql
+mutation {
+  runTemplate(input: { engagementId: "<id>", templateName: "web-content", target: "client.com" }) {
+    id
+    status
+  }
+}
+```
+
+#### Query endpoints
+
+```graphql
+query {
+  endpoints(engagementId: "<id>") {
+    id
+    url
+    method
+    source
+    lastSeenAt
+  }
+}
+```
+
+### Phase 6.3 — OSINT / external surface
+
+Five OSINT scanners extend the passive discovery stack with certificate transparency, WHOIS, banner-grab intelligence, email harvesting, and Censys host search:
+
+| Scanner        | Image                                         | Notes                                                                    |
+| -------------- | --------------------------------------------- | ------------------------------------------------------------------------ |
+| `whois`        | `autoscanner/whois:1.0` (custom build)        | WHOIS registry lookups — registrar, org, name-server data                |
+| `crtsh`        | `autoscanner/crtsh:1.0` (custom build)        | Certificate-transparency subdomain enumeration via crt.sh                |
+| `shodan`       | `autoscanner/shodan:1.0` (custom build)       | Banner-grab / port data from Shodan (**key-gated**)                      |
+| `censys`       | `autoscanner/censys:1.0` (custom build)       | Host/service metadata from the Censys search API (**key-gated**)         |
+| `theharvester` | `autoscanner/theharvester:1.0` (custom build) | OSINT email harvesting from public sources — results stored as **Email** |
+
+Custom images are built by `pnpm scanners:build` alongside the earlier custom scanner images.
+
+Discovered data surfaces as two entity types (no new entities in 6.5):
+
+- **OrgMetadata** (`id`, `kind`, `source`) — registrar / org / name-server records produced by the whois scanner.
+- **Email** (`id`, `address`, `source`) — email addresses extracted from public sources (crtsh + theHarvester).
+
+Both are surfaced in the UI as an **OSINT** tab per engagement.
+
+#### Run the key-free template (`osint-passive` — crtsh + whois)
+
+```graphql
+mutation {
+  runTemplate(
+    input: { engagementId: "<id>", templateName: "osint-passive", target: "client.com" }
+  ) {
+    id
+    status
+  }
+}
+```
+
+#### Query OSINT results
+
+```graphql
+query {
+  orgMetadata(engagementId: "<id>") {
+    id
+    kind
+    source
+  }
+  emails(engagementId: "<id>") {
+    id
+    address
+    source
+  }
+}
+```
+
+#### Key-free vs key-gated scanners
+
+The `osint-passive` template (crtsh + whois) requires no credentials and can run immediately. The `shodan` and `censys` scanners are **key-gated** and must be run standalone via `runScan` after their credentials have been stored. They are intentionally excluded from `osint-passive` so the template stays fully key-free.
+
+#### API Keys
+
+API keys for key-gated scanners are stored **AES-256-GCM encrypted** using the platform's `SecretBox` utility (keyed from `MASTER_ENCRYPTION_KEY`). Keys are never returned in API responses or written to logs. They can be managed from the `/settings` page in the UI or via the GraphQL mutation:
+
+**Shodan** (single API key):
+
+```graphql
+mutation {
+  setApiCredential(provider: SHODAN, secret: "<your-shodan-api-key>")
+}
+```
+
+**Censys** (two-part credential — API ID and API secret stored colon-joined):
+
+```graphql
+mutation {
+  setApiCredential(provider: CENSYS, secret: "<api_id>:<api_secret>")
+}
+```
+
+The `scan-worker` splits the colon-joined value at runtime using shell parameter expansion (`CENSYS_API_ID="${CENSYS_API_CRED%%:*}"`, `CENSYS_API_SECRET="${CENSYS_API_CRED#*:}"`), then exports both env vars into the container. The plaintext credential is never persisted after the container exits.
+
+At scan time the `scan-worker` decrypts the stored credential entirely in-memory and injects it as a single environment variable into the scanner container. The plaintext key is never persisted after the container exits.
+
+### Phase 6.4 — fingerprint / TLS
+
+Three scanners add TLS certificate intelligence, web technology fingerprinting, and weak protocol detection:
+
+| Scanner   | Image                                     | Notes                                                                    |
+| --------- | ----------------------------------------- | ------------------------------------------------------------------------ |
+| `tlsx`    | `projectdiscovery/tlsx:latest` (registry) | TLS handshake / certificate enumeration — pull before the suite          |
+| `whatweb` | `autoscanner/whatweb:1.0` (custom build)  | Web technology fingerprinting via WhatWeb                                |
+| `sslscan` | `autoscanner/sslscan:1.0` (custom build)  | Weak SSL/TLS protocol + cipher detection — results stored as **Finding** |
+
+Custom images are built by `pnpm scanners:build`. Pull `tlsx` separately:
+
+```bash
+docker pull projectdiscovery/tlsx:latest
+pnpm scanners:build   # builds autoscanner/whatweb:1.0 and autoscanner/sslscan:1.0
+```
+
+Discovered data surfaces as entity types and findings (sslscan reuses the existing **Finding** surface — no new entities):
+
+- **TlsCertificate** (`id`, `host`, `subject`, `issuer`, `SANs`, `validFrom`, `validTo`, `fingerprint`, `tlsVersion`) — one record per host/cert pair.
+- Weak-cert **Finding**s automatically raised for expired certificates, self-signed certificates, weak TLS versions, and weak ciphers (sslscan).
+- **Technology** entries (already modelled) populated by whatweb alongside httpx.
+
+All are surfaced in the UI as a **TLS** tab per engagement.
+
+#### Run the template (`web-fingerprint` — httpx → tlsx → whatweb)
+
+```graphql
+mutation {
+  runTemplate(
+    input: { engagementId: "<id>", templateName: "web-fingerprint", target: "client.com" }
+  ) {
+    id
+    status
+  }
+}
+```
+
+#### Query TLS certificates
+
+```graphql
+query {
+  tlsCertificates(engagementId: "<id>") {
+    id
+    host
+    selfSigned
+    expired
+  }
+}
+```
+
 ## Routes
 
 | Verb   | Path                              | Notes                                                                                                   |

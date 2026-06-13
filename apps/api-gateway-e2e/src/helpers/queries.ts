@@ -228,3 +228,111 @@ export function totalPorts(assets: Asset[]): number {
 export function totalTechnologies(assets: Asset[]): number {
   return assets.reduce((sum, a) => sum + (a.technologies?.length ?? 0), 0);
 }
+
+/** Endpoints for an engagement (Phase 6.2). */
+export async function endpointsByEngagement(
+  gql: GraphQLClient,
+  engagementId: string,
+): Promise<Array<{ id: string; url: string; method: string; source: string; lastSeenAt: string }>> {
+  const query = /* GraphQL */ `
+    query Endpoints($engagementId: ID!) {
+      endpoints(engagementId: $engagementId) {
+        id
+        url
+        method
+        source
+        lastSeenAt
+      }
+    }
+  `;
+  const data = await gql.request<{
+    endpoints: Array<{
+      id: string;
+      url: string;
+      method: string;
+      source: string;
+      lastSeenAt: string;
+    }>;
+  }>(query, { engagementId });
+  return data.endpoints;
+}
+
+/** Org metadata for an engagement (Phase 6.3). */
+export async function orgMetadataByEngagement(
+  gql: GraphQLClient,
+  engagementId: string,
+): Promise<Array<{ id: string; kind: string; source: string }>> {
+  const query = /* GraphQL */ `
+    query OrgMeta($engagementId: ID!) {
+      orgMetadata(engagementId: $engagementId) {
+        id
+        kind
+        source
+      }
+    }
+  `;
+  const data = await gql.request<{
+    orgMetadata: Array<{ id: string; kind: string; source: string }>;
+  }>(query, { engagementId });
+  return data.orgMetadata;
+}
+
+/** Email addresses discovered for an engagement (Phase 6.3). */
+export async function emailsByEngagement(
+  gql: GraphQLClient,
+  engagementId: string,
+): Promise<Array<{ id: string; address: string; source: string }>> {
+  const query = /* GraphQL */ `
+    query Emails($engagementId: ID!) {
+      emails(engagementId: $engagementId) {
+        id
+        address
+        source
+      }
+    }
+  `;
+  const data = await gql.request<{
+    emails: Array<{ id: string; address: string; source: string }>;
+  }>(query, { engagementId });
+  return data.emails;
+}
+
+/** TLS certificates for an engagement (Phase 6.4). */
+export async function tlsCertificatesByEngagement(
+  gql: GraphQLClient,
+  engagementId: string,
+): Promise<Array<{ id: string; host: string; selfSigned: boolean; expired: boolean }>> {
+  const query = /* GraphQL */ `
+    query TlsCerts($engagementId: ID!) {
+      tlsCertificates(engagementId: $engagementId) {
+        id
+        host
+        selfSigned
+        expired
+      }
+    }
+  `;
+  const data = await gql.request<{
+    tlsCertificates: Array<{ id: string; host: string; selfSigned: boolean; expired: boolean }>;
+  }>(query, { engagementId });
+  return data.tlsCertificates;
+}
+
+/**
+ * Returns the distinct scanner names that observed a given asset
+ * (AssetDetail.scannerSources). Used to prove multi-source merge.
+ */
+export async function assetScannerSources(gql: GraphQLClient, assetId: string): Promise<string[]> {
+  const query = /* GraphQL */ `
+    query AssetSources($id: ID!) {
+      assetDetail(id: $id) {
+        id
+        scannerSources
+      }
+    }
+  `;
+  const data = await gql.request<{ assetDetail: { id: string; scannerSources: string[] } }>(query, {
+    id: assetId,
+  });
+  return data.assetDetail.scannerSources;
+}

@@ -11,7 +11,7 @@ describe('HttpxScanner', () => {
   it('declares name, docker, outputs, produces per spec', () => {
     expect(HttpxScanner.name).toBe('httpx');
     expect(HttpxScanner.displayName).toBe('httpx');
-    expect(HttpxScanner.docker.image).toBe('projectdiscovery/httpx:latest');
+    expect(HttpxScanner.docker.image).toBe('projectdiscovery/httpx:v1.9.0');
     expect(HttpxScanner.docker.network).toBe('bridge');
     expect(HttpxScanner.docker.capabilities).toEqual([]);
     expect(HttpxScanner.docker.readonlyRootfs).toBe(true);

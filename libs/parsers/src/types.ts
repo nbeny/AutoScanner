@@ -71,6 +71,36 @@ export interface NormalizedHttpProbe {
   server?: string;
 }
 
+export interface NormalizedEndpoint {
+  url: string;
+  method?: string;
+  statusCode?: number;
+  contentLength?: number;
+}
+
+export interface NormalizedEmail {
+  address: string;
+  source?: string;
+}
+
+export interface NormalizedOrgMetadata {
+  kind: 'WHOIS' | 'ASN' | 'ORG' | 'NETBLOCK' | 'OTHER';
+  data: unknown;
+}
+
+export interface NormalizedTlsCertificate {
+  host: string;
+  subjectCn?: string;
+  subjectAn?: string[];
+  issuerCn?: string;
+  notBefore?: string;
+  notAfter?: string;
+  fingerprintSha256: string;
+  tlsVersion?: string;
+  selfSigned?: boolean;
+  expired?: boolean;
+}
+
 export interface NormalizedOutput {
   assets: NormalizedAsset[];
   ports: NormalizedPort[];
@@ -80,6 +110,10 @@ export interface NormalizedOutput {
   findings: NormalizedFinding[];
   credentials: NormalizedCredential[];
   httpProbes: NormalizedHttpProbe[];
+  endpoints: NormalizedEndpoint[];
+  emails: NormalizedEmail[];
+  orgMetadata: NormalizedOrgMetadata[];
+  tlsCertificates: NormalizedTlsCertificate[];
   raw?: unknown;
 }
 
@@ -108,5 +142,9 @@ export function emptyNormalizedOutput(): NormalizedOutput {
     findings: [],
     credentials: [],
     httpProbes: [],
+    endpoints: [],
+    emails: [],
+    orgMetadata: [],
+    tlsCertificates: [],
   };
 }

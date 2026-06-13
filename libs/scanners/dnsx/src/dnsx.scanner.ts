@@ -14,7 +14,7 @@ export const DnsxScanner: ScannerDefinition<DnsxInputType> = {
   description: 'Fast DNS resolver and enumeration (ProjectDiscovery).',
   inputSchema: DnsxInput,
   docker: {
-    image: 'projectdiscovery/dnsx:latest',
+    image: 'projectdiscovery/dnsx:v1.2.3',
     network: 'bridge',
     capabilities: [],
     readonlyRootfs: true,
