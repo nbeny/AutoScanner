@@ -17,7 +17,9 @@ export class ApiCredentialsService {
     await this.prisma.apiCredential.upsert({
       where: { ownerId_provider: { ownerId: userId, provider } },
       create: { ownerId: userId, provider, ciphertext },
-      update: { ciphertext },
+      // ownerId is redundant given the compound where, but makes the
+      // owner-scoping explicit/defensive on this security-sensitive path.
+      update: { ciphertext, ownerId: userId },
     });
     return true;
   }
