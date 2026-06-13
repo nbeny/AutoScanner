@@ -1,0 +1,6 @@
+{
+  "domain": "example.com",
+  "tags": ["ipv6"],
+  "data": [{ "subdomain": "www", "type": "A", "value": "93.184.216.34" }],
+  "more": false
+}

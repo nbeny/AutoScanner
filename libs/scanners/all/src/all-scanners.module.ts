@@ -16,6 +16,7 @@ import { GauScannerModule } from '@autoscanner/scanners-gau';
 import { FfufScannerModule } from '@autoscanner/scanners-ffuf';
 import { WhoisScannerModule } from '@autoscanner/scanners-whois';
 import { CrtshScannerModule } from '@autoscanner/scanners-crtsh';
+import { ShodanScannerModule } from '@autoscanner/scanners-shodan';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -42,6 +43,7 @@ const SCANNER_MODULES = [
   FfufScannerModule,
   WhoisScannerModule,
   CrtshScannerModule,
+  ShodanScannerModule,
 ];
 
 @Module({
