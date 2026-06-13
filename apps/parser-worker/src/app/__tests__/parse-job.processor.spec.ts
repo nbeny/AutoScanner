@@ -17,7 +17,7 @@ import {
   type EngagementEventsPublisher,
 } from '@autoscanner/engagement-events';
 
-import { AssetMergeService } from '@autoscanner/correlation';
+import { AssetMergeService, CorrelateFindingsService } from '@autoscanner/correlation';
 
 import { ParseJobProcessor } from '../parse-job.processor';
 import { AssetPersister } from '../persisters/asset-persister';
@@ -61,6 +61,7 @@ describe('ParseJobProcessor', () => {
   let storage: jest.Mocked<ObjectStorage>;
   let registry: ParserRegistry;
   let assetMerge: AssetMergeService;
+  let correlateFindingsSvc: CorrelateFindingsService;
   let cveQueueMock: jest.Mocked<Pick<Queue<CveEnrichmentPayload>, 'add'>>;
   let eventsMock: jest.Mocked<EngagementEventsPublisher>;
   let processor: ParseJobProcessor;
@@ -69,10 +70,17 @@ describe('ParseJobProcessor', () => {
     prisma = {
       asset: {
         findFirst: jest.fn().mockResolvedValue(null),
-        findUnique: jest.fn().mockResolvedValue({ id: 'asset_mock', findings: [], ports: [] }),
+        // v2: returns correlatedFindings (not findings) for recomputeRiskScoreForAsset
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: 'asset_mock', correlatedFindings: [], ports: [] }),
         create: jest.fn(async ({ data }) => ({ id: `asset_${data.canonicalValue}`, ...data })),
         update: jest.fn(async ({ data, where }) => ({ id: where.id, ...data })),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      // v2: CveCache lookup for CVSS scores in recomputeRiskScoreForAsset
+      cveCache: {
+        findMany: jest.fn().mockResolvedValue([]),
       },
       port: {
         upsert: jest.fn(async ({ create }) => ({
@@ -89,6 +97,11 @@ describe('ParseJobProcessor', () => {
       finding: {
         upsert: jest.fn(async ({ create }) => ({ id: 'finding_1', ...create })),
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      correlatedFinding: {
+        upsert: jest.fn().mockResolvedValue({ id: 'cf_mock' }),
       },
       scanJob: {
         update: jest.fn().mockResolvedValue({}),
@@ -179,6 +192,10 @@ describe('ParseJobProcessor', () => {
     jest.spyOn(assetMerge, 'mergeIpAddresses').mockResolvedValue({ merged: 0 });
     jest.spyOn(assetMerge, 'dedupFindings').mockResolvedValue({ merged: 0 });
 
+    correlateFindingsSvc = new CorrelateFindingsService(prisma);
+    // Default: correlate pass is a no-op. Individual tests override.
+    jest.spyOn(correlateFindingsSvc, 'correlateFindings').mockResolvedValue({ clusters: 0 });
+
     cveQueueMock = { add: jest.fn().mockResolvedValue({}) };
     eventsMock = { publish: jest.fn().mockResolvedValue(undefined) };
 
@@ -186,6 +203,7 @@ describe('ParseJobProcessor', () => {
       registry,
       storage,
       assetMerge,
+      correlateFindingsSvc,
       new AssetPersister(prisma),
       new PortPersister(prisma),
       new ServicePersister(prisma),
@@ -288,6 +306,7 @@ describe('ParseJobProcessor', () => {
       emailsPersisted: 0,
       orgMetadataPersisted: 0,
       tlsCertificatesPersisted: 0,
+      correlatedFindings: 0,
     });
   });
 
@@ -1264,6 +1283,40 @@ describe('ParseJobProcessor', () => {
 
       expect(warn).toHaveBeenCalledWith(
         expect.stringMatching(/correlation pass \(Finding rows\) failed.*boom: dedup error/),
+        expect.any(String),
+      );
+      warn.mockRestore();
+    });
+
+    it('does not rethrow when correlateFindings fails — persistence already succeeded', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      (correlateFindingsSvc.correlateFindings as jest.Mock).mockRejectedValueOnce(
+        new Error('boom: clustering error'),
+      );
+
+      await processor.process(job(nucleiPayload));
+
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /correlation pass \(correlate findings\) failed.*boom: clustering error/,
+        ),
+        expect.any(String),
+      );
+      warn.mockRestore();
+    });
+
+    it('does not rethrow when the risk-recompute pass fails — persistence already succeeded', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      // finding.findMany is only called by runRiskRecomputePass; reject it to
+      // exercise the pass-level catch (job must still complete).
+      (prisma.finding.findMany as jest.Mock).mockRejectedValueOnce(
+        new Error('boom: recompute query failed'),
+      );
+
+      await processor.process(job(nucleiPayload));
+
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringMatching(/risk recompute pass failed.*boom: recompute query failed/),
         expect.any(String),
       );
       warn.mockRestore();

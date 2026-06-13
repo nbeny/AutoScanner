@@ -336,3 +336,71 @@ export async function assetScannerSources(gql: GraphQLClient, assetId: string): 
   });
   return data.assetDetail.scannerSources;
 }
+
+export interface CorrelatedFinding {
+  id: string;
+  title: string;
+  severity: string;
+  status: string;
+  sourceCount: number;
+  sources: string[];
+  cveId?: string | null;
+}
+
+/**
+ * Query `correlatedFindings(engagementId)` — the Phase 7 correlated-findings
+ * surface. Returns an array (may be empty for a fresh engagement with no
+ * findings yet). Used by correlation-v2-e2e to prove the resolver is wired
+ * end-to-end.
+ */
+export async function correlatedFindingsByEngagement(
+  gql: GraphQLClient,
+  engagementId: string,
+): Promise<CorrelatedFinding[]> {
+  const res = await gql.request<{ correlatedFindings: CorrelatedFinding[] }>(
+    /* GraphQL */ `
+      query CF($engagementId: ID!) {
+        correlatedFindings(engagementId: $engagementId) {
+          id
+          title
+          severity
+          status
+          sourceCount
+          sources
+          cveId
+        }
+      }
+    `,
+    { engagementId },
+  );
+  return res.correlatedFindings;
+}
+
+/**
+ * Mutation `setFindingStatus(id, status)` — triage a CorrelatedFinding.
+ * Returns the updated finding with its new status (and other fields for
+ * assertion convenience).
+ */
+export async function setFindingStatus(
+  gql: GraphQLClient,
+  id: string,
+  status: string,
+): Promise<CorrelatedFinding> {
+  const res = await gql.request<{ setFindingStatus: CorrelatedFinding }>(
+    /* GraphQL */ `
+      mutation SF($id: ID!, $status: FindingStatus!) {
+        setFindingStatus(id: $id, status: $status) {
+          id
+          title
+          severity
+          status
+          sourceCount
+          sources
+          cveId
+        }
+      }
+    `,
+    { id, status },
+  );
+  return res.setFindingStatus;
+}

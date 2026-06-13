@@ -5,6 +5,7 @@ import { EngagementEndpointsTab } from './engagement-endpoints-tab';
 import { EngagementOsintTab } from './engagement-osint-tab';
 import { EngagementTlsTab } from './engagement-tls-tab';
 import { FindingsTable } from '../findings/findings-table';
+import { CorrelatedFindingsView } from '../findings/correlated-findings-view';
 import { EngagementSynthesisPage } from './synthesis/engagement-synthesis-page';
 import { useEngagementUpdates } from './use-engagement-updates';
 
@@ -18,7 +19,8 @@ type TabKey =
   | 'endpoints'
   | 'osint'
   | 'tls'
-  | 'findings';
+  | 'findings'
+  | 'correlated';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
@@ -31,6 +33,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'osint', label: 'OSINT' },
   { key: 'tls', label: 'TLS' },
   { key: 'findings', label: 'Findings' },
+  { key: 'correlated', label: 'Correlated' },
 ];
 
 export function EngagementPage() {
@@ -87,6 +90,7 @@ export function EngagementPage() {
         {tab === 'osint' ? <EngagementOsintTab engagementId={engagementId} /> : null}
         {tab === 'tls' ? <EngagementTlsTab engagementId={engagementId} /> : null}
         {tab === 'findings' ? <FindingsTable engagementId={engagementId} /> : null}
+        {tab === 'correlated' ? <CorrelatedFindingsView engagementId={engagementId} /> : null}
       </section>
     </div>
   );

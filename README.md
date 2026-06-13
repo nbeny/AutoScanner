@@ -295,6 +295,58 @@ query {
 }
 ```
 
+## Correlation v2
+
+Cross-scanner correlated findings group the same issue reported by multiple scanners into a single **CorrelatedFinding** with _N_ source references. A deterministic **structural signature** (CVE id → curated category → per-scanner title fallback) ensures that `nuclei`, `tlsx`, `sslscan`, and any other scanner detecting the same vulnerability converge on one row instead of cluttering the findings list with duplicates.
+
+### Triage statuses
+
+| Status           | Meaning                           |
+| ---------------- | --------------------------------- |
+| `OPEN`           | Detected, not yet reviewed        |
+| `TRIAGED`        | Acknowledged, under investigation |
+| `CONFIRMED`      | Confirmed exploitable / in scope  |
+| `FALSE_POSITIVE` | Noise; excluded from risk score   |
+| `RESOLVED`       | Remediated or accepted            |
+
+### Risk score v2
+
+- Each distinct structural signature is counted **once** — duplicates across scanners do not inflate the score.
+- CVSS v3 base score is pulled from the CVE cache when a `cveId` is present; falls back to a severity-to-weight mapping otherwise.
+- Findings in `FALSE_POSITIVE` or `RESOLVED` status are **excluded** from the score.
+
+### GraphQL surface
+
+```graphql
+query {
+  correlatedFindings(
+    engagementId: "eng_…"
+    severity: HIGH
+    status: OPEN
+    search: "tls"
+    limit: 100
+    offset: 0
+  ) {
+    id
+    title
+    severity # INFO | LOW | MEDIUM | HIGH | CRITICAL
+    status # OPEN | TRIAGED | CONFIRMED | FALSE_POSITIVE | RESOLVED
+    sourceCount # how many scanner findings were merged
+    sources # scanner names, e.g. ["nuclei", "tlsx"]
+    cveId
+    firstSeenAt
+    lastSeenAt
+  }
+}
+
+mutation {
+  setFindingStatus(id: "cf_…", status: FALSE_POSITIVE) {
+    id
+    status
+  }
+}
+```
+
 ## Routes
 
 | Verb   | Path                              | Notes                                                                                                   |
