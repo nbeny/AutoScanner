@@ -14,4 +14,5 @@ export * from './whois-text';
 export * from './crtsh-json';
 export * from './shodan-json';
 export * from './tlsx-json';
+export * from './whatweb-json';
 export * from './parsers.module';
