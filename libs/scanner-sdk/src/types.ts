@@ -48,7 +48,9 @@ export type ProducedEntity =
   | 'Finding'
   | 'Credential'
   | 'DnsRecord'
-  | 'Endpoint';
+  | 'Endpoint'
+  | 'Email'
+  | 'OrgMetadata';
 
 export interface BuildContext {
   scanJobId: string;
@@ -91,6 +93,10 @@ export interface ScannerDefinition<TInput = unknown, _TRawOutput = unknown> {
   build(input: TInput, target: string, ctx: BuildContext): BuildResult;
   outputs: ScannerOutput[];
   produces: ProducedEntity[];
+  /** If set, scan-worker resolves the operator's encrypted API key for this provider and injects it. */
+  requiresCredential?: 'SHODAN' | 'CENSYS';
+  /** Env var name to inject the decrypted credential into (e.g. 'SHODAN_API_KEY'). */
+  credentialEnvVar?: string;
 }
 
 export const SCANNER_REGISTRY = Symbol('SCANNER_REGISTRY');

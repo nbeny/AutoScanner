@@ -78,6 +78,16 @@ export interface NormalizedEndpoint {
   contentLength?: number;
 }
 
+export interface NormalizedEmail {
+  address: string;
+  source?: string;
+}
+
+export interface NormalizedOrgMetadata {
+  kind: 'WHOIS' | 'ASN' | 'ORG' | 'NETBLOCK' | 'OTHER';
+  data: unknown;
+}
+
 export interface NormalizedOutput {
   assets: NormalizedAsset[];
   ports: NormalizedPort[];
@@ -88,6 +98,8 @@ export interface NormalizedOutput {
   credentials: NormalizedCredential[];
   httpProbes: NormalizedHttpProbe[];
   endpoints: NormalizedEndpoint[];
+  emails: NormalizedEmail[];
+  orgMetadata: NormalizedOrgMetadata[];
   raw?: unknown;
 }
 
@@ -117,5 +129,7 @@ export function emptyNormalizedOutput(): NormalizedOutput {
     credentials: [],
     httpProbes: [],
     endpoints: [],
+    emails: [],
+    orgMetadata: [],
   };
 }
