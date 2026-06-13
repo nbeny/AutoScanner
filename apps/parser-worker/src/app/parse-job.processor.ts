@@ -18,6 +18,7 @@ import {
 
 import {
   AssetMergeService,
+  CorrelateFindingsService,
   canonicalize,
   recomputeRiskScoreForAsset,
   writeObservation,
@@ -41,6 +42,7 @@ export interface ParseJobResult {
   ipAddressesPersisted: number;
   dnsRecordsPersisted: number;
   subdomainIpsPersisted: number;
+  correlatedFindings: number;
 }
 
 @Processor(QueueName.PARSE_JOBS, { concurrency: 4 })
@@ -51,6 +53,7 @@ export class ParseJobProcessor extends WorkerHost {
     private readonly registry: ParserRegistry,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly assetMerge: AssetMergeService,
+    private readonly correlateFindings: CorrelateFindingsService,
     private readonly assetPersister: AssetPersister,
     private readonly portPersister: PortPersister,
     private readonly servicePersister: ServicePersister,
@@ -117,9 +120,6 @@ export class ParseJobProcessor extends WorkerHost {
     );
 
     const result = await this.persist(payload, output);
-    this.logger.log(
-      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted}`,
-    );
 
     await this.warnIfObservationVolumeExceeded(payload.scanJobId);
 
@@ -152,7 +152,20 @@ export class ParseJobProcessor extends WorkerHost {
       this.assetMerge.dedupFindings(payload.engagementId),
     );
 
-    return result;
+    // Correlation v2: structural-hash clustering. Groups findings by CVE /
+    // category / raw-scanner bucket across scanner sources and upserts
+    // CorrelatedFinding clusters. Best-effort — parse job reports success
+    // even if this pass fails.
+    let correlatedFindings = 0;
+    await this.runCorrelatePass(payload.engagementId, (n) => {
+      correlatedFindings = n;
+    });
+
+    const finalResult = { ...result, correlatedFindings };
+    this.logger.log(
+      `parseJob scanJob=${payload.scanJobId} assets=${finalResult.assetsPersisted} ports=${finalResult.portsPersisted} services=${finalResult.servicesPersisted} findings=${finalResult.findingsPersisted} technologies=${finalResult.technologiesPersisted} ipAddresses=${finalResult.ipAddressesPersisted} dnsRecords=${finalResult.dnsRecordsPersisted} subdomainIps=${finalResult.subdomainIpsPersisted} correlatedFindings=${finalResult.correlatedFindings}`,
+    );
+    return finalResult;
   }
 
   /**
@@ -169,6 +182,29 @@ export class ParseJobProcessor extends WorkerHost {
     } catch (err) {
       this.logger.warn(
         `correlation pass (${kind}) failed: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+    }
+  }
+
+  /**
+   * Run the structural-hash clustering pass (correlation v2). Logs
+   * `correlated N clusters` on success; on failure logs a warn but never
+   * throws — the ParseJob has already succeeded by the time we get here.
+   */
+  private async runCorrelatePass(
+    engagementId: string,
+    onSuccess: (clusters: number) => void,
+  ): Promise<void> {
+    try {
+      const { clusters } = await this.correlateFindings.correlateFindings(engagementId);
+      if (clusters > 0) {
+        this.logger.log(`correlated ${clusters} clusters`);
+      }
+      onSuccess(clusters);
+    } catch (err) {
+      this.logger.warn(
+        `correlation pass (correlate findings) failed: ${err instanceof Error ? err.message : String(err)}`,
         err instanceof Error ? err.stack : undefined,
       );
     }
@@ -211,7 +247,10 @@ export class ParseJobProcessor extends WorkerHost {
     return streamToBuffer(obj.body, MAX_RAW_OUTPUT_BYTES);
   }
 
-  private async persist(payload: ParseJobPayload, out: NormalizedOutput): Promise<ParseJobResult> {
+  private async persist(
+    payload: ParseJobPayload,
+    out: NormalizedOutput,
+  ): Promise<Omit<ParseJobResult, 'correlatedFindings'>> {
     // assetIdByValue maps lowercased asset value → Asset.id for all asset types.
     // Both AssetPersister (non-IP) and IpAddressPersister (IP) contribute to this map,
     // so that port/service/technology persisters can resolve any asset value to an Asset id.
