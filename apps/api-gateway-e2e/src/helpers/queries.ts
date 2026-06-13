@@ -229,6 +229,34 @@ export function totalTechnologies(assets: Asset[]): number {
   return assets.reduce((sum, a) => sum + (a.technologies?.length ?? 0), 0);
 }
 
+/** Endpoints for an engagement (Phase 6.2). */
+export async function endpointsByEngagement(
+  gql: GraphQLClient,
+  engagementId: string,
+): Promise<Array<{ id: string; url: string; method: string; source: string; lastSeenAt: string }>> {
+  const query = /* GraphQL */ `
+    query Endpoints($engagementId: ID!) {
+      endpoints(engagementId: $engagementId) {
+        id
+        url
+        method
+        source
+        lastSeenAt
+      }
+    }
+  `;
+  const data = await gql.request<{
+    endpoints: Array<{
+      id: string;
+      url: string;
+      method: string;
+      source: string;
+      lastSeenAt: string;
+    }>;
+  }>(query, { engagementId });
+  return data.endpoints;
+}
+
 /**
  * Returns the distinct scanner names that observed a given asset
  * (AssetDetail.scannerSources). Used to prove multi-source merge.
