@@ -483,3 +483,17 @@ export const GENERATE_REPORT_MUTATION = gql`
     }
   }
 `;
+
+export const ENDPOINTS_QUERY = gql`
+  query EngagementEndpoints($engagementId: ID!) {
+    endpoints(engagementId: $engagementId) {
+      id
+      url
+      method
+      statusCode
+      contentLength
+      source
+      lastSeenAt
+    }
+  }
+`;
