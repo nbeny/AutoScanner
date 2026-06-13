@@ -116,7 +116,7 @@ describe('ScanJobProcessor', () => {
 
     const result = await processor.process(job(payload));
 
-    expect(docker.pullIfMissing).toHaveBeenCalledWith('instrumentisto/nmap:latest');
+    expect(docker.pullIfMissing).toHaveBeenCalledWith('instrumentisto/nmap:7.98-r2');
     expect(docker.run).toHaveBeenCalledTimes(1);
     expect(storage.ensureBucket).toHaveBeenCalledWith('raw-outputs');
     expect(storage.putObject).toHaveBeenCalledWith(

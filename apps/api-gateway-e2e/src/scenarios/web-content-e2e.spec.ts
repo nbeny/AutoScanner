@@ -10,7 +10,7 @@
  *
  * Assumes the full stack is running (api-gateway + scan-worker +
  * parser-worker + orchestrator-worker + Docker daemon) with:
- *   - katana image pulled: projectdiscovery/katana:latest (registry)
+ *   - katana image pulled: projectdiscovery/katana:v1.6.1 (registry)
  *   - gau + ffuf custom images built via `pnpm scanners:build`
  *
  * Required env: E2E_API_URL, E2E_EMAIL, E2E_PASSWORD, E2E_RUN_WEB_CONTENT=1
