@@ -10,3 +10,5 @@ export { recomputeRiskScoreForAsset } from './recompute-risk-score';
 export type { PrismaLike } from './recompute-risk-score';
 export { writeObservation } from './observation-writer';
 export type { WriteObservationInput, ObservationWriterClient } from './observation-writer';
+export * from './finding-categories';
+export * from './structural-finding-hash';
