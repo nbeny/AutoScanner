@@ -13,7 +13,10 @@ export class GobusterTextParser implements Parser {
   async parse(input: Buffer | string, ctx: ParserContext): Promise<NormalizedOutput> {
     const out = emptyNormalizedOutput();
     const text = typeof input === 'string' ? input : input.toString('utf8');
-    const base = ctx.target.startsWith('http') ? ctx.target : `https://${ctx.target}`;
+    // Only treat the target as a ready-made base if it has a real scheme;
+    // `startsWith('http')` would mis-classify a domain like `httpfoo.com`.
+    const hasScheme = /^https?:\/\//.test(ctx.target);
+    const base = hasScheme ? ctx.target : `https://${ctx.target}`;
 
     for (const line of text.split('\n')) {
       const match = LINE_RE.exec(line.trim());
