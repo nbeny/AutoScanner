@@ -17,7 +17,7 @@ import {
   type EngagementEventsPublisher,
 } from '@autoscanner/engagement-events';
 
-import { AssetMergeService } from '@autoscanner/correlation';
+import { AssetMergeService, CorrelateFindingsService } from '@autoscanner/correlation';
 
 import { ParseJobProcessor } from '../parse-job.processor';
 import { AssetPersister } from '../persisters/asset-persister';
@@ -57,6 +57,7 @@ describe('ParseJobProcessor', () => {
   let storage: jest.Mocked<ObjectStorage>;
   let registry: ParserRegistry;
   let assetMerge: AssetMergeService;
+  let correlateFindingsSvc: CorrelateFindingsService;
   let cveQueueMock: jest.Mocked<Pick<Queue<CveEnrichmentPayload>, 'add'>>;
   let eventsMock: jest.Mocked<EngagementEventsPublisher>;
   let processor: ParseJobProcessor;
@@ -85,6 +86,11 @@ describe('ParseJobProcessor', () => {
       finding: {
         upsert: jest.fn(async ({ create }) => ({ id: 'finding_1', ...create })),
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      correlatedFinding: {
+        upsert: jest.fn().mockResolvedValue({ id: 'cf_mock' }),
       },
       scanJob: {
         update: jest.fn().mockResolvedValue({}),
@@ -172,6 +178,10 @@ describe('ParseJobProcessor', () => {
     jest.spyOn(assetMerge, 'mergeIpAddresses').mockResolvedValue({ merged: 0 });
     jest.spyOn(assetMerge, 'dedupFindings').mockResolvedValue({ merged: 0 });
 
+    correlateFindingsSvc = new CorrelateFindingsService(prisma);
+    // Default: correlate pass is a no-op. Individual tests override.
+    jest.spyOn(correlateFindingsSvc, 'correlateFindings').mockResolvedValue({ clusters: 0 });
+
     cveQueueMock = { add: jest.fn().mockResolvedValue({}) };
     eventsMock = { publish: jest.fn().mockResolvedValue(undefined) };
 
@@ -179,6 +189,7 @@ describe('ParseJobProcessor', () => {
       registry,
       storage,
       assetMerge,
+      correlateFindingsSvc,
       new AssetPersister(prisma),
       new PortPersister(prisma),
       new ServicePersister(prisma),
@@ -273,6 +284,7 @@ describe('ParseJobProcessor', () => {
       ipAddressesPersisted: 1,
       dnsRecordsPersisted: 0,
       subdomainIpsPersisted: 0,
+      correlatedFindings: 0,
     });
   });
 
