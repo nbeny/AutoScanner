@@ -1266,6 +1266,23 @@ describe('ParseJobProcessor', () => {
       warn.mockRestore();
     });
 
+    it('does not rethrow when correlateFindings fails — persistence already succeeded', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      (correlateFindingsSvc.correlateFindings as jest.Mock).mockRejectedValueOnce(
+        new Error('boom: clustering error'),
+      );
+
+      await processor.process(job(nucleiPayload));
+
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /correlation pass \(correlate findings\) failed.*boom: clustering error/,
+        ),
+        expect.any(String),
+      );
+      warn.mockRestore();
+    });
+
     it('processing the same fixture twice produces no duplicate Finding rows (upsert key collision)', async () => {
       // Two passes; second uses the same nuclei output.
       await processor.process(job(nucleiPayload));

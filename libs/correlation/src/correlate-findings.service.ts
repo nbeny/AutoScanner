@@ -157,6 +157,10 @@ export class CorrelateFindingsService {
             cveId: firstCveId,
             sourceCount: distinctScanners,
             lastSeenAt: group.maxLastSeenAt,
+            // firstSeenAt intentionally NOT updated: the row was created with the
+            // historical min and re-scan findings are never older, so the stored
+            // value is already the earliest. status is likewise omitted to
+            // preserve operator triage across re-runs.
           },
         });
 
