@@ -31,6 +31,7 @@ import { TechnologyPersister } from '../persisters/technology-persister';
 import { EndpointPersister } from '../persisters/endpoint-persister';
 import { EmailPersister } from '../persisters/email-persister';
 import { OrgMetadataPersister } from '../persisters/org-metadata-persister';
+import { TlsCertificatePersister } from '../persisters/tls-certificate-persister';
 
 const NMAP_XML = `<?xml version="1.0"?>
 <nmaprun>
@@ -196,6 +197,7 @@ describe('ParseJobProcessor', () => {
       new EndpointPersister(prisma),
       new EmailPersister(prisma),
       new OrgMetadataPersister(prisma),
+      new TlsCertificatePersister(prisma),
       prisma,
       cveQueueMock as unknown as Queue<CveEnrichmentPayload>,
       eventsMock,
@@ -285,6 +287,7 @@ describe('ParseJobProcessor', () => {
       endpointsPersisted: 0,
       emailsPersisted: 0,
       orgMetadataPersisted: 0,
+      tlsCertificatesPersisted: 0,
     });
   });
 
