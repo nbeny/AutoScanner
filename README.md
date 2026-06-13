@@ -167,13 +167,14 @@ query {
 
 ### Phase 6.3 — OSINT / external surface
 
-Four OSINT scanners extend the passive discovery stack with certificate transparency, WHOIS, banner-grab intelligence, and email harvesting:
+Five OSINT scanners extend the passive discovery stack with certificate transparency, WHOIS, banner-grab intelligence, email harvesting, and Censys host search:
 
 | Scanner        | Image                                         | Notes                                                                    |
 | -------------- | --------------------------------------------- | ------------------------------------------------------------------------ |
 | `whois`        | `autoscanner/whois:1.0` (custom build)        | WHOIS registry lookups — registrar, org, name-server data                |
 | `crtsh`        | `autoscanner/crtsh:1.0` (custom build)        | Certificate-transparency subdomain enumeration via crt.sh                |
-| `shodan`       | `autoscanner/shodan:1.0` (custom build)       | Banner-grab / port data from Shodan (**requires a Shodan API key**)      |
+| `shodan`       | `autoscanner/shodan:1.0` (custom build)       | Banner-grab / port data from Shodan (**key-gated**)                      |
+| `censys`       | `autoscanner/censys:1.0` (custom build)       | Host/service metadata from the Censys search API (**key-gated**)         |
 | `theharvester` | `autoscanner/theharvester:1.0` (custom build) | OSINT email harvesting from public sources — results stored as **Email** |
 
 Custom images are built by `pnpm scanners:build` alongside the earlier custom scanner images.
@@ -215,15 +216,31 @@ query {
 }
 ```
 
+#### Key-free vs key-gated scanners
+
+The `osint-passive` template (crtsh + whois) requires no credentials and can run immediately. The `shodan` and `censys` scanners are **key-gated** and must be run standalone via `runScan` after their credentials have been stored. They are intentionally excluded from `osint-passive` so the template stays fully key-free.
+
 #### API Keys
 
-API keys for key-gated scanners (e.g. Shodan) are stored **AES-256-GCM encrypted** using the platform's `SecretBox` utility (keyed from `MASTER_ENCRYPTION_KEY`). Keys are never returned in API responses or written to logs. They can be managed from the `/settings` page in the UI or via the GraphQL mutation:
+API keys for key-gated scanners are stored **AES-256-GCM encrypted** using the platform's `SecretBox` utility (keyed from `MASTER_ENCRYPTION_KEY`). Keys are never returned in API responses or written to logs. They can be managed from the `/settings` page in the UI or via the GraphQL mutation:
+
+**Shodan** (single API key):
 
 ```graphql
 mutation {
   setApiCredential(provider: SHODAN, secret: "<your-shodan-api-key>")
 }
 ```
+
+**Censys** (two-part credential — API ID and API secret stored colon-joined):
+
+```graphql
+mutation {
+  setApiCredential(provider: CENSYS, secret: "<api_id>:<api_secret>")
+}
+```
+
+The `scan-worker` splits the colon-joined value at runtime using shell parameter expansion (`CENSYS_API_ID="${CENSYS_API_CRED%%:*}"`, `CENSYS_API_SECRET="${CENSYS_API_CRED#*:}"`), then exports both env vars into the container. The plaintext credential is never persisted after the container exits.
 
 At scan time the `scan-worker` decrypts the stored credential entirely in-memory and injects it as a single environment variable into the scanner container. The plaintext key is never persisted after the container exits.
 
