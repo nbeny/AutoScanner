@@ -1,12 +1,12 @@
 # Builds an image carrying massdns + puredns and bundled defaults.
 FROM golang:1.22-bookworm AS gobuild
-RUN go install github.com/d3mondev/puredns/v2@latest
+RUN go install github.com/d3mondev/puredns/v2@v2.1.1
 
 FROM debian:bookworm-slim AS massdns
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git gcc make libc6-dev ca-certificates \
  && rm -rf /var/lib/apt/lists/*
-RUN git clone --depth 1 https://github.com/blechschmidt/massdns.git /src/massdns \
+RUN git clone --branch v1.1.0 --depth 1 https://github.com/blechschmidt/massdns.git /src/massdns \
  && make -C /src/massdns
 
 FROM debian:bookworm-slim

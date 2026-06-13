@@ -12,7 +12,7 @@ export const TlsxScanner: ScannerDefinition<TlsxInputType> = {
   description: 'TLS certificate and fingerprint scanner (ProjectDiscovery).',
   inputSchema: TlsxInput,
   docker: {
-    image: 'projectdiscovery/tlsx:latest',
+    image: 'projectdiscovery/tlsx:v1.2.2',
     network: 'bridge',
     capabilities: [],
     readonlyRootfs: true,

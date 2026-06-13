@@ -11,7 +11,7 @@ describe('SubfinderScanner', () => {
   it('declares name, docker, outputs, produces per spec', () => {
     expect(SubfinderScanner.name).toBe('subfinder');
     expect(SubfinderScanner.displayName).toBe('Subfinder');
-    expect(SubfinderScanner.docker.image).toBe('projectdiscovery/subfinder:latest');
+    expect(SubfinderScanner.docker.image).toBe('projectdiscovery/subfinder:v2.14.0');
     expect(SubfinderScanner.docker.network).toBe('bridge');
     expect(SubfinderScanner.docker.capabilities).toEqual([]);
     expect(SubfinderScanner.docker.readonlyRootfs).toBe(true);

@@ -23,7 +23,7 @@ export const NmapScanner: ScannerDefinition<NmapInputType> = {
   description: 'Network exploration and port scanner.',
   inputSchema: NmapInput,
   docker: {
-    image: 'instrumentisto/nmap:latest',
+    image: 'instrumentisto/nmap:7.98-r2',
     fallbackImage: 'autoscanner/kali-runner:latest',
     network: 'host',
     capabilities: ['NET_RAW', 'NET_ADMIN', 'NET_BIND_SERVICE'],

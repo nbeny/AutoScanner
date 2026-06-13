@@ -1,7 +1,7 @@
 # Builds a minimal image carrying the gau binary.
 FROM golang:1.22-alpine AS build
 RUN apk add --no-cache git \
- && go install github.com/lc/gau/v2/cmd/gau@latest
+ && go install github.com/lc/gau/v2/cmd/gau@v2.2.4
 
 FROM alpine:3.20
 # ca-certificates: gau queries HTTPS archive sources (web.archive.org, otx, ...).

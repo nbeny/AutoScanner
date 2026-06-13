@@ -19,7 +19,7 @@ export const HttpxScanner: ScannerDefinition<HttpxInputType> = {
   description: 'Fast HTTP probe and fingerprinter (ProjectDiscovery).',
   inputSchema: HttpxInput,
   docker: {
-    image: 'projectdiscovery/httpx:latest',
+    image: 'projectdiscovery/httpx:v1.9.0',
     network: 'bridge',
     capabilities: [],
     readonlyRootfs: true,

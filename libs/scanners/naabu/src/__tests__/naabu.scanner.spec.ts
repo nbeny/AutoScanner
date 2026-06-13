@@ -12,7 +12,7 @@ describe('NaabuScanner', () => {
     expect(NaabuScanner.name).toBe('naabu');
     expect(NaabuScanner.displayName).toBe('naabu');
     expect(NaabuScanner.category).toContain(ScannerCategory.PORT_SCAN);
-    expect(NaabuScanner.docker.image).toBe('projectdiscovery/naabu:latest');
+    expect(NaabuScanner.docker.image).toBe('projectdiscovery/naabu:v2.6.1');
     expect(NaabuScanner.docker.network).toBe('bridge');
     expect(NaabuScanner.docker.capabilities).toEqual([]);
     expect(NaabuScanner.docker.readonlyRootfs).toBe(true);

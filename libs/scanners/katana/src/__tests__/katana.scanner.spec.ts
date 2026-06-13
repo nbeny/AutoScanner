@@ -7,7 +7,7 @@ describe('KatanaScanner', () => {
   it('declares name, docker, outputs, produces', () => {
     expect(KatanaScanner.name).toBe('katana');
     expect(KatanaScanner.displayName).toBe('Katana');
-    expect(KatanaScanner.docker.image).toBe('projectdiscovery/katana:latest');
+    expect(KatanaScanner.docker.image).toBe('projectdiscovery/katana:v1.6.1');
     expect(KatanaScanner.outputs[0]).toEqual({
       format: 'JSONL',
       capture: 'stdout',
