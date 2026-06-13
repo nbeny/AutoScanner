@@ -22,6 +22,8 @@ export const PurednsScanner: ScannerDefinition<PurednsInputType> = {
     image: 'autoscanner/puredns:1.0',
     network: 'bridge',
     capabilities: [],
+    // Safe despite massdns writing temp files: docker-runner always mounts
+    // /tmp as tmpfs (see dockerode-runner.ts), which is where they land.
     readonlyRootfs: true,
     memoryLimitMb: 1024,
     cpuQuota: 1_000_000,
