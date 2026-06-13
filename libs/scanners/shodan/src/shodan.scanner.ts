@@ -36,7 +36,7 @@ export const ShodanScanner: ScannerDefinition<Record<string, never>> = {
   build(_input, target) {
     // The decrypted key is injected as SHODAN_API_KEY by scan-worker. Init the
     // CLI from it, then query the domain. `|| true` keeps a no-result exit 0.
-    const script = `shodan init "$SHODAN_API_KEY" >/dev/null 2>&1 && shodan domain ${shellQuoteSingle(target)}`;
+    const script = `shodan init "$SHODAN_API_KEY" >/dev/null 2>&1 && shodan domain ${shellQuoteSingle(target)} || true`;
     return { cmd: ['sh', '-lc', script] };
   },
   outputs: [{ format: 'JSON', capture: 'stdout', parser: 'shodan-json' }],
