@@ -1,0 +1,42 @@
+
+Version: 2.0.15
+OpenSSL 1.1.1t  7 Feb 2023
+
+Connected to 93.184.216.34
+
+Testing SSL server example.com on port 443 using SNI name example.com
+
+  SSL/TLS Protocols:
+SSLv2     disabled
+SSLv3     enabled
+TLSv1.0   disabled
+TLSv1.1   disabled
+TLSv1.2   enabled
+TLSv1.3   enabled
+
+  TLS Fallback SCSV:
+Server supports TLS Fallback SCSV
+
+  TLS renegotiation:
+Session renegotiation not supported
+
+  TLS Compression:
+Compression disabled
+
+  Heartbleed:
+TLSv1.3 not vulnerable to heartbleed
+TLSv1.2 not vulnerable to heartbleed
+
+  Supported Server Cipher(s):
+Preferred TLSv1.3  256 bits  TLS_AES_256_GCM_SHA384
+Accepted  TLSv1.3  128 bits  TLS_AES_128_GCM_SHA256
+Accepted  TLSv1.0  128 bits  RC4-SHA
+Accepted  TLSv1.2  256 bits  ECDHE-RSA-AES256-GCM-SHA384
+Accepted  TLSv1.2  128 bits  ECDHE-RSA-AES128-GCM-SHA256
+
+  SSL Certificate:
+Signature Algorithm: sha256WithRSAEncryption
+RSA Key Strength:    2048
+
+Subject:  example.com
+Issuer:   DigiCert TLS RSA SHA256 2020 CA1

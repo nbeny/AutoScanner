@@ -9,10 +9,10 @@ describe('WebFingerprint template', () => {
     expect(WebFingerprint.name).toBe('web-fingerprint');
   });
 
-  it('has exactly 3 steps: httpx, tlsx, whatweb', () => {
-    expect(WebFingerprint.steps).toHaveLength(3);
+  it('has exactly 4 steps: httpx, tlsx, whatweb, sslscan', () => {
+    expect(WebFingerprint.steps).toHaveLength(4);
     const names = WebFingerprint.steps.map((s) => s.scannerName);
-    expect(names).toEqual(['httpx', 'tlsx', 'whatweb']);
+    expect(names).toEqual(['httpx', 'tlsx', 'whatweb', 'sslscan']);
   });
 
   it('all steps target {kind:"context", path:"subdomains"}', () => {
@@ -34,5 +34,12 @@ describe('WebFingerprint template', () => {
   it('whatweb step has empty inputs', () => {
     const [, , whatweb] = WebFingerprint.steps;
     expect(whatweb.inputs).toEqual({});
+  });
+
+  it('sslscan step has empty inputs and targets subdomains', () => {
+    const [, , , sslscan] = WebFingerprint.steps;
+    expect(sslscan.scannerName).toBe('sslscan');
+    expect(sslscan.inputs).toEqual({});
+    expect(sslscan.target).toEqual({ kind: 'context', path: 'subdomains' });
   });
 });
