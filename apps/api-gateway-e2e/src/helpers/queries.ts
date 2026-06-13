@@ -297,6 +297,27 @@ export async function emailsByEngagement(
   return data.emails;
 }
 
+/** TLS certificates for an engagement (Phase 6.4). */
+export async function tlsCertificatesByEngagement(
+  gql: GraphQLClient,
+  engagementId: string,
+): Promise<Array<{ id: string; host: string; selfSigned: boolean; expired: boolean }>> {
+  const query = /* GraphQL */ `
+    query TlsCerts($engagementId: ID!) {
+      tlsCertificates(engagementId: $engagementId) {
+        id
+        host
+        selfSigned
+        expired
+      }
+    }
+  `;
+  const data = await gql.request<{
+    tlsCertificates: Array<{ id: string; host: string; selfSigned: boolean; expired: boolean }>;
+  }>(query, { engagementId });
+  return data.tlsCertificates;
+}
+
 /**
  * Returns the distinct scanner names that observed a given asset
  * (AssetDetail.scannerSources). Used to prove multi-source merge.

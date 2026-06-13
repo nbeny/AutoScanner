@@ -225,6 +225,56 @@ mutation {
 
 At scan time the `scan-worker` decrypts the stored credential entirely in-memory and injects it as a single environment variable into the scanner container. The plaintext key is never persisted after the container exits.
 
+### Phase 6.4 — fingerprint / TLS
+
+Two scanners add TLS certificate intelligence and web technology fingerprinting:
+
+| Scanner   | Image                                     | Notes                                                           |
+| --------- | ----------------------------------------- | --------------------------------------------------------------- |
+| `tlsx`    | `projectdiscovery/tlsx:latest` (registry) | TLS handshake / certificate enumeration — pull before the suite |
+| `whatweb` | `autoscanner/whatweb:1.0` (custom build)  | Web technology fingerprinting via WhatWeb                       |
+
+Custom images are built by `pnpm scanners:build`. Pull `tlsx` separately:
+
+```bash
+docker pull projectdiscovery/tlsx:latest
+pnpm scanners:build   # builds autoscanner/whatweb:1.0
+```
+
+Discovered data surfaces as new entity types and findings:
+
+- **TlsCertificate** (`id`, `host`, `subject`, `issuer`, `SANs`, `validFrom`, `validTo`, `fingerprint`, `tlsVersion`) — one record per host/cert pair.
+- Weak-cert **Finding**s automatically raised for expired certificates, self-signed certificates, and weak TLS versions.
+- **Technology** entries (already modelled) populated by whatweb alongside httpx.
+
+Both are surfaced in the UI as a **TLS** tab per engagement.
+
+#### Run the template (`web-fingerprint` — httpx → tlsx → whatweb)
+
+```graphql
+mutation {
+  runTemplate(
+    input: { engagementId: "<id>", templateName: "web-fingerprint", target: "client.com" }
+  ) {
+    id
+    status
+  }
+}
+```
+
+#### Query TLS certificates
+
+```graphql
+query {
+  tlsCertificates(engagementId: "<id>") {
+    id
+    host
+    selfSigned
+    expired
+  }
+}
+```
+
 ## Routes
 
 | Verb   | Path                              | Notes                                                                                                   |
