@@ -40,6 +40,25 @@ describe('HostlinesTextParser', () => {
     expect(values.some((v) => v.endsWith('.'))).toBe(false);
   });
 
+  it('dedupes to exactly the distinct canonical hosts', async () => {
+    const out = await parser.parse(FIXTURE, ctx);
+    // www, api, docs, support — the blank, comment, and duplicates collapse away.
+    expect(out.assets).toHaveLength(4);
+  });
+
+  it('accepts Buffer input', async () => {
+    const out = await parser.parse(Buffer.from(FIXTURE, 'utf8'), ctx);
+    expect(out.assets).toHaveLength(4);
+  });
+
+  it('handles CRLF line endings from Windows-produced output', async () => {
+    const out = await parser.parse('www.example.com\r\napi.example.com\r\n', ctx);
+    const values = out.assets.map((a) => a.value);
+    expect(values).toContain('www.example.com');
+    expect(values).toContain('api.example.com');
+    expect(values.some((v) => v.includes('\r'))).toBe(false);
+  });
+
   it('returns an empty output for empty input', async () => {
     const out = await parser.parse('', ctx);
     expect(out.assets).toEqual([]);
