@@ -460,6 +460,8 @@ model Endpoint {
   @@index([subdomainId])
 }
 
+// OSINT MODELS (Phase 6.3)
+
 enum OrgMetadataKind {
   WHOIS
   ASN
@@ -504,12 +506,15 @@ model OrgMetadata {
 }
 
 model ApiCredential {
-  id         String      @id @default(cuid())
-  ownerId    String
-  provider   ApiProvider
+  id      String      @id @default(cuid())
+  ownerId String
+  provider ApiProvider
+  // AES-256-GCM SecretBox-sealed API key (keyed by MASTER_ENCRYPTION_KEY).
+  // Plaintext is never persisted, never returned via GraphQL, never logged;
+  // decrypted in-memory only by scan-worker to inject one env var at run time.
   ciphertext Bytes
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
