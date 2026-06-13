@@ -34,6 +34,7 @@ import { TechnologyPersister } from './persisters/technology-persister';
 import { EndpointPersister } from './persisters/endpoint-persister';
 import { EmailPersister } from './persisters/email-persister';
 import { OrgMetadataPersister } from './persisters/org-metadata-persister';
+import { TlsCertificatePersister } from './persisters/tls-certificate-persister';
 
 export interface ParseJobResult {
   assetsPersisted: number;
@@ -47,6 +48,7 @@ export interface ParseJobResult {
   endpointsPersisted: number;
   emailsPersisted: number;
   orgMetadataPersisted: number;
+  tlsCertificatesPersisted: number;
 }
 
 @Processor(QueueName.PARSE_JOBS, { concurrency: 4 })
@@ -68,6 +70,7 @@ export class ParseJobProcessor extends WorkerHost {
     private readonly endpointPersister: EndpointPersister,
     private readonly emailPersister: EmailPersister,
     private readonly orgMetadataPersister: OrgMetadataPersister,
+    private readonly tlsCertificatePersister: TlsCertificatePersister,
     private readonly prisma: PrismaService,
     @InjectQueue(QueueName.CVE_ENRICHMENT) private readonly cveQueue: Queue<CveEnrichmentPayload>,
     @Inject(ENGAGEMENT_EVENTS_PUBLISHER)
@@ -127,7 +130,7 @@ export class ParseJobProcessor extends WorkerHost {
 
     const result = await this.persist(payload, output);
     this.logger.log(
-      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted} endpoints=${result.endpointsPersisted} emails=${result.emailsPersisted} orgMetadata=${result.orgMetadataPersisted}`,
+      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted} endpoints=${result.endpointsPersisted} emails=${result.emailsPersisted} orgMetadata=${result.orgMetadataPersisted} tlsCertificates=${result.tlsCertificatesPersisted}`,
     );
 
     await this.warnIfObservationVolumeExceeded(payload.scanJobId);
@@ -589,6 +592,14 @@ export class ParseJobProcessor extends WorkerHost {
         ),
       );
     }
+    let tlsCertificatesPersisted = 0;
+    if (out.tlsCertificates?.length > 0) {
+      tlsCertificatesPersisted = await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction((tx) =>
+          this.tlsCertificatePersister.upsert(out.tlsCertificates, ctx, tx),
+        ),
+      );
+    }
 
     return {
       assetsPersisted,
@@ -602,6 +613,7 @@ export class ParseJobProcessor extends WorkerHost {
       endpointsPersisted,
       emailsPersisted,
       orgMetadataPersisted,
+      tlsCertificatesPersisted,
     };
   }
 }

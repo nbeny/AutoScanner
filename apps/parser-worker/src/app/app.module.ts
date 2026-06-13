@@ -21,6 +21,7 @@ import { TechnologyPersister } from './persisters/technology-persister';
 import { EndpointPersister } from './persisters/endpoint-persister';
 import { EmailPersister } from './persisters/email-persister';
 import { OrgMetadataPersister } from './persisters/org-metadata-persister';
+import { TlsCertificatePersister } from './persisters/tls-certificate-persister';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { OrgMetadataPersister } from './persisters/org-metadata-persister';
     EndpointPersister,
     EmailPersister,
     OrgMetadataPersister,
+    TlsCertificatePersister,
   ],
 })
 export class AppModule {}
