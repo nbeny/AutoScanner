@@ -6,6 +6,7 @@ import {
   ReconPassiveDeep,
   TemplateRegistry,
   TemplatesModule,
+  WebContent,
   WebDeep,
   WebQuick,
 } from '../index';
@@ -120,13 +121,14 @@ describe('builtin templates', () => {
   });
 
   describe('BUILTIN_TEMPLATES', () => {
-    it('contains the 4 Phase 2 templates + recon-passive-deep', () => {
-      expect(BUILTIN_TEMPLATES).toHaveLength(5);
+    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content', () => {
+      expect(BUILTIN_TEMPLATES).toHaveLength(6);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassive);
       expect(BUILTIN_TEMPLATES).toContain(ReconActive);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassiveDeep);
       expect(BUILTIN_TEMPLATES).toContain(WebQuick);
       expect(BUILTIN_TEMPLATES).toContain(WebDeep);
+      expect(BUILTIN_TEMPLATES).toContain(WebContent);
     });
 
     it('exposes unique template names', () => {
@@ -160,7 +162,8 @@ describe('builtin templates', () => {
       expect(registry.get('recon-passive-deep')).toBe(ReconPassiveDeep);
       expect(registry.get('web-quick')).toBe(WebQuick);
       expect(registry.get('web-deep')).toBe(WebDeep);
-      expect(registry.list()).toHaveLength(5);
+      expect(registry.get('web-content')).toBe(WebContent);
+      expect(registry.list()).toHaveLength(6);
 
       // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
       const moduleInstance = ref.get(TemplatesModule);
