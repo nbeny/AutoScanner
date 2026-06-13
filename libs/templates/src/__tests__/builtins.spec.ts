@@ -9,6 +9,7 @@ import {
   TemplatesModule,
   WebContent,
   WebDeep,
+  WebFingerprint,
   WebQuick,
 } from '../index';
 
@@ -122,8 +123,8 @@ describe('builtin templates', () => {
   });
 
   describe('BUILTIN_TEMPLATES', () => {
-    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive', () => {
-      expect(BUILTIN_TEMPLATES).toHaveLength(7);
+    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint', () => {
+      expect(BUILTIN_TEMPLATES).toHaveLength(8);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassive);
       expect(BUILTIN_TEMPLATES).toContain(ReconActive);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassiveDeep);
@@ -131,6 +132,7 @@ describe('builtin templates', () => {
       expect(BUILTIN_TEMPLATES).toContain(WebDeep);
       expect(BUILTIN_TEMPLATES).toContain(WebContent);
       expect(BUILTIN_TEMPLATES).toContain(OsintPassive);
+      expect(BUILTIN_TEMPLATES).toContain(WebFingerprint);
     });
 
     it('exposes unique template names', () => {
@@ -166,7 +168,8 @@ describe('builtin templates', () => {
       expect(registry.get('web-deep')).toBe(WebDeep);
       expect(registry.get('web-content')).toBe(WebContent);
       expect(registry.get('osint-passive')).toBe(OsintPassive);
-      expect(registry.list()).toHaveLength(7);
+      expect(registry.get('web-fingerprint')).toBe(WebFingerprint);
+      expect(registry.list()).toHaveLength(8);
 
       // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
       const moduleInstance = ref.get(TemplatesModule);

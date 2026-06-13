@@ -5,9 +5,19 @@ import { ReconPassive } from './recon-passive';
 import { ReconPassiveDeep } from './recon-passive-deep';
 import { WebContent } from './web-content';
 import { WebDeep } from './web-deep';
+import { WebFingerprint } from './web-fingerprint';
 import { WebQuick } from './web-quick';
 
-export { OsintPassive, ReconActive, ReconPassive, ReconPassiveDeep, WebContent, WebDeep, WebQuick };
+export {
+  OsintPassive,
+  ReconActive,
+  ReconPassive,
+  ReconPassiveDeep,
+  WebContent,
+  WebDeep,
+  WebFingerprint,
+  WebQuick,
+};
 
 /**
  * Source unique de vérité pour les templates intégrés. Consommée par
@@ -22,4 +32,5 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   WebDeep,
   WebContent,
   OsintPassive,
+  WebFingerprint,
 ];
