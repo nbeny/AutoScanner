@@ -11,5 +11,6 @@ export const OsintPassive: TemplateDefinition = {
   steps: [
     { scannerName: 'crtsh', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'whois', inputs: {}, target: { kind: 'context', path: 'target' } },
+    { scannerName: 'theharvester', inputs: {}, target: { kind: 'context', path: 'target' } },
   ],
 };
