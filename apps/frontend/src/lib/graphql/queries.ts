@@ -541,3 +541,20 @@ export const DELETE_API_CREDENTIAL = gql`
     deleteApiCredential(provider: $provider)
   }
 `;
+
+export const TLS_CERTIFICATES_QUERY = gql`
+  query EngagementTlsCertificates($engagementId: ID!) {
+    tlsCertificates(engagementId: $engagementId) {
+      id
+      host
+      subjectCn
+      issuerCn
+      notAfter
+      tlsVersion
+      selfSigned
+      expired
+      source
+      lastSeenAt
+    }
+  }
+`;
