@@ -1,0 +1,11 @@
+{
+  "results": [
+    {
+      "url": "https://example.com/admin",
+      "status": 200,
+      "length": 345,
+      "input": { "FUZZ": "admin" }
+    },
+    { "url": "https://example.com/login", "status": 301, "length": 0, "input": { "FUZZ": "login" } }
+  ]
+}

@@ -7,5 +7,6 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 docker build -t autoscanner/assetfinder:1.0 "$ROOT/docker/scanners/assetfinder"
 docker build -t autoscanner/puredns:1.0 "$ROOT/docker/scanners/puredns"
 docker build -t autoscanner/gau:1.0 "$ROOT/docker/scanners/gau"
+docker build -t autoscanner/ffuf:1.0 "$ROOT/docker/scanners/ffuf"
 
-echo "Built: autoscanner/assetfinder:1.0, autoscanner/puredns:1.0, autoscanner/gau:1.0"
+echo "Built: autoscanner/assetfinder:1.0, autoscanner/puredns:1.0, autoscanner/gau:1.0, autoscanner/ffuf:1.0"
