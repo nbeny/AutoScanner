@@ -6,6 +6,7 @@ import { NmapXmlParser } from './nmap-xml.parser';
 import { NucleiJsonParser } from './nuclei-json';
 import { ParserRegistry } from './registry';
 import { SubfinderJsonParser } from './subfinder-json';
+import { HostlinesTextParser } from './hostlines-text';
 
 @Global()
 @Module({
@@ -17,6 +18,7 @@ import { SubfinderJsonParser } from './subfinder-json';
     DnsxJsonParser,
     NaabuJsonParser,
     NucleiJsonParser,
+    HostlinesTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -26,6 +28,7 @@ import { SubfinderJsonParser } from './subfinder-json';
     DnsxJsonParser,
     NaabuJsonParser,
     NucleiJsonParser,
+    HostlinesTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -37,6 +40,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly dnsxJson: DnsxJsonParser,
     private readonly naabuJson: NaabuJsonParser,
     private readonly nucleiJson: NucleiJsonParser,
+    private readonly hostlinesText: HostlinesTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -46,5 +50,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.dnsxJson);
     this.registry.register(this.naabuJson);
     this.registry.register(this.nucleiJson);
+    this.registry.register(this.hostlinesText);
   }
 }

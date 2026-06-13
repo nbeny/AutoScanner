@@ -2,6 +2,7 @@ export * from './types';
 export * from './registry';
 export * from './nmap-xml.parser';
 export * from './subfinder-json';
+export * from './hostlines-text';
 export * from './httpx-json';
 export * from './dnsx-json';
 export * from './naabu-json';
