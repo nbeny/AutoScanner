@@ -1,4 +1,5 @@
 import type { TemplateDefinition } from '../types';
+import { OsintPassive } from './osint-passive';
 import { ReconActive } from './recon-active';
 import { ReconPassive } from './recon-passive';
 import { ReconPassiveDeep } from './recon-passive-deep';
@@ -6,7 +7,7 @@ import { WebContent } from './web-content';
 import { WebDeep } from './web-deep';
 import { WebQuick } from './web-quick';
 
-export { ReconActive, ReconPassive, ReconPassiveDeep, WebContent, WebDeep, WebQuick };
+export { OsintPassive, ReconActive, ReconPassive, ReconPassiveDeep, WebContent, WebDeep, WebQuick };
 
 /**
  * Source unique de vérité pour les templates intégrés. Consommée par
@@ -20,4 +21,5 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   WebQuick,
   WebDeep,
   WebContent,
+  OsintPassive,
 ];

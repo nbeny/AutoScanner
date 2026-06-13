@@ -21,6 +21,7 @@ import { EngagementsModule } from './engagements/engagements.module';
 import { FindingsModule } from './findings/findings.module';
 import { HealthModule } from './health/health.module';
 import { InsightModule } from './insight/insight.module';
+import { OsintModule } from './osint/osint.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { ReportsModule } from './reports/reports.module';
 import { ScansModule } from './scans/scans.module';
@@ -76,6 +77,7 @@ import { UsersModule } from './users/users.module';
     HealthModule,
     InsightModule,
     MetricsModule,
+    OsintModule,
     ReportsModule,
     ScansModule,
     TemplatesModule,

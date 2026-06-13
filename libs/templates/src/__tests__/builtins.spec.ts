@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import {
   BUILTIN_TEMPLATES,
+  OsintPassive,
   ReconActive,
   ReconPassive,
   ReconPassiveDeep,
@@ -121,14 +122,15 @@ describe('builtin templates', () => {
   });
 
   describe('BUILTIN_TEMPLATES', () => {
-    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content', () => {
-      expect(BUILTIN_TEMPLATES).toHaveLength(6);
+    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive', () => {
+      expect(BUILTIN_TEMPLATES).toHaveLength(7);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassive);
       expect(BUILTIN_TEMPLATES).toContain(ReconActive);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassiveDeep);
       expect(BUILTIN_TEMPLATES).toContain(WebQuick);
       expect(BUILTIN_TEMPLATES).toContain(WebDeep);
       expect(BUILTIN_TEMPLATES).toContain(WebContent);
+      expect(BUILTIN_TEMPLATES).toContain(OsintPassive);
     });
 
     it('exposes unique template names', () => {
@@ -163,7 +165,8 @@ describe('builtin templates', () => {
       expect(registry.get('web-quick')).toBe(WebQuick);
       expect(registry.get('web-deep')).toBe(WebDeep);
       expect(registry.get('web-content')).toBe(WebContent);
-      expect(registry.list()).toHaveLength(6);
+      expect(registry.get('osint-passive')).toBe(OsintPassive);
+      expect(registry.list()).toHaveLength(7);
 
       // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
       const moduleInstance = ref.get(TemplatesModule);
