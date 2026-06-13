@@ -10,7 +10,7 @@ describe('AllScannersModule', () => {
     await moduleRef.init();
 
     const registry = moduleRef.get(ScannerRegistry);
-    for (const name of ['nmap', 'subfinder', 'httpx', 'dnsx', 'naabu', 'nuclei']) {
+    for (const name of ['nmap', 'subfinder', 'httpx', 'dnsx', 'naabu', 'nuclei', 'findomain']) {
       expect(registry.has(name)).toBe(true);
     }
   });
