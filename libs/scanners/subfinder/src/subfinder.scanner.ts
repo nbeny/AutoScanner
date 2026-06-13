@@ -16,7 +16,7 @@ export const SubfinderScanner: ScannerDefinition<SubfinderInputType> = {
   description: 'Passive subdomain enumeration (ProjectDiscovery).',
   inputSchema: SubfinderInput,
   docker: {
-    image: 'projectdiscovery/subfinder:latest',
+    image: 'projectdiscovery/subfinder:v2.14.0',
     network: 'bridge',
     capabilities: [],
     readonlyRootfs: true,

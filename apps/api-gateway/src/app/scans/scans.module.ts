@@ -4,7 +4,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { LogStreamModule } from '@autoscanner/log-stream';
 import { QueueName, QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
-import { NmapScannerModule } from '@autoscanner/scanners-nmap';
+import { AllScannersModule } from '@autoscanner/scanners-all';
 
 import { AuthModule } from '../auth/auth.module';
 import { ScansController } from './scans.controller';
@@ -20,7 +20,7 @@ import './dto/scan-log-chunk.object';
     QueuesModule,
     LogStreamModule,
     ScannerSdkModule,
-    NmapScannerModule,
+    AllScannersModule,
     BullModule.registerQueue({ name: QueueName.SCAN_JOBS }),
   ],
   controllers: [ScansController],

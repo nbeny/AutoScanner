@@ -9,6 +9,7 @@ import { EngagementsListPage } from './features/engagements/engagements-list-pag
 import { ScanRunPage } from './features/scans/scan-run-page';
 import { TemplateRunPage } from './features/template-runs/template-run-page';
 import { AssetDetailPage } from './features/assets/asset-detail-page';
+import { SettingsPage } from './features/settings/settings-page';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session } = useAuth();
@@ -25,6 +26,9 @@ function TopBar() {
         <span className="font-semibold">AutoScanner</span>
         <Link to="/engagements" className="text-sm text-slate-300 hover:text-white">
           Engagements
+        </Link>
+        <Link to="/settings" className="text-sm text-slate-300 hover:text-white">
+          Settings
         </Link>
       </div>
       <div className="text-sm text-slate-400 flex items-center gap-3">
@@ -83,6 +87,14 @@ function AppShell() {
           element={
             <RequireAuth>
               <AssetDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <RequireAuth>
+              <SettingsPage />
             </RequireAuth>
           }
         />

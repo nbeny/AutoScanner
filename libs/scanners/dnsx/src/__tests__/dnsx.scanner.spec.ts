@@ -11,7 +11,7 @@ describe('DnsxScanner', () => {
   it('declares name, docker, outputs, produces per spec', () => {
     expect(DnsxScanner.name).toBe('dnsx');
     expect(DnsxScanner.displayName).toBe('dnsx');
-    expect(DnsxScanner.docker.image).toBe('projectdiscovery/dnsx:latest');
+    expect(DnsxScanner.docker.image).toBe('projectdiscovery/dnsx:v1.2.3');
     expect(DnsxScanner.docker.network).toBe('bridge');
     expect(DnsxScanner.docker.capabilities).toEqual([]);
     expect(DnsxScanner.docker.readonlyRootfs).toBe(true);

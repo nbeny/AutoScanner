@@ -1,0 +1,12 @@
+[
+  {
+    "target": "https://example.com/",
+    "http_status": 200,
+    "plugins": {
+      "nginx": { "version": ["1.25.3"] },
+      "jQuery": { "version": ["3.6.0"] },
+      "HTML5": {},
+      "Country": { "string": ["UNITED STATES"] }
+    }
+  }
+]

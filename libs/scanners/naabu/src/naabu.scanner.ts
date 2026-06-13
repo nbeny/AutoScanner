@@ -17,7 +17,7 @@ export const NaabuScanner: ScannerDefinition<NaabuInputType> = {
   description: 'Fast SYN/CONNECT port scanner (ProjectDiscovery).',
   inputSchema: NaabuInput,
   docker: {
-    image: 'projectdiscovery/naabu:latest',
+    image: 'projectdiscovery/naabu:v2.6.1',
     network: 'bridge',
     capabilities: [],
     readonlyRootfs: true,

@@ -11,15 +11,19 @@ import { StorageModule } from '@autoscanner/storage';
 
 import { authenticateWsConnection } from './auth/ws-auth';
 import { formatGraphqlError } from './graphql-error.formatter';
+import { ApiCredentialsModule } from './api-credentials/api-credentials.module';
 import { AssetsModule } from './assets/assets.module';
 import { AuthModule } from './auth/auth.module';
 import { DnsRecordsModule } from './dns-records/dns-records.module';
+import { EndpointsModule } from './endpoints/endpoints.module';
 import { EngagementEventsModule } from './engagement-events/engagement-events.module';
 import { EngagementsModule } from './engagements/engagements.module';
 import { FindingsModule } from './findings/findings.module';
 import { HealthModule } from './health/health.module';
 import { InsightModule } from './insight/insight.module';
+import { OsintModule } from './osint/osint.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { TlsModule } from './tls/tls.module';
 import { ReportsModule } from './reports/reports.module';
 import { ScansModule } from './scans/scans.module';
 import { TemplatesModule } from './templates/templates.module';
@@ -63,16 +67,20 @@ import { UsersModule } from './users/users.module';
         formatError: formatGraphqlError,
       }),
     }),
+    ApiCredentialsModule,
     AssetsModule,
     AuthModule,
     DnsRecordsModule,
+    EndpointsModule,
     EngagementEventsModule,
     EngagementsModule,
     FindingsModule,
     HealthModule,
     InsightModule,
     MetricsModule,
+    OsintModule,
     ReportsModule,
+    TlsModule,
     ScansModule,
     TemplatesModule,
     UsersModule,

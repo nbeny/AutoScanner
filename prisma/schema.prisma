@@ -33,6 +33,7 @@ model User {
   templateRunsCreated TemplateRun[]
   reportsCreated      Report[]
   schedulesCreated    Schedule[]
+  apiCredentials      ApiCredential[]
 
   @@index([deletedAt])
 }
@@ -80,16 +81,20 @@ model Engagement {
   updatedAt   DateTime         @updatedAt
   deletedAt   DateTime?
 
-  owner        User          @relation(fields: [ownerId], references: [id])
-  scopeRules   ScopeRule[]
-  assets       Asset[]
-  scans        Scan[]
-  domains      Domain[]
-  subdomains   Subdomain[]
-  ipAddresses  IpAddress[]
-  templateRuns TemplateRun[]
-  reports      Report[]
-  schedules    Schedule[]
+  owner           User              @relation(fields: [ownerId], references: [id])
+  scopeRules      ScopeRule[]
+  assets          Asset[]
+  scans           Scan[]
+  domains         Domain[]
+  subdomains      Subdomain[]
+  ipAddresses     IpAddress[]
+  templateRuns    TemplateRun[]
+  reports         Report[]
+  schedules       Schedule[]
+  endpoints       Endpoint[]
+  emails          Email[]
+  orgMetadata     OrgMetadata[]
+  tlsCertificates TlsCertificate[]
 
   @@index([ownerId])
   @@index([status])
@@ -387,11 +392,13 @@ model Subdomain {
   lastSeenAt     DateTime @default(now())
   metadata       Json?
 
-  engagement Engagement    @relation(fields: [engagementId], references: [id], onDelete: Cascade)
-  domain     Domain        @relation(fields: [domainId], references: [id], onDelete: Cascade)
-  dnsRecords DnsRecord[]
-  ips        SubdomainIp[]
-  asset      Asset?        @relation("AssetSubdomain")
+  engagement      Engagement       @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  domain          Domain           @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  dnsRecords      DnsRecord[]
+  ips             SubdomainIp[]
+  asset           Asset?           @relation("AssetSubdomain")
+  endpoints       Endpoint[]
+  tlsCertificates TlsCertificate[]
 
   @@unique([engagementId, canonicalValue])
   @@index([engagementId])
@@ -431,6 +438,90 @@ model SubdomainIp {
   ip        IpAddress @relation(fields: [ipAddressId], references: [id], onDelete: Cascade)
 
   @@id([subdomainId, ipAddressId])
+}
+
+model Endpoint {
+  id            String   @id @default(cuid())
+  engagementId  String
+  subdomainId   String?
+  url           String
+  canonicalUrl  String
+  method        String   @default("GET")
+  statusCode    Int?
+  contentLength Int?
+  source        String
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  metadata      Json?
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  subdomain  Subdomain? @relation(fields: [subdomainId], references: [id], onDelete: SetNull)
+
+  @@unique([engagementId, canonicalUrl, method])
+  @@index([engagementId])
+  @@index([subdomainId])
+}
+
+// OSINT MODELS (Phase 6.3)
+
+enum OrgMetadataKind {
+  WHOIS
+  ASN
+  ORG
+  NETBLOCK
+  OTHER
+}
+
+enum ApiProvider {
+  SHODAN
+  CENSYS
+}
+
+model Email {
+  id           String   @id @default(cuid())
+  engagementId String
+  address      String
+  source       String
+  firstSeenAt  DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+  metadata     Json?
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@unique([engagementId, address])
+  @@index([engagementId])
+}
+
+model OrgMetadata {
+  id           String          @id @default(cuid())
+  engagementId String
+  kind         OrgMetadataKind
+  data         Json
+  source       String
+  firstSeenAt  DateTime        @default(now())
+  lastSeenAt   DateTime        @default(now())
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@unique([engagementId, kind, source])
+  @@index([engagementId])
+}
+
+model ApiCredential {
+  id      String      @id @default(cuid())
+  ownerId String
+  provider ApiProvider
+  // AES-256-GCM SecretBox-sealed API key (keyed by MASTER_ENCRYPTION_KEY).
+  // Plaintext is never persisted, never returned via GraphQL, never logged;
+  // decrypted in-memory only by scan-worker to inject one env var at run time.
+  ciphertext Bytes
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, provider])
+  @@index([ownerId])
 }
 
 enum DnsRecordType {
@@ -635,4 +726,32 @@ model Schedule {
   @@index([engagementId])
   @@index([enabled, nextRunAt])
   @@index([deletedAt])
+}
+
+// FINGERPRINT / TLS (Phase 6.4)
+
+model TlsCertificate {
+  id                String    @id @default(cuid())
+  engagementId      String
+  subdomainId       String?
+  host              String
+  subjectCn         String?
+  subjectAn         String[]
+  issuerCn          String?
+  notBefore         DateTime?
+  notAfter          DateTime?
+  fingerprintSha256 String
+  tlsVersion        String?
+  selfSigned        Boolean   @default(false)
+  expired           Boolean   @default(false)
+  source            String
+  firstSeenAt       DateTime  @default(now())
+  lastSeenAt        DateTime  @default(now())
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  subdomain  Subdomain? @relation(fields: [subdomainId], references: [id], onDelete: SetNull)
+
+  @@unique([engagementId, fingerprintSha256, host])
+  @@index([engagementId])
+  @@index([subdomainId])
 }
