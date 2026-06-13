@@ -9,12 +9,16 @@ describe('OsintPassive', () => {
     expect(OsintPassive.name).toBe('osint-passive');
   });
 
-  it('has exactly 2 steps: crtsh then whois', () => {
-    expect(OsintPassive.steps).toHaveLength(2);
-    expect(OsintPassive.steps.map((s) => s.scannerName)).toEqual(['crtsh', 'whois']);
+  it('has exactly 3 steps: crtsh then whois then theharvester', () => {
+    expect(OsintPassive.steps).toHaveLength(3);
+    expect(OsintPassive.steps.map((s) => s.scannerName)).toEqual([
+      'crtsh',
+      'whois',
+      'theharvester',
+    ]);
   });
 
-  it('both steps target context path "target" with empty inputs', () => {
+  it('all steps target context path "target" with empty inputs', () => {
     for (const step of OsintPassive.steps) {
       expect(step.target).toEqual({ kind: 'context', path: 'target' });
       expect(step.inputs).toEqual({});

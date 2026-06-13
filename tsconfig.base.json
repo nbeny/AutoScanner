@@ -56,6 +56,7 @@
       "@autoscanner/scanners-ffuf": ["libs/scanners/ffuf/src/index.ts"],
       "@autoscanner/scanners-puredns": ["libs/scanners/puredns/src/index.ts"],
       "@autoscanner/scanners-shodan": ["libs/scanners/shodan/src/index.ts"],
+      "@autoscanner/scanners-theharvester": ["libs/scanners/theharvester/src/index.ts"],
       "@autoscanner/scanners-subfinder": ["libs/scanners/subfinder/src/index.ts"],
       "@autoscanner/scanners-tlsx": ["libs/scanners/tlsx/src/index.ts"],
       "@autoscanner/scanners-whatweb": ["libs/scanners/whatweb/src/index.ts"],

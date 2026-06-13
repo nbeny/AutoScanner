@@ -1,0 +1,22 @@
+{
+  "name": "scanners-theharvester",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/theharvester/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/theharvester"],
+      "options": {
+        "jestConfig": "libs/scanners/theharvester/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/theharvester/tsconfig.lib.json"
+      }
+    }
+  }
+}

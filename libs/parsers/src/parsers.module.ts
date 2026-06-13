@@ -15,6 +15,7 @@ import { UrllinesTextParser } from './urllines-text';
 import { WhoisTextParser } from './whois-text';
 import { TlsxJsonParser } from './tlsx-json';
 import { WhatwebJsonParser } from './whatweb-json';
+import { TheHarvesterTextParser } from './theharvester-text';
 
 @Global()
 @Module({
@@ -35,6 +36,7 @@ import { WhatwebJsonParser } from './whatweb-json';
     ShodanJsonParser,
     TlsxJsonParser,
     WhatwebJsonParser,
+    TheHarvesterTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -53,6 +55,7 @@ import { WhatwebJsonParser } from './whatweb-json';
     ShodanJsonParser,
     TlsxJsonParser,
     WhatwebJsonParser,
+    TheHarvesterTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -73,6 +76,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly shodanJson: ShodanJsonParser,
     private readonly tlsxJson: TlsxJsonParser,
     private readonly whatwebJson: WhatwebJsonParser,
+    private readonly theHarvesterText: TheHarvesterTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -91,5 +95,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.shodanJson);
     this.registry.register(this.tlsxJson);
     this.registry.register(this.whatwebJson);
+    this.registry.register(this.theHarvesterText);
   }
 }
