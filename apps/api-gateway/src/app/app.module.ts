@@ -11,6 +11,7 @@ import { StorageModule } from '@autoscanner/storage';
 
 import { authenticateWsConnection } from './auth/ws-auth';
 import { formatGraphqlError } from './graphql-error.formatter';
+import { ApiCredentialsModule } from './api-credentials/api-credentials.module';
 import { AssetsModule } from './assets/assets.module';
 import { AuthModule } from './auth/auth.module';
 import { DnsRecordsModule } from './dns-records/dns-records.module';
@@ -64,6 +65,7 @@ import { UsersModule } from './users/users.module';
         formatError: formatGraphqlError,
       }),
     }),
+    ApiCredentialsModule,
     AssetsModule,
     AuthModule,
     DnsRecordsModule,
