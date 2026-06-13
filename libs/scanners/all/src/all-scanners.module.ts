@@ -20,6 +20,7 @@ import { ShodanScannerModule } from '@autoscanner/scanners-shodan';
 import { TlsxScannerModule } from '@autoscanner/scanners-tlsx';
 import { WhatwebScannerModule } from '@autoscanner/scanners-whatweb';
 import { TheHarvesterScannerModule } from '@autoscanner/scanners-theharvester';
+import { SslscanScannerModule } from '@autoscanner/scanners-sslscan';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -50,6 +51,7 @@ const SCANNER_MODULES = [
   TlsxScannerModule,
   WhatwebScannerModule,
   TheHarvesterScannerModule,
+  SslscanScannerModule,
 ];
 
 @Module({

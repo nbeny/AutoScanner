@@ -13,5 +13,6 @@ docker build -t autoscanner/crtsh:1.0 "$ROOT/docker/scanners/crtsh"
 docker build -t autoscanner/shodan:1.0 "$ROOT/docker/scanners/shodan"
 docker build -t autoscanner/whatweb:1.0 "$ROOT/docker/scanners/whatweb"
 docker build -t autoscanner/theharvester:1.0 "$ROOT/docker/scanners/theharvester"
+docker build -t autoscanner/sslscan:1.0 "$ROOT/docker/scanners/sslscan"
 
-echo "Built: autoscanner/assetfinder:1.0, autoscanner/puredns:1.0, autoscanner/gau:1.0, autoscanner/ffuf:1.0, autoscanner/whois:1.0, autoscanner/crtsh:1.0, autoscanner/shodan:1.0, autoscanner/whatweb:1.0, autoscanner/theharvester:1.0"
+echo "Built: autoscanner/assetfinder:1.0, autoscanner/puredns:1.0, autoscanner/gau:1.0, autoscanner/ffuf:1.0, autoscanner/whois:1.0, autoscanner/crtsh:1.0, autoscanner/shodan:1.0, autoscanner/whatweb:1.0, autoscanner/theharvester:1.0, autoscanner/sslscan:1.0"
