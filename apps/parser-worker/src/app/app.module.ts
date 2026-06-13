@@ -19,6 +19,8 @@ import { ServicePersister } from './persisters/service-persister';
 import { SubdomainIpPersister } from './persisters/subdomain-ip-persister';
 import { TechnologyPersister } from './persisters/technology-persister';
 import { EndpointPersister } from './persisters/endpoint-persister';
+import { EmailPersister } from './persisters/email-persister';
+import { OrgMetadataPersister } from './persisters/org-metadata-persister';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { EndpointPersister } from './persisters/endpoint-persister';
     DnsRecordPersister,
     SubdomainIpPersister,
     EndpointPersister,
+    EmailPersister,
+    OrgMetadataPersister,
   ],
 })
 export class AppModule {}
