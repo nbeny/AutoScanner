@@ -8,5 +8,6 @@ docker build -t autoscanner/assetfinder:1.0 "$ROOT/docker/scanners/assetfinder"
 docker build -t autoscanner/puredns:1.0 "$ROOT/docker/scanners/puredns"
 docker build -t autoscanner/gau:1.0 "$ROOT/docker/scanners/gau"
 docker build -t autoscanner/ffuf:1.0 "$ROOT/docker/scanners/ffuf"
+docker build -t autoscanner/whois:1.0 "$ROOT/docker/scanners/whois"
 
-echo "Built: autoscanner/assetfinder:1.0, autoscanner/puredns:1.0, autoscanner/gau:1.0, autoscanner/ffuf:1.0"
+echo "Built: autoscanner/assetfinder:1.0, autoscanner/puredns:1.0, autoscanner/gau:1.0, autoscanner/ffuf:1.0, autoscanner/whois:1.0"
