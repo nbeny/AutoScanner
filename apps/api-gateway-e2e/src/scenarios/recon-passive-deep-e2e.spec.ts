@@ -58,6 +58,7 @@ describeOrSkipE2E(env)('Phase 6.1 — recon-passive-deep end-to-end', () => {
     'discovers subdomains from >=3 sources, merges them, and is idempotent',
     async () => {
       const firstRun = await runTemplate(gql, { engagementId, templateName, target });
+      expect(firstRun.id).toBeTruthy();
       const firstTerminal = await pollTemplateRun(gql, firstRun.id, templateTimeoutMs);
       expect(firstTerminal.status).toBe('COMPLETED');
 
@@ -73,6 +74,7 @@ describeOrSkipE2E(env)('Phase 6.1 — recon-passive-deep end-to-end', () => {
       expect(sourceSets.some((set) => set.length >= 2)).toBe(true);
 
       const secondRun = await runTemplate(gql, { engagementId, templateName, target });
+      expect(secondRun.id).toBeTruthy();
       expect(secondRun.id).not.toBe(firstRun.id);
       const secondTerminal = await pollTemplateRun(gql, secondRun.id, templateTimeoutMs);
       expect(secondTerminal.status).toBe('COMPLETED');
