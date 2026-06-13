@@ -57,7 +57,9 @@ export const SEVERITY_WEIGHT: Record<Severity, number> = {
 // If multiple CVSS versions are cached we use cvssV3Score (the primary score
 // returned by the CVE enricher); the caller resolves and passes a single Float.
 function clusterWeight(c: CorrelatedFindingInput): number {
-  return c.cvss !== null ? c.cvss : SEVERITY_WEIGHT[c.severity];
+  // `??` (not `!== null`) so a missing/undefined cvss also falls back to the
+  // severity weight rather than yielding NaN.
+  return c.cvss ?? SEVERITY_WEIGHT[c.severity];
 }
 
 // Statuses that indicate the finding is no longer actionable — exclude from
