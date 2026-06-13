@@ -50,7 +50,8 @@ export type ProducedEntity =
   | 'DnsRecord'
   | 'Endpoint'
   | 'Email'
-  | 'OrgMetadata';
+  | 'OrgMetadata'
+  | 'TlsCertificate';
 
 export interface BuildContext {
   scanJobId: string;
