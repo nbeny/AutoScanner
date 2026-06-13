@@ -87,6 +87,7 @@ export interface AssetDetail {
   kind: string;
   canonicalValue: string;
   observations: AssetObservation[];
+  scannerSources?: string[];
 }
 
 export interface CveInfo {

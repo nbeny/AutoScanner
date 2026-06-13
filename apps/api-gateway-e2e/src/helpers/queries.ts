@@ -228,3 +228,22 @@ export function totalPorts(assets: Asset[]): number {
 export function totalTechnologies(assets: Asset[]): number {
   return assets.reduce((sum, a) => sum + (a.technologies?.length ?? 0), 0);
 }
+
+/**
+ * Returns the distinct scanner names that observed a given asset
+ * (AssetDetail.scannerSources). Used to prove multi-source merge.
+ */
+export async function assetScannerSources(gql: GraphQLClient, assetId: string): Promise<string[]> {
+  const query = /* GraphQL */ `
+    query AssetSources($id: ID!) {
+      assetDetail(id: $id) {
+        id
+        scannerSources
+      }
+    }
+  `;
+  const data = await gql.request<{ assetDetail: { id: string; scannerSources: string[] } }>(query, {
+    id: assetId,
+  });
+  return data.assetDetail.scannerSources;
+}
