@@ -14,6 +14,7 @@ import { PurednsScannerModule } from '@autoscanner/scanners-puredns';
 import { KatanaScannerModule } from '@autoscanner/scanners-katana';
 import { GauScannerModule } from '@autoscanner/scanners-gau';
 import { FfufScannerModule } from '@autoscanner/scanners-ffuf';
+import { GobusterScannerModule } from '@autoscanner/scanners-gobuster';
 import { WhoisScannerModule } from '@autoscanner/scanners-whois';
 import { CrtshScannerModule } from '@autoscanner/scanners-crtsh';
 import { ShodanScannerModule } from '@autoscanner/scanners-shodan';
@@ -45,6 +46,7 @@ const SCANNER_MODULES = [
   KatanaScannerModule,
   GauScannerModule,
   FfufScannerModule,
+  GobusterScannerModule,
   WhoisScannerModule,
   CrtshScannerModule,
   ShodanScannerModule,

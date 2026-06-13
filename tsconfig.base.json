@@ -54,6 +54,7 @@
       "@autoscanner/scanners-whois": ["libs/scanners/whois/src/index.ts"],
       "@autoscanner/scanners-gau": ["libs/scanners/gau/src/index.ts"],
       "@autoscanner/scanners-ffuf": ["libs/scanners/ffuf/src/index.ts"],
+      "@autoscanner/scanners-gobuster": ["libs/scanners/gobuster/src/index.ts"],
       "@autoscanner/scanners-puredns": ["libs/scanners/puredns/src/index.ts"],
       "@autoscanner/scanners-shodan": ["libs/scanners/shodan/src/index.ts"],
       "@autoscanner/scanners-theharvester": ["libs/scanners/theharvester/src/index.ts"],

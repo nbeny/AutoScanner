@@ -24,6 +24,7 @@ describe('AllScannersModule', () => {
       'katana',
       'gau',
       'ffuf',
+      'gobuster',
       'whois',
       'crtsh',
       'shodan',

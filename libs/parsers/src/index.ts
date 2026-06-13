@@ -17,4 +17,5 @@ export * from './tlsx-json';
 export * from './whatweb-json';
 export * from './theharvester-text';
 export * from './sslscan-text';
+export * from './gobuster-text';
 export * from './parsers.module';
