@@ -83,6 +83,75 @@ pnpm nx e2e api-gateway-e2e
 
 Without those env vars the suite skips, so CI stays green when no live stack is available.
 
+## Correlation v2
+
+Cross-scanner correlated findings group the same issue reported by multiple scanners into a single **CorrelatedFinding** with _N_ source references. A deterministic **structural signature** (CVE id → curated category → per-scanner title fallback) ensures that `nuclei`, `nmap` script output, and any future scanner that detects the same vulnerability converge on one row instead of cluttering the findings list with duplicates.
+
+### Triage statuses
+
+| Status           | Meaning                           |
+| ---------------- | --------------------------------- |
+| `OPEN`           | Detected, not yet reviewed        |
+| `TRIAGED`        | Acknowledged, under investigation |
+| `CONFIRMED`      | Confirmed exploitable / in scope  |
+| `FALSE_POSITIVE` | Noise; excluded from risk score   |
+| `RESOLVED`       | Remediated or accepted            |
+
+### Risk score v2
+
+- Each distinct structural signature is counted **once** — duplicates across scanners do not inflate the score.
+- CVSS v3 base score is pulled from the CVE cache (`cveInfo` resolver) when a `cveId` is present; falls back to a severity-to-score mapping for findings without a CVE.
+- Findings in `FALSE_POSITIVE` or `RESOLVED` status are **excluded** from the score.
+
+### GraphQL surface
+
+```graphql
+# List correlated findings for an engagement (paginated; optional severity /
+# status / search filters).
+query {
+  correlatedFindings(
+    engagementId: "eng_…"
+    severity: HIGH # optional
+    status: OPEN # optional
+    search: "XSS" # optional full-text
+    limit: 100 # default 100
+    offset: 0 # default 0
+  ) {
+    id
+    title
+    severity # LOW | MEDIUM | HIGH | CRITICAL | INFORMATIONAL
+    status # OPEN | TRIAGED | CONFIRMED | FALSE_POSITIVE | RESOLVED
+    sourceCount # how many scanner findings were merged
+    sources # scanner names, e.g. ["nuclei", "nmap"]
+    cveId # nullable — populated when a CVE was matched
+    firstSeenAt
+    lastSeenAt
+  }
+}
+
+# Triage a finding.
+mutation {
+  setFindingStatus(id: "cf_…", status: FALSE_POSITIVE) {
+    id
+    status
+  }
+}
+```
+
+### Automated acceptance (opt-in)
+
+`apps/api-gateway-e2e/src/scenarios/correlation-v2-e2e.spec.ts` validates the resolver end-to-end. It is double opt-in:
+
+```bash
+E2E_API_URL=http://localhost:4000 \
+E2E_EMAIL=admin@autoscanner.local \
+E2E_PASSWORD=changeme \
+E2E_RUN_CORRELATION=1 \
+pnpm nx e2e api-gateway-e2e
+```
+
+Add `E2E_CORR_ENGAGEMENT_ID=<id>` to target a pre-populated engagement and `E2E_CORRELATION_EXPECT_CLUSTER=1` to additionally assert ≥ 1 multi-source cluster and exercise the triage round-trip (`setFindingStatus` → `FALSE_POSITIVE` → restore `OPEN`). Without these flags the suite resolves the query and confirms the resolver is wired, even against a fresh empty engagement.
+
 ## Routes
 
 | Verb   | Path                              | Notes                                                                                                   |
