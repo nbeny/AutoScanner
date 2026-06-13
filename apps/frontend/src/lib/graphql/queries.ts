@@ -497,3 +497,47 @@ export const ENDPOINTS_QUERY = gql`
     }
   }
 `;
+
+export const EMAILS_QUERY = gql`
+  query Emails($engagementId: ID!) {
+    emails(engagementId: $engagementId) {
+      id
+      address
+      source
+      lastSeenAt
+    }
+  }
+`;
+
+export const ORG_METADATA_QUERY = gql`
+  query OrgMetadata($engagementId: ID!) {
+    orgMetadata(engagementId: $engagementId) {
+      id
+      kind
+      source
+      data
+      lastSeenAt
+    }
+  }
+`;
+
+export const API_CREDENTIALS_QUERY = gql`
+  query ApiCredentials {
+    apiCredentials {
+      provider
+      createdAt
+    }
+  }
+`;
+
+export const SET_API_CREDENTIAL = gql`
+  mutation SetApiCredential($provider: ApiProvider!, $secret: String!) {
+    setApiCredential(provider: $provider, secret: $secret)
+  }
+`;
+
+export const DELETE_API_CREDENTIAL = gql`
+  mutation DeleteApiCredential($provider: ApiProvider!) {
+    deleteApiCredential(provider: $provider)
+  }
+`;
