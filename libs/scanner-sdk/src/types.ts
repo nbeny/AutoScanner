@@ -47,7 +47,8 @@ export type ProducedEntity =
   | 'Technology'
   | 'Finding'
   | 'Credential'
-  | 'DnsRecord';
+  | 'DnsRecord'
+  | 'Endpoint';
 
 export interface BuildContext {
   scanJobId: string;

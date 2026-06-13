@@ -48,6 +48,7 @@
       "@autoscanner/scanners-nuclei": ["libs/scanners/nuclei/src/index.ts"],
       "@autoscanner/scanners-amass": ["libs/scanners/amass/src/index.ts"],
       "@autoscanner/scanners-findomain": ["libs/scanners/findomain/src/index.ts"],
+      "@autoscanner/scanners-katana": ["libs/scanners/katana/src/index.ts"],
       "@autoscanner/scanners-assetfinder": ["libs/scanners/assetfinder/src/index.ts"],
       "@autoscanner/scanners-puredns": ["libs/scanners/puredns/src/index.ts"],
       "@autoscanner/scanners-subfinder": ["libs/scanners/subfinder/src/index.ts"],
