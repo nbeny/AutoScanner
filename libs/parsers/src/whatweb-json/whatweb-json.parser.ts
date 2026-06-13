@@ -3,19 +3,19 @@ import type { RawOutputFormat } from '@autoscanner/scanner-sdk';
 import type { NormalizedOutput, Parser, ParserContext } from '../types';
 import { emptyNormalizedOutput } from '../types';
 
-interface WhatwwebPlugin {
+interface WhatwebPlugin {
   version?: string[];
   string?: string[];
 }
 
-interface WhatwwebEntry {
+interface WhatwebEntry {
   target?: string;
   http_status?: number;
-  plugins?: Record<string, WhatwwebPlugin>;
+  plugins?: Record<string, WhatwebPlugin>;
 }
 
 @Injectable()
-export class WhatwwebJsonParser implements Parser {
+export class WhatwebJsonParser implements Parser {
   readonly name = 'whatweb-json';
   readonly formats: RawOutputFormat[] = ['JSON'];
 
@@ -23,9 +23,9 @@ export class WhatwwebJsonParser implements Parser {
     const out = emptyNormalizedOutput();
     const text = typeof input === 'string' ? input : input.toString('utf8');
 
-    let entries: WhatwwebEntry[];
+    let entries: WhatwebEntry[];
     try {
-      entries = JSON.parse(text) as WhatwwebEntry[];
+      entries = JSON.parse(text) as WhatwebEntry[];
     } catch {
       return out;
     }
