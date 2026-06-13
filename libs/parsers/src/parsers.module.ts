@@ -18,6 +18,7 @@ import { WhatwebJsonParser } from './whatweb-json';
 import { TheHarvesterTextParser } from './theharvester-text';
 import { SslscanTextParser } from './sslscan-text';
 import { GobusterTextParser } from './gobuster-text';
+import { CensysJsonParser } from './censys-json';
 
 @Global()
 @Module({
@@ -41,6 +42,7 @@ import { GobusterTextParser } from './gobuster-text';
     TheHarvesterTextParser,
     SslscanTextParser,
     GobusterTextParser,
+    CensysJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -62,6 +64,7 @@ import { GobusterTextParser } from './gobuster-text';
     TheHarvesterTextParser,
     SslscanTextParser,
     GobusterTextParser,
+    CensysJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -85,6 +88,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly theHarvesterText: TheHarvesterTextParser,
     private readonly sslscanText: SslscanTextParser,
     private readonly gobusterText: GobusterTextParser,
+    private readonly censysJson: CensysJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -106,5 +110,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.theHarvesterText);
     this.registry.register(this.sslscanText);
     this.registry.register(this.gobusterText);
+    this.registry.register(this.censysJson);
   }
 }
