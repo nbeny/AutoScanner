@@ -8,4 +8,5 @@ export * from './dnsx-json';
 export * from './naabu-json';
 export * from './nuclei-json';
 export * from './katana-json';
+export * from './urllines-text';
 export * from './parsers.module';

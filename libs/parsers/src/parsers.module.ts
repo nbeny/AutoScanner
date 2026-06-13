@@ -8,6 +8,7 @@ import { NucleiJsonParser } from './nuclei-json';
 import { ParserRegistry } from './registry';
 import { SubfinderJsonParser } from './subfinder-json';
 import { HostlinesTextParser } from './hostlines-text';
+import { UrllinesTextParser } from './urllines-text';
 
 @Global()
 @Module({
@@ -21,6 +22,7 @@ import { HostlinesTextParser } from './hostlines-text';
     NucleiJsonParser,
     HostlinesTextParser,
     KatanaJsonParser,
+    UrllinesTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -32,6 +34,7 @@ import { HostlinesTextParser } from './hostlines-text';
     NucleiJsonParser,
     HostlinesTextParser,
     KatanaJsonParser,
+    UrllinesTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -45,6 +48,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly nucleiJson: NucleiJsonParser,
     private readonly hostlinesText: HostlinesTextParser,
     private readonly katanaJson: KatanaJsonParser,
+    private readonly urllinesText: UrllinesTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -56,5 +60,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.nucleiJson);
     this.registry.register(this.hostlinesText);
     this.registry.register(this.katanaJson);
+    this.registry.register(this.urllinesText);
   }
 }
