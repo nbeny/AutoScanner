@@ -1,0 +1,22 @@
+{
+  "name": "scanners-crtsh",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/crtsh/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/crtsh"],
+      "options": {
+        "jestConfig": "libs/scanners/crtsh/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/crtsh/tsconfig.lib.json"
+      }
+    }
+  }
+}

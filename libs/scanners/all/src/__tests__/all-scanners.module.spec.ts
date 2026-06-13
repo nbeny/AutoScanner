@@ -25,6 +25,7 @@ describe('AllScannersModule', () => {
       'gau',
       'ffuf',
       'whois',
+      'crtsh',
     ]) {
       expect(registry.has(name)).toBe(true);
     }
