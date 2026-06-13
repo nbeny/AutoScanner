@@ -14,7 +14,7 @@ export const KatanaScanner: ScannerDefinition<KatanaInputType> = {
   description: 'Web crawler / endpoint discovery (ProjectDiscovery katana).',
   inputSchema: KatanaInput,
   docker: {
-    image: 'projectdiscovery/katana:latest',
+    image: 'projectdiscovery/katana:v1.6.1',
     network: 'bridge',
     capabilities: [],
     readonlyRootfs: true,

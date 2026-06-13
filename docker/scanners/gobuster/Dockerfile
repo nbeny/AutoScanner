@@ -1,7 +1,7 @@
 # gobuster directory brute-forcer.
 FROM golang:1.22-alpine AS build
 RUN apk add --no-cache git \
- && go install github.com/OJ/gobuster/v3@latest
+ && go install github.com/OJ/gobuster/v3@v3.8.2
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates \

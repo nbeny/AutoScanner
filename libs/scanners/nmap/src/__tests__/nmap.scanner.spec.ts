@@ -10,7 +10,7 @@ const ctx: BuildContext = {
 describe('NmapScanner', () => {
   it('declares name, docker, outputs, produces per spec', () => {
     expect(NmapScanner.name).toBe('nmap');
-    expect(NmapScanner.docker.image).toBe('instrumentisto/nmap:latest');
+    expect(NmapScanner.docker.image).toBe('instrumentisto/nmap:7.98-r2');
     expect(NmapScanner.docker.network).toBe('host');
     expect(NmapScanner.docker.capabilities).toEqual(['NET_RAW', 'NET_ADMIN', 'NET_BIND_SERVICE']);
     expect(NmapScanner.outputs[0]).toEqual({

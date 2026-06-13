@@ -12,7 +12,7 @@ describe('NucleiScanner', () => {
     expect(NucleiScanner.name).toBe('nuclei');
     expect(NucleiScanner.displayName).toBe('nuclei');
     expect(NucleiScanner.category).toContain(ScannerCategory.VULN_SCAN);
-    expect(NucleiScanner.docker.image).toBe('projectdiscovery/nuclei:latest');
+    expect(NucleiScanner.docker.image).toBe('projectdiscovery/nuclei:v3.9.0');
     expect(NucleiScanner.docker.network).toBe('bridge');
     expect(NucleiScanner.docker.capabilities).toEqual([]);
     expect(NucleiScanner.docker.readonlyRootfs).toBe(true);

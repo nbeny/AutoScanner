@@ -11,7 +11,7 @@ describe('TlsxScanner', () => {
   it('declares name, displayName, image, outputs, produces per spec', () => {
     expect(TlsxScanner.name).toBe('tlsx');
     expect(TlsxScanner.displayName).toBe('tlsx');
-    expect(TlsxScanner.docker.image).toBe('projectdiscovery/tlsx:latest');
+    expect(TlsxScanner.docker.image).toBe('projectdiscovery/tlsx:v1.2.2');
     expect(TlsxScanner.docker.network).toBe('bridge');
     expect(TlsxScanner.docker.capabilities).toEqual([]);
     expect(TlsxScanner.docker.readonlyRootfs).toBe(true);

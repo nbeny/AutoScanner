@@ -1,8 +1,6 @@
 # Builds a minimal image carrying the assetfinder binary.
 FROM golang:1.22-alpine AS build
-# assetfinder publishes no semver/module tags (master-only), so @latest is the
-# only option. The built image is pinned downstream as autoscanner/assetfinder:1.0;
-# rebuild that tag deliberately to pick up upstream changes.
+# assetfinder has no upstream release tags; @latest is the only option (pin the built image tag instead).
 RUN apk add --no-cache git \
  && go install github.com/tomnomnom/assetfinder@latest
 

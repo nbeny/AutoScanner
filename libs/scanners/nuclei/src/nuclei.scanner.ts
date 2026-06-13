@@ -32,7 +32,7 @@ export const NucleiScanner: ScannerDefinition<NucleiInputType> = {
     'Template-driven vulnerability scanner (ProjectDiscovery). Emits NormalizedFinding rows.',
   inputSchema: NucleiInput,
   docker: {
-    image: 'projectdiscovery/nuclei:latest',
+    image: 'projectdiscovery/nuclei:v3.9.0',
     network: 'bridge',
     capabilities: [],
     readonlyRootfs: true,
