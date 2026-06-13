@@ -498,6 +498,21 @@ export const ENDPOINTS_QUERY = gql`
   }
 `;
 
+export const CORRELATED_FINDINGS_QUERY = gql`
+  query EngagementCorrelatedFindings($engagementId: ID!) {
+    correlatedFindings(engagementId: $engagementId) {
+      id
+      title
+      severity
+      cveId
+      status
+      sourceCount
+      sources
+      lastSeenAt
+    }
+  }
+`;
+
 export const EMAILS_QUERY = gql`
   query Emails($engagementId: ID!) {
     emails(engagementId: $engagementId) {
@@ -555,6 +570,15 @@ export const TLS_CERTIFICATES_QUERY = gql`
       expired
       source
       lastSeenAt
+    }
+  }
+`;
+
+export const SET_FINDING_STATUS = gql`
+  mutation SetFindingStatus($id: ID!, $status: FindingStatus!) {
+    setFindingStatus(id: $id, status: $status) {
+      id
+      status
     }
   }
 `;

@@ -18,6 +18,7 @@ import {
 
 import {
   AssetMergeService,
+  CorrelateFindingsService,
   canonicalize,
   recomputeRiskScoreForAsset,
   writeObservation,
@@ -49,6 +50,7 @@ export interface ParseJobResult {
   emailsPersisted: number;
   orgMetadataPersisted: number;
   tlsCertificatesPersisted: number;
+  correlatedFindings: number;
 }
 
 @Processor(QueueName.PARSE_JOBS, { concurrency: 4 })
@@ -59,6 +61,7 @@ export class ParseJobProcessor extends WorkerHost {
     private readonly registry: ParserRegistry,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly assetMerge: AssetMergeService,
+    private readonly correlateFindings: CorrelateFindingsService,
     private readonly assetPersister: AssetPersister,
     private readonly portPersister: PortPersister,
     private readonly servicePersister: ServicePersister,
@@ -129,9 +132,6 @@ export class ParseJobProcessor extends WorkerHost {
     );
 
     const result = await this.persist(payload, output);
-    this.logger.log(
-      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted} endpoints=${result.endpointsPersisted} emails=${result.emailsPersisted} orgMetadata=${result.orgMetadataPersisted} tlsCertificates=${result.tlsCertificatesPersisted}`,
-    );
 
     await this.warnIfObservationVolumeExceeded(payload.scanJobId);
 
@@ -164,7 +164,28 @@ export class ParseJobProcessor extends WorkerHost {
       this.assetMerge.dedupFindings(payload.engagementId),
     );
 
-    return result;
+    // Correlation v2: structural-hash clustering. Groups findings by CVE /
+    // category / raw-scanner bucket across scanner sources and upserts
+    // CorrelatedFinding clusters. Best-effort — parse job reports success
+    // even if this pass fails.
+    let correlatedFindings = 0;
+    await this.runCorrelatePass(payload.engagementId, (n) => {
+      correlatedFindings = n;
+    });
+
+    // Risk-score v2: recompute risk for all assets in the engagement that have
+    // findings, AFTER the correlate pass, so computeRiskScore sees the updated
+    // CorrelatedFinding clusters (count-once + CVSS). The per-persist calls
+    // above keep port/service bonuses up-to-date during ingestion; this pass
+    // finalises the cluster-based contribution. Best-effort — parse job reports
+    // success even if this pass fails.
+    await this.runRiskRecomputePass(payload.engagementId);
+
+    const finalResult = { ...result, correlatedFindings };
+    this.logger.log(
+      `parseJob scanJob=${payload.scanJobId} assets=${finalResult.assetsPersisted} ports=${finalResult.portsPersisted} services=${finalResult.servicesPersisted} findings=${finalResult.findingsPersisted} technologies=${finalResult.technologiesPersisted} ipAddresses=${finalResult.ipAddressesPersisted} dnsRecords=${finalResult.dnsRecordsPersisted} subdomainIps=${finalResult.subdomainIpsPersisted} endpoints=${finalResult.endpointsPersisted} emails=${finalResult.emailsPersisted} orgMetadata=${finalResult.orgMetadataPersisted} tlsCertificates=${finalResult.tlsCertificatesPersisted} correlatedFindings=${finalResult.correlatedFindings}`,
+    );
+    return finalResult;
   }
 
   /**
@@ -181,6 +202,75 @@ export class ParseJobProcessor extends WorkerHost {
     } catch (err) {
       this.logger.warn(
         `correlation pass (${kind}) failed: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+    }
+  }
+
+  /**
+   * Run the structural-hash clustering pass (correlation v2). Logs
+   * `correlated N clusters` on success; on failure logs a warn but never
+   * throws — the ParseJob has already succeeded by the time we get here.
+   */
+  private async runCorrelatePass(
+    engagementId: string,
+    onSuccess: (clusters: number) => void,
+  ): Promise<void> {
+    try {
+      const { clusters } = await this.correlateFindings.correlateFindings(engagementId);
+      if (clusters > 0) {
+        this.logger.log(`correlated ${clusters} clusters`);
+      }
+      onSuccess(clusters);
+    } catch (err) {
+      this.logger.warn(
+        `correlation pass (correlate findings) failed: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+    }
+  }
+
+  /**
+   * Recompute risk scores for all assets in the engagement that have findings,
+   * AFTER the correlate pass has run.  This ensures riskScore reflects the v2
+   * formula (count-once over CorrelatedFinding clusters + CVSS) rather than
+   * the interim per-persist values written during ingestion.
+   *
+   * Each asset is recomputed in its own retried transaction so one conflict
+   * does not abort the whole pass.  Best-effort: failures are logged as
+   * warnings and do NOT fail the parse job.
+   */
+  private async runRiskRecomputePass(engagementId: string): Promise<void> {
+    try {
+      // Find all distinct assets that have at least one finding in this
+      // engagement.  We use the findings table rather than correlatedFindings
+      // because an asset may have findings that haven't been clustered yet (e.g.
+      // if the correlate pass failed) and we still want to recompute them.
+      const assetRows = await this.prisma.finding.findMany({
+        where: { asset: { engagementId } },
+        select: { assetId: true },
+        distinct: ['assetId'],
+      });
+      const assetIds = assetRows.map((r) => r.assetId);
+
+      for (const assetId of assetIds) {
+        try {
+          await this.withRetryOnSerializationConflict(() =>
+            this.prisma.$transaction(async (tx) => {
+              await recomputeRiskScoreForAsset(tx, assetId);
+            }),
+          );
+          this.publish(engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, { assetId });
+        } catch (err) {
+          this.logger.warn(
+            `risk recompute failed for asset ${assetId}: ${err instanceof Error ? err.message : String(err)}`,
+            err instanceof Error ? err.stack : undefined,
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `risk recompute pass failed: ${err instanceof Error ? err.message : String(err)}`,
         err instanceof Error ? err.stack : undefined,
       );
     }
@@ -223,7 +313,10 @@ export class ParseJobProcessor extends WorkerHost {
     return streamToBuffer(obj.body, MAX_RAW_OUTPUT_BYTES);
   }
 
-  private async persist(payload: ParseJobPayload, out: NormalizedOutput): Promise<ParseJobResult> {
+  private async persist(
+    payload: ParseJobPayload,
+    out: NormalizedOutput,
+  ): Promise<Omit<ParseJobResult, 'correlatedFindings'>> {
     // assetIdByValue maps lowercased asset value → Asset.id for all asset types.
     // Both AssetPersister (non-IP) and IpAddressPersister (IP) contribute to this map,
     // so that port/service/technology persisters can resolve any asset value to an Asset id.
