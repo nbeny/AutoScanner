@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { EngagementAssetsTab, ScoredAssetsPanel } from './engagement-assets-tab';
 import { FindingsTable } from '../findings/findings-table';
+import { CorrelatedFindingsView } from '../findings/correlated-findings-view';
 import { EngagementSynthesisPage } from './synthesis/engagement-synthesis-page';
 import { useEngagementUpdates } from './use-engagement-updates';
 
@@ -12,7 +13,8 @@ type TabKey =
   | 'subdomains'
   | 'ips'
   | 'technologies'
-  | 'findings';
+  | 'findings'
+  | 'correlated';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
@@ -22,6 +24,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'ips', label: 'IPs' },
   { key: 'technologies', label: 'Technologies' },
   { key: 'findings', label: 'Findings' },
+  { key: 'correlated', label: 'Correlated' },
 ];
 
 export function EngagementPage() {
@@ -75,6 +78,7 @@ export function EngagementPage() {
           <EngagementAssetsTab engagementId={engagementId} kind="TECHNOLOGY" />
         ) : null}
         {tab === 'findings' ? <FindingsTable engagementId={engagementId} /> : null}
+        {tab === 'correlated' ? <CorrelatedFindingsView engagementId={engagementId} /> : null}
       </section>
     </div>
   );

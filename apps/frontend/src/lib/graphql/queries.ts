@@ -483,3 +483,27 @@ export const GENERATE_REPORT_MUTATION = gql`
     }
   }
 `;
+
+export const CORRELATED_FINDINGS_QUERY = gql`
+  query EngagementCorrelatedFindings($engagementId: ID!) {
+    correlatedFindings(engagementId: $engagementId) {
+      id
+      title
+      severity
+      cveId
+      status
+      sourceCount
+      sources
+      lastSeenAt
+    }
+  }
+`;
+
+export const SET_FINDING_STATUS = gql`
+  mutation SetFindingStatus($id: ID!, $status: FindingStatus!) {
+    setFindingStatus(id: $id, status: $status) {
+      id
+      status
+    }
+  }
+`;
