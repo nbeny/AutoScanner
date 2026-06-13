@@ -28,6 +28,7 @@ import { PortPersister } from '../persisters/port-persister';
 import { ServicePersister } from '../persisters/service-persister';
 import { SubdomainIpPersister } from '../persisters/subdomain-ip-persister';
 import { TechnologyPersister } from '../persisters/technology-persister';
+import { EndpointPersister } from '../persisters/endpoint-persister';
 
 const NMAP_XML = `<?xml version="1.0"?>
 <nmaprun>
@@ -133,6 +134,9 @@ describe('ParseJobProcessor', () => {
         upsert: jest.fn().mockResolvedValue({}),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
+      endpoint: {
+        upsert: jest.fn().mockResolvedValue({ id: 'endpoint_mock' }),
+      },
       assetObservation: {
         create: jest.fn().mockResolvedValue({ id: 'obs_mock' }),
         count: jest.fn().mockResolvedValue(0),
@@ -187,6 +191,7 @@ describe('ParseJobProcessor', () => {
       new IpAddressPersister(prisma),
       new DnsRecordPersister(prisma),
       new SubdomainIpPersister(prisma),
+      new EndpointPersister(prisma),
       prisma,
       cveQueueMock as unknown as Queue<CveEnrichmentPayload>,
       eventsMock,
@@ -273,6 +278,7 @@ describe('ParseJobProcessor', () => {
       ipAddressesPersisted: 1,
       dnsRecordsPersisted: 0,
       subdomainIpsPersisted: 0,
+      endpointsPersisted: 0,
     });
   });
 

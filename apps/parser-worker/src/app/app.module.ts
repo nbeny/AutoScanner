@@ -18,6 +18,7 @@ import { PortPersister } from './persisters/port-persister';
 import { ServicePersister } from './persisters/service-persister';
 import { SubdomainIpPersister } from './persisters/subdomain-ip-persister';
 import { TechnologyPersister } from './persisters/technology-persister';
+import { EndpointPersister } from './persisters/endpoint-persister';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { TechnologyPersister } from './persisters/technology-persister';
     IpAddressPersister,
     DnsRecordPersister,
     SubdomainIpPersister,
+    EndpointPersister,
   ],
 })
 export class AppModule {}

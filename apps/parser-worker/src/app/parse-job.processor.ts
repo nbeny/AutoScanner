@@ -31,6 +31,7 @@ import { PortPersister } from './persisters/port-persister';
 import { ServicePersister } from './persisters/service-persister';
 import { SubdomainIpPersister } from './persisters/subdomain-ip-persister';
 import { TechnologyPersister } from './persisters/technology-persister';
+import { EndpointPersister } from './persisters/endpoint-persister';
 
 export interface ParseJobResult {
   assetsPersisted: number;
@@ -41,6 +42,7 @@ export interface ParseJobResult {
   ipAddressesPersisted: number;
   dnsRecordsPersisted: number;
   subdomainIpsPersisted: number;
+  endpointsPersisted: number;
 }
 
 @Processor(QueueName.PARSE_JOBS, { concurrency: 4 })
@@ -59,6 +61,7 @@ export class ParseJobProcessor extends WorkerHost {
     private readonly ipAddressPersister: IpAddressPersister,
     private readonly dnsRecordPersister: DnsRecordPersister,
     private readonly subdomainIpPersister: SubdomainIpPersister,
+    private readonly endpointPersister: EndpointPersister,
     private readonly prisma: PrismaService,
     @InjectQueue(QueueName.CVE_ENRICHMENT) private readonly cveQueue: Queue<CveEnrichmentPayload>,
     @Inject(ENGAGEMENT_EVENTS_PUBLISHER)
@@ -118,7 +121,7 @@ export class ParseJobProcessor extends WorkerHost {
 
     const result = await this.persist(payload, output);
     this.logger.log(
-      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted}`,
+      `parseJob scanJob=${payload.scanJobId} assets=${result.assetsPersisted} ports=${result.portsPersisted} services=${result.servicesPersisted} findings=${result.findingsPersisted} technologies=${result.technologiesPersisted} ipAddresses=${result.ipAddressesPersisted} dnsRecords=${result.dnsRecordsPersisted} subdomainIps=${result.subdomainIpsPersisted} endpoints=${result.endpointsPersisted}`,
     );
 
     await this.warnIfObservationVolumeExceeded(payload.scanJobId);
@@ -539,6 +542,26 @@ export class ParseJobProcessor extends WorkerHost {
       subdomainIpsPersisted++;
     }
 
+    // Endpoints: persisted after subdomain/IP rows exist so that host-linking
+    // (subdomainId resolution inside EndpointPersister) finds the Subdomain row.
+    let endpointsPersisted = 0;
+    if (out.endpoints?.length > 0) {
+      endpointsPersisted = await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction(async (tx) => {
+          return this.endpointPersister.upsert(
+            out.endpoints,
+            {
+              scanJobId: payload.scanJobId,
+              scannerName: payload.scannerName,
+              target: payload.target,
+              engagementId: payload.engagementId,
+            },
+            tx,
+          );
+        }),
+      );
+    }
+
     return {
       assetsPersisted,
       portsPersisted,
@@ -548,6 +571,7 @@ export class ParseJobProcessor extends WorkerHost {
       ipAddressesPersisted,
       dnsRecordsPersisted,
       subdomainIpsPersisted,
+      endpointsPersisted,
     };
   }
 }
