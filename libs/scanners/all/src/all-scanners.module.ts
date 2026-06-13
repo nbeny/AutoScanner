@@ -11,6 +11,7 @@ import { FindomainScannerModule } from '@autoscanner/scanners-findomain';
 import { AmassScannerModule } from '@autoscanner/scanners-amass';
 import { AssetfinderScannerModule } from '@autoscanner/scanners-assetfinder';
 import { PurednsScannerModule } from '@autoscanner/scanners-puredns';
+import { KatanaScannerModule } from '@autoscanner/scanners-katana';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -32,6 +33,7 @@ const SCANNER_MODULES = [
   AmassScannerModule,
   AssetfinderScannerModule,
   PurednsScannerModule,
+  KatanaScannerModule,
 ];
 
 @Module({

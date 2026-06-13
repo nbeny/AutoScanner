@@ -1,6 +1,7 @@
 import { Global, Module, type OnModuleInit } from '@nestjs/common';
 import { DnsxJsonParser } from './dnsx-json';
 import { HttpxJsonParser } from './httpx-json';
+import { KatanaJsonParser } from './katana-json';
 import { NaabuJsonParser } from './naabu-json';
 import { NmapXmlParser } from './nmap-xml.parser';
 import { NucleiJsonParser } from './nuclei-json';
@@ -19,6 +20,7 @@ import { HostlinesTextParser } from './hostlines-text';
     NaabuJsonParser,
     NucleiJsonParser,
     HostlinesTextParser,
+    KatanaJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -29,6 +31,7 @@ import { HostlinesTextParser } from './hostlines-text';
     NaabuJsonParser,
     NucleiJsonParser,
     HostlinesTextParser,
+    KatanaJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -41,6 +44,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly naabuJson: NaabuJsonParser,
     private readonly nucleiJson: NucleiJsonParser,
     private readonly hostlinesText: HostlinesTextParser,
+    private readonly katanaJson: KatanaJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -51,5 +55,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.naabuJson);
     this.registry.register(this.nucleiJson);
     this.registry.register(this.hostlinesText);
+    this.registry.register(this.katanaJson);
   }
 }
