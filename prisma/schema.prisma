@@ -90,6 +90,7 @@ model Engagement {
   templateRuns TemplateRun[]
   reports      Report[]
   schedules    Schedule[]
+  endpoints    Endpoint[]
 
   @@index([ownerId])
   @@index([status])
@@ -392,6 +393,7 @@ model Subdomain {
   dnsRecords DnsRecord[]
   ips        SubdomainIp[]
   asset      Asset?        @relation("AssetSubdomain")
+  endpoints  Endpoint[]
 
   @@unique([engagementId, canonicalValue])
   @@index([engagementId])
@@ -431,6 +433,28 @@ model SubdomainIp {
   ip        IpAddress @relation(fields: [ipAddressId], references: [id], onDelete: Cascade)
 
   @@id([subdomainId, ipAddressId])
+}
+
+model Endpoint {
+  id            String   @id @default(cuid())
+  engagementId  String
+  subdomainId   String?
+  url           String
+  canonicalUrl  String
+  method        String   @default("GET")
+  statusCode    Int?
+  contentLength Int?
+  source        String
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  metadata      Json?
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  subdomain  Subdomain? @relation(fields: [subdomainId], references: [id], onDelete: SetNull)
+
+  @@unique([engagementId, canonicalUrl, method])
+  @@index([engagementId])
+  @@index([subdomainId])
 }
 
 enum DnsRecordType {
