@@ -3,7 +3,7 @@ import type { TemplateDefinition } from '../types';
 /**
  * Phase 6.1 — broad passive subdomain discovery.
  *
- * Four enumerators (subfinder, assetfinder, findomain, amass-passive) plus a
+ * Four enumerators (subfinder, assetfinder, findomain, amass in passive mode) plus a
  * puredns brute-force all run against the root `target`; the correlation
  * engine merges their findings into one Subdomain set (multi-source provenance
  * via AssetObservation). `dnsx` then resolves the union and `httpx`
