@@ -1,0 +1,22 @@
+{
+  "name": "scanners-assetfinder",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/assetfinder/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/assetfinder"],
+      "options": {
+        "jestConfig": "libs/scanners/assetfinder/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/assetfinder/tsconfig.lib.json"
+      }
+    }
+  }
+}
