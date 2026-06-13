@@ -123,7 +123,7 @@ mutation {
 Input type: `RunTemplateInput { engagementId: ID!, templateName: String!, target: String! }`.
 
 > **amass** runs passive-only (no active DNS requests).  
-> **puredns** brute-forces using a small bundled wordlist; override it by passing a `wordlist` input to the scanner.
+> **puredns** brute-forces using a small bundled wordlist. `runTemplate` takes no per-scanner options, so to override the wordlist run `puredns` standalone via `runScan` with a `{ "wordlist": "/path/in/image" }` input (or `{ "mode": "resolve" }` to validate a host list instead of brute-forcing).
 
 ## Routes
 
