@@ -164,6 +164,67 @@ query {
 }
 ```
 
+### Phase 6.3 — OSINT / external surface
+
+Three OSINT scanners extend the passive discovery stack with certificate transparency, WHOIS, and banner-grab intelligence:
+
+| Scanner  | Image                                   | Notes                                                               |
+| -------- | --------------------------------------- | ------------------------------------------------------------------- |
+| `whois`  | `autoscanner/whois:1.0` (custom build)  | WHOIS registry lookups — registrar, org, name-server data           |
+| `crtsh`  | `autoscanner/crtsh:1.0` (custom build)  | Certificate-transparency subdomain enumeration via crt.sh           |
+| `shodan` | `autoscanner/shodan:1.0` (custom build) | Banner-grab / port data from Shodan (**requires a Shodan API key**) |
+
+Custom images are built by `pnpm scanners:build` alongside the earlier custom scanner images.
+
+Discovered data surfaces as two new entity types:
+
+- **OrgMetadata** (`id`, `kind`, `source`) — registrar / org / name-server records produced by the whois scanner.
+- **Email** (`id`, `address`, `source`) — email addresses extracted from public sources.
+
+Both are surfaced in the UI as an **OSINT** tab per engagement.
+
+#### Run the key-free template (`osint-passive` — crtsh + whois)
+
+```graphql
+mutation {
+  runTemplate(
+    input: { engagementId: "<id>", templateName: "osint-passive", target: "client.com" }
+  ) {
+    id
+    status
+  }
+}
+```
+
+#### Query OSINT results
+
+```graphql
+query {
+  orgMetadata(engagementId: "<id>") {
+    id
+    kind
+    source
+  }
+  emails(engagementId: "<id>") {
+    id
+    address
+    source
+  }
+}
+```
+
+#### API Keys
+
+API keys for key-gated scanners (e.g. Shodan) are stored **AES-256-GCM encrypted** using the platform's `SecretBox` utility (keyed from `MASTER_ENCRYPTION_KEY`). Keys are never returned in API responses or written to logs. They can be managed from the `/settings` page in the UI or via the GraphQL mutation:
+
+```graphql
+mutation {
+  setApiCredential(provider: SHODAN, secret: "<your-shodan-api-key>")
+}
+```
+
+At scan time the `scan-worker` decrypts the stored credential entirely in-memory and injects it as a single environment variable into the scanner container. The plaintext key is never persisted after the container exits.
+
 ## Routes
 
 | Verb   | Path                              | Notes                                                                                                   |
