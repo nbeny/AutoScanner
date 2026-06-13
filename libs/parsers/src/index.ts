@@ -10,4 +10,5 @@ export * from './nuclei-json';
 export * from './katana-json';
 export * from './urllines-text';
 export * from './ffuf-json';
+export * from './whois-text';
 export * from './parsers.module';

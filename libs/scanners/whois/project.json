@@ -1,0 +1,22 @@
+{
+  "name": "scanners-whois",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/whois/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/whois"],
+      "options": {
+        "jestConfig": "libs/scanners/whois/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/whois/tsconfig.lib.json"
+      }
+    }
+  }
+}

@@ -10,6 +10,7 @@ import { ParserRegistry } from './registry';
 import { SubfinderJsonParser } from './subfinder-json';
 import { HostlinesTextParser } from './hostlines-text';
 import { UrllinesTextParser } from './urllines-text';
+import { WhoisTextParser } from './whois-text';
 
 @Global()
 @Module({
@@ -25,6 +26,7 @@ import { UrllinesTextParser } from './urllines-text';
     KatanaJsonParser,
     UrllinesTextParser,
     FfufJsonParser,
+    WhoisTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -38,6 +40,7 @@ import { UrllinesTextParser } from './urllines-text';
     KatanaJsonParser,
     UrllinesTextParser,
     FfufJsonParser,
+    WhoisTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -53,6 +56,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly katanaJson: KatanaJsonParser,
     private readonly urllinesText: UrllinesTextParser,
     private readonly ffufJson: FfufJsonParser,
+    private readonly whoisText: WhoisTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -66,5 +70,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.katanaJson);
     this.registry.register(this.urllinesText);
     this.registry.register(this.ffufJson);
+    this.registry.register(this.whoisText);
   }
 }
