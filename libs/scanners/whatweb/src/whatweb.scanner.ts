@@ -1,16 +1,16 @@
 import { z } from 'zod';
 import { type ScannerDefinition, ScannerCategory } from '@autoscanner/scanner-sdk';
 
-const WhatwwebInput = z.object({});
+const WhatwebInput = z.object({});
 
-export type WhatwwebInputType = z.infer<typeof WhatwwebInput>;
+export type WhatwebInputType = z.infer<typeof WhatwebInput>;
 
-export const WhatwwebScanner: ScannerDefinition<WhatwwebInputType> = {
+export const WhatwebScanner: ScannerDefinition<WhatwebInputType> = {
   name: 'whatweb',
   displayName: 'WhatWeb',
   category: [ScannerCategory.WEB_FINGERPRINT],
   description: 'Web technology fingerprinter (WhatWeb). Custom-built image.',
-  inputSchema: WhatwwebInput,
+  inputSchema: WhatwebInput,
   docker: {
     // Built locally via tools/scanners/build-images.sh — not on a registry.
     image: 'autoscanner/whatweb:1.0',

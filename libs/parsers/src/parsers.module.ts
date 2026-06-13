@@ -14,7 +14,7 @@ import { HostlinesTextParser } from './hostlines-text';
 import { UrllinesTextParser } from './urllines-text';
 import { WhoisTextParser } from './whois-text';
 import { TlsxJsonParser } from './tlsx-json';
-import { WhatwwebJsonParser } from './whatweb-json';
+import { WhatwebJsonParser } from './whatweb-json';
 
 @Global()
 @Module({
@@ -34,7 +34,7 @@ import { WhatwwebJsonParser } from './whatweb-json';
     CrtshJsonParser,
     ShodanJsonParser,
     TlsxJsonParser,
-    WhatwwebJsonParser,
+    WhatwebJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -52,7 +52,7 @@ import { WhatwwebJsonParser } from './whatweb-json';
     CrtshJsonParser,
     ShodanJsonParser,
     TlsxJsonParser,
-    WhatwwebJsonParser,
+    WhatwebJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -72,7 +72,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly crtshJson: CrtshJsonParser,
     private readonly shodanJson: ShodanJsonParser,
     private readonly tlsxJson: TlsxJsonParser,
-    private readonly whatwwebJson: WhatwwebJsonParser,
+    private readonly whatwebJson: WhatwebJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -90,6 +90,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.crtshJson);
     this.registry.register(this.shodanJson);
     this.registry.register(this.tlsxJson);
-    this.registry.register(this.whatwwebJson);
+    this.registry.register(this.whatwebJson);
   }
 }

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { WhatwwebJsonParser } from '../whatweb-json/whatweb-json.parser';
+import { WhatwebJsonParser } from '../whatweb-json/whatweb-json.parser';
 import type { ParserContext } from '../types';
 
 const FIXTURE = readFileSync(join(__dirname, 'fixtures', 'whatweb-sample.json'), 'utf8');
@@ -12,8 +12,8 @@ const ctx: ParserContext = {
   engagementId: 'eng_1',
 };
 
-describe('WhatwwebJsonParser', () => {
-  const parser = new WhatwwebJsonParser();
+describe('WhatwebJsonParser', () => {
+  const parser = new WhatwebJsonParser();
 
   it('declares name and supported formats', () => {
     expect(parser.name).toBe('whatweb-json');
