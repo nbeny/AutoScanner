@@ -83,6 +83,48 @@ pnpm nx e2e api-gateway-e2e
 
 Without those env vars the suite skips, so CI stays green when no live stack is available.
 
+## Phase 6.1 — broad passive recon
+
+Four new scanners join the passive discovery stack:
+
+| Scanner       | Image                                        | Notes                                    |
+| ------------- | -------------------------------------------- | ---------------------------------------- |
+| `findomain`   | `edu4rdshl/findomain:9.0.4` (registry)       | Passive subdomain enumeration            |
+| `amass`       | `caffix/amass:v4.2.0` (registry)             | Passive mode only (`-passive`)           |
+| `assetfinder` | `autoscanner/assetfinder:1.0` (custom build) | Subdomain enumeration via public sources |
+| `puredns`     | `autoscanner/puredns:1.0` (custom build)     | DNS bruteforce with a bundled wordlist   |
+
+A new `recon-passive-deep` template chains all five passive discovery scanners through resolution and probing:
+**subfinder → assetfinder → findomain → amass → puredns → dnsx → httpx**
+
+### Build the custom scanner images
+
+The two custom images must be built before running `assetfinder` or `puredns` locally or in CI. Docker must be running.
+
+```bash
+pnpm scanners:build
+```
+
+This builds `autoscanner/assetfinder:1.0` and `autoscanner/puredns:1.0` via `tools/scanners/build-images.sh`.
+
+### Run the template
+
+```graphql
+mutation {
+  runTemplate(
+    input: { engagementId: "<id>", templateName: "recon-passive-deep", target: "client.com" }
+  ) {
+    id
+    status
+  }
+}
+```
+
+Input type: `RunTemplateInput { engagementId: ID!, templateName: String!, target: String! }`.
+
+> **amass** runs passive-only (no active DNS requests).  
+> **puredns** brute-forces using a small bundled wordlist; override it by passing a `wordlist` input to the scanner.
+
 ## Routes
 
 | Verb   | Path                              | Notes                                                                                                   |

@@ -222,6 +222,12 @@ jobs:
           docker pull projectdiscovery/subfinder:latest
           docker pull projectdiscovery/httpx:latest
 
+      - name: Build + pull scanner images
+        run: |
+          pnpm scanners:build
+          docker pull edu4rdshl/findomain:9.0.4
+          docker pull caffix/amass:v4.2.0
+
       - name: Build backend apps
         run: pnpm nx run-many -t build -p api-gateway,scan-worker,parser-worker,orchestrator-worker --parallel=3
 
