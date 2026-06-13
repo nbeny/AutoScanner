@@ -1,4 +1,5 @@
 import { Global, Module, type OnModuleInit } from '@nestjs/common';
+import { CrtshJsonParser } from './crtsh-json';
 import { DnsxJsonParser } from './dnsx-json';
 import { FfufJsonParser } from './ffuf-json';
 import { HttpxJsonParser } from './httpx-json';
@@ -27,6 +28,7 @@ import { WhoisTextParser } from './whois-text';
     UrllinesTextParser,
     FfufJsonParser,
     WhoisTextParser,
+    CrtshJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -41,6 +43,7 @@ import { WhoisTextParser } from './whois-text';
     UrllinesTextParser,
     FfufJsonParser,
     WhoisTextParser,
+    CrtshJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -57,6 +60,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly urllinesText: UrllinesTextParser,
     private readonly ffufJson: FfufJsonParser,
     private readonly whoisText: WhoisTextParser,
+    private readonly crtshJson: CrtshJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -71,5 +75,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.urllinesText);
     this.registry.register(this.ffufJson);
     this.registry.register(this.whoisText);
+    this.registry.register(this.crtshJson);
   }
 }

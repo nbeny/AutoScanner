@@ -11,4 +11,5 @@ export * from './katana-json';
 export * from './urllines-text';
 export * from './ffuf-json';
 export * from './whois-text';
+export * from './crtsh-json';
 export * from './parsers.module';
