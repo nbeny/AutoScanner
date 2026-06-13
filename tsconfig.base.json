@@ -46,6 +46,7 @@
       "@autoscanner/scanners-naabu": ["libs/scanners/naabu/src/index.ts"],
       "@autoscanner/scanners-nmap": ["libs/scanners/nmap/src/index.ts"],
       "@autoscanner/scanners-nuclei": ["libs/scanners/nuclei/src/index.ts"],
+      "@autoscanner/scanners-amass": ["libs/scanners/amass/src/index.ts"],
       "@autoscanner/scanners-findomain": ["libs/scanners/findomain/src/index.ts"],
       "@autoscanner/scanners-subfinder": ["libs/scanners/subfinder/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
