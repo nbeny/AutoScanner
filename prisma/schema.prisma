@@ -90,6 +90,7 @@ model Engagement {
   templateRuns TemplateRun[]
   reports      Report[]
   schedules    Schedule[]
+  correlatedFindings CorrelatedFinding[]
 
   @@index([ownerId])
   @@index([status])
@@ -156,14 +157,15 @@ model Asset {
   subdomainId    String?   @unique
   ipAddressId    String?   @unique
 
-  engagement   Engagement         @relation(fields: [engagementId], references: [id], onDelete: Cascade)
-  ports        Port[]
-  findings     Finding[]
-  observations AssetObservation[] @relation("AssetObservations")
-  domain       Domain?            @relation("AssetDomain", fields: [domainId], references: [id])
-  subdomain    Subdomain?         @relation("AssetSubdomain", fields: [subdomainId], references: [id])
-  ipAddress    IpAddress?         @relation("AssetIpAddress", fields: [ipAddressId], references: [id])
-  technologies Technology[]
+  engagement         Engagement         @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  ports              Port[]
+  findings           Finding[]
+  observations       AssetObservation[] @relation("AssetObservations")
+  domain             Domain?            @relation("AssetDomain", fields: [domainId], references: [id])
+  subdomain          Subdomain?         @relation("AssetSubdomain", fields: [subdomainId], references: [id])
+  ipAddress          IpAddress?         @relation("AssetIpAddress", fields: [ipAddressId], references: [id])
+  technologies       Technology[]
+  correlatedFindings CorrelatedFinding[]
 
   // Real uniqueness applied via partial unique index in migration SQL
   @@index([engagementId, type, canonicalValue])
@@ -288,28 +290,65 @@ enum Severity {
   CRITICAL
 }
 
-model Finding {
-  id          String   @id @default(cuid())
-  assetId     String
-  scanJobId   String
-  dedupHash   String
-  title       String
-  severity    Severity
-  location    String?
-  cveId       String?
-  templateId  String?
-  evidence    Json?
-  firstSeenAt DateTime @default(now())
-  lastSeenAt  DateTime @default(now())
+enum FindingStatus {
+  OPEN
+  TRIAGED
+  CONFIRMED
+  FALSE_POSITIVE
+  RESOLVED
+}
 
-  asset   Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  scanJob ScanJob @relation(fields: [scanJobId], references: [id], onDelete: Cascade)
+model Finding {
+  id                   String   @id @default(cuid())
+  assetId              String
+  scanJobId            String
+  dedupHash            String
+  title                String
+  severity             Severity
+  location             String?
+  cveId                String?
+  templateId           String?
+  evidence             Json?
+  firstSeenAt          DateTime @default(now())
+  lastSeenAt           DateTime @default(now())
+  correlatedFindingId  String?
+  structuralHash       String?
+
+  asset              Asset              @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  scanJob            ScanJob            @relation(fields: [scanJobId], references: [id], onDelete: Cascade)
+  correlatedFinding  CorrelatedFinding? @relation(fields: [correlatedFindingId], references: [id], onDelete: SetNull)
 
   @@unique([assetId, dedupHash])
   @@index([assetId])
   @@index([scanJobId])
   @@index([severity])
   @@index([cveId])
+  @@index([correlatedFindingId])
+}
+
+model CorrelatedFinding {
+  id             String        @id @default(cuid())
+  engagementId   String
+  assetId        String
+  structuralHash String
+  category       String?
+  title          String
+  severity       Severity
+  cveId          String?
+  status         FindingStatus @default(OPEN)
+  sourceCount    Int           @default(0)
+  firstSeenAt    DateTime      @default(now())
+  lastSeenAt     DateTime      @default(now())
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  asset      Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  findings   Finding[]
+
+  @@unique([assetId, structuralHash])
+  @@index([engagementId])
+  @@index([assetId])
+  @@index([severity])
+  @@index([status])
 }
 
 // =====================================================================
