@@ -81,19 +81,20 @@ model Engagement {
   updatedAt   DateTime         @updatedAt
   deletedAt   DateTime?
 
-  owner        User          @relation(fields: [ownerId], references: [id])
-  scopeRules   ScopeRule[]
-  assets       Asset[]
-  scans        Scan[]
-  domains      Domain[]
-  subdomains   Subdomain[]
-  ipAddresses  IpAddress[]
-  templateRuns TemplateRun[]
-  reports      Report[]
-  schedules    Schedule[]
-  endpoints    Endpoint[]
-  emails       Email[]
-  orgMetadata  OrgMetadata[]
+  owner           User              @relation(fields: [ownerId], references: [id])
+  scopeRules      ScopeRule[]
+  assets          Asset[]
+  scans           Scan[]
+  domains         Domain[]
+  subdomains      Subdomain[]
+  ipAddresses     IpAddress[]
+  templateRuns    TemplateRun[]
+  reports         Report[]
+  schedules       Schedule[]
+  endpoints       Endpoint[]
+  emails          Email[]
+  orgMetadata     OrgMetadata[]
+  tlsCertificates TlsCertificate[]
 
   @@index([ownerId])
   @@index([status])
@@ -391,12 +392,13 @@ model Subdomain {
   lastSeenAt     DateTime @default(now())
   metadata       Json?
 
-  engagement Engagement    @relation(fields: [engagementId], references: [id], onDelete: Cascade)
-  domain     Domain        @relation(fields: [domainId], references: [id], onDelete: Cascade)
-  dnsRecords DnsRecord[]
-  ips        SubdomainIp[]
-  asset      Asset?        @relation("AssetSubdomain")
-  endpoints  Endpoint[]
+  engagement      Engagement       @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  domain          Domain           @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  dnsRecords      DnsRecord[]
+  ips             SubdomainIp[]
+  asset           Asset?           @relation("AssetSubdomain")
+  endpoints       Endpoint[]
+  tlsCertificates TlsCertificate[]
 
   @@unique([engagementId, canonicalValue])
   @@index([engagementId])
@@ -724,4 +726,32 @@ model Schedule {
   @@index([engagementId])
   @@index([enabled, nextRunAt])
   @@index([deletedAt])
+}
+
+// FINGERPRINT / TLS (Phase 6.4)
+
+model TlsCertificate {
+  id                String    @id @default(cuid())
+  engagementId      String
+  subdomainId       String?
+  host              String
+  subjectCn         String?
+  subjectAn         String[]
+  issuerCn          String?
+  notBefore         DateTime?
+  notAfter          DateTime?
+  fingerprintSha256 String
+  tlsVersion        String?
+  selfSigned        Boolean   @default(false)
+  expired           Boolean   @default(false)
+  source            String
+  firstSeenAt       DateTime  @default(now())
+  lastSeenAt        DateTime  @default(now())
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  subdomain  Subdomain? @relation(fields: [subdomainId], references: [id], onDelete: SetNull)
+
+  @@unique([engagementId, fingerprintSha256, host])
+  @@index([engagementId])
+  @@index([subdomainId])
 }

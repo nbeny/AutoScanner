@@ -88,6 +88,19 @@ export interface NormalizedOrgMetadata {
   data: unknown;
 }
 
+export interface NormalizedTlsCertificate {
+  host: string;
+  subjectCn?: string;
+  subjectAn?: string[];
+  issuerCn?: string;
+  notBefore?: string;
+  notAfter?: string;
+  fingerprintSha256: string;
+  tlsVersion?: string;
+  selfSigned?: boolean;
+  expired?: boolean;
+}
+
 export interface NormalizedOutput {
   assets: NormalizedAsset[];
   ports: NormalizedPort[];
@@ -100,6 +113,7 @@ export interface NormalizedOutput {
   endpoints: NormalizedEndpoint[];
   emails: NormalizedEmail[];
   orgMetadata: NormalizedOrgMetadata[];
+  tlsCertificates: NormalizedTlsCertificate[];
   raw?: unknown;
 }
 
@@ -131,5 +145,6 @@ export function emptyNormalizedOutput(): NormalizedOutput {
     endpoints: [],
     emails: [],
     orgMetadata: [],
+    tlsCertificates: [],
   };
 }
