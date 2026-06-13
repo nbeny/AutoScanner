@@ -38,7 +38,7 @@ export const CensysScanner: ScannerDefinition<Record<string, never>> = {
     // into the env vars the censys CLI reads, then search hosts for the domain.
     const script =
       'export CENSYS_API_ID="${CENSYS_API_CRED%%:*}" CENSYS_API_SECRET="${CENSYS_API_CRED#*:}"; ' +
-      `censys search ${shellQuoteSingle(target)} --index-type hosts -o /dev/stdout || true`;
+      `censys search ${shellQuoteSingle(target)} --index-type hosts || true`;
     return { cmd: ['sh', '-lc', script] };
   },
   outputs: [{ format: 'JSON', capture: 'stdout', parser: 'censys-json' }],
