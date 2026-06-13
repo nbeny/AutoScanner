@@ -32,6 +32,7 @@ describe('AllScannersModule', () => {
       'whatweb',
       'theharvester',
       'sslscan',
+      'censys',
     ]) {
       expect(registry.has(name)).toBe(true);
     }
