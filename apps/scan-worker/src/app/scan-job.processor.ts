@@ -1,6 +1,7 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
 import { Queue, type Job } from 'bullmq';
+import { SecretBox } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import {
   DOCKER_RUNNER,
@@ -12,6 +13,7 @@ import { LOG_STREAM_PUBLISHER, type LogStreamPublisher } from '@autoscanner/log-
 import { QueueName, type ParseJobPayload, type ScanJobPayload } from '@autoscanner/queues';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, rawOutputKey, type ObjectStorage } from '@autoscanner/storage';
+import { SECRET_BOX } from './secret-box.provider';
 
 // Per-scan capture cap. The docker sandbox limits container memory to ~2 GiB
 // (DEFAULT_MEMORY_MB in dockerode-runner) but a scanner can SHIP up to that
@@ -33,6 +35,7 @@ export class ScanJobProcessor extends WorkerHost {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @InjectQueue(QueueName.PARSE_JOBS) private readonly parseQueue: Queue<ParseJobPayload>,
     @Inject(LOG_STREAM_PUBLISHER) private readonly logStream: LogStreamPublisher,
+    @Inject(SECRET_BOX) private readonly secretBox: SecretBox,
   ) {
     super();
   }
@@ -61,12 +64,37 @@ export class ScanJobProcessor extends WorkerHost {
       scratchDir: '/tmp',
     });
 
+    let extraEnv: Record<string, string> | undefined;
+    if (scanner.requiresCredential) {
+      const provider = scanner.requiresCredential;
+      const eng = await this.prisma.engagement.findUnique({
+        where: { id: payload.engagementId },
+        select: { ownerId: true },
+      });
+      const cred = eng
+        ? await this.prisma.apiCredential.findUnique({
+            where: { ownerId_provider: { ownerId: eng.ownerId, provider } },
+          })
+        : null;
+      if (!cred) {
+        const message = `missing ${provider} API credential for engagement owner`;
+        await this.prisma.scanJob.update({
+          where: { id: payload.scanJobId },
+          data: { status: 'FAILED', completedAt: new Date(), errorMessage: message },
+        });
+        this.logger.error(`scanJob=${payload.scanJobId} ${message}`);
+        throw new Error(message);
+      }
+      const decryptedKey = this.secretBox.open(cred.ciphertext as Buffer);
+      extraEnv = { [scanner.credentialEnvVar ?? `${provider}_API_KEY`]: decryptedKey };
+    }
+
     await this.docker.pullIfMissing(scanner.docker.image);
 
     const runSpec: RunSpec = {
       image: scanner.docker.image,
       cmd: build.cmd,
-      env: build.env,
+      env: { ...build.env, ...extraEnv },
       binds: build.binds,
       stdin: build.stdin,
       network: scanner.docker.network,

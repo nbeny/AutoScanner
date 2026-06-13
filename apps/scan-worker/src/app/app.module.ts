@@ -12,6 +12,7 @@ import { StorageModule } from '@autoscanner/storage';
 import { AllScannersModule } from '@autoscanner/scanners-all';
 
 import { ScanJobProcessor } from './scan-job.processor';
+import { secretBoxProvider } from './secret-box.provider';
 
 @Module({
   imports: [
@@ -26,6 +27,6 @@ import { ScanJobProcessor } from './scan-job.processor';
     AllScannersModule,
     BullModule.registerQueue({ name: QueueName.PARSE_JOBS }),
   ],
-  providers: [ScanJobProcessor],
+  providers: [ScanJobProcessor, secretBoxProvider],
 })
 export class AppModule {}
