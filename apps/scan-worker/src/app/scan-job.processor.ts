@@ -77,7 +77,9 @@ export class ScanJobProcessor extends WorkerHost {
           })
         : null;
       if (!cred) {
-        const message = `missing ${provider} API credential for engagement owner`;
+        const message = eng
+          ? `missing ${provider} API credential for engagement owner`
+          : `engagement ${payload.engagementId} not found; cannot resolve ${provider} API credential`;
         await this.prisma.scanJob.update({
           where: { id: payload.scanJobId },
           data: { status: 'FAILED', completedAt: new Date(), errorMessage: message },
