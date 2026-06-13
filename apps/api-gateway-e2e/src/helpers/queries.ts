@@ -257,6 +257,46 @@ export async function endpointsByEngagement(
   return data.endpoints;
 }
 
+/** Org metadata for an engagement (Phase 6.3). */
+export async function orgMetadataByEngagement(
+  gql: GraphQLClient,
+  engagementId: string,
+): Promise<Array<{ id: string; kind: string; source: string }>> {
+  const query = /* GraphQL */ `
+    query OrgMeta($engagementId: ID!) {
+      orgMetadata(engagementId: $engagementId) {
+        id
+        kind
+        source
+      }
+    }
+  `;
+  const data = await gql.request<{
+    orgMetadata: Array<{ id: string; kind: string; source: string }>;
+  }>(query, { engagementId });
+  return data.orgMetadata;
+}
+
+/** Email addresses discovered for an engagement (Phase 6.3). */
+export async function emailsByEngagement(
+  gql: GraphQLClient,
+  engagementId: string,
+): Promise<Array<{ id: string; address: string; source: string }>> {
+  const query = /* GraphQL */ `
+    query Emails($engagementId: ID!) {
+      emails(engagementId: $engagementId) {
+        id
+        address
+        source
+      }
+    }
+  `;
+  const data = await gql.request<{
+    emails: Array<{ id: string; address: string; source: string }>;
+  }>(query, { engagementId });
+  return data.emails;
+}
+
 /**
  * Returns the distinct scanner names that observed a given asset
  * (AssetDetail.scannerSources). Used to prove multi-source merge.
