@@ -60,6 +60,9 @@ export class TlsCertificatePersister {
         },
         update: {
           lastSeenAt: new Date(),
+          // Only refresh notBefore when a valid value is present, so a later
+          // scan that omits not_before doesn't null out a known date.
+          ...(notBefore ? { notBefore } : {}),
           notAfter,
           tlsVersion: cert.tlsVersion ?? null,
           selfSigned: cert.selfSigned ?? false,

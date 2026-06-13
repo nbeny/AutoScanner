@@ -62,10 +62,11 @@ describe('TlsxJsonParser', () => {
     expect(weakTls?.severity).toBe('MEDIUM');
   });
 
-  it('sets location to host on all findings', async () => {
+  it('sets location to a URL-form host on all findings (parseable by the worker)', async () => {
     const out = await parser.parse(FIXTURE, ctx);
     for (const finding of out.findings) {
-      expect(finding.location).toBe('example.com');
+      // URL-form so parse-job-worker's `new URL(location).hostname` resolves it.
+      expect(finding.location).toBe('https://example.com');
       expect(finding.scannerName).toBe('tlsx');
     }
   });
