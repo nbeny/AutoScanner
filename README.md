@@ -127,17 +127,18 @@ Input type: `RunTemplateInput { engagementId: ID!, templateName: String!, target
 
 ### Phase 6.2 — web content / endpoints
 
-Three web-content scanners discover URLs served by in-scope hosts:
+Four web-content scanners discover URLs served by in-scope hosts:
 
-| Scanner  | Image                                       | Notes                                       |
-| -------- | ------------------------------------------- | ------------------------------------------- |
-| `katana` | `projectdiscovery/katana:latest` (registry) | Active crawl; pull before running the suite |
-| `gau`    | `autoscanner/gau:1.0` (custom build)        | Passive URL discovery via public archives   |
-| `ffuf`   | `autoscanner/ffuf:1.0` (custom build)       | Directory brute-force with bundled wordlist |
+| Scanner    | Image                                       | Notes                                                               |
+| ---------- | ------------------------------------------- | ------------------------------------------------------------------- |
+| `katana`   | `projectdiscovery/katana:latest` (registry) | Active crawl; pull before running the suite                         |
+| `gau`      | `autoscanner/gau:1.0` (custom build)        | Passive URL discovery via public archives                           |
+| `ffuf`     | `autoscanner/ffuf:1.0` (custom build)       | Directory brute-force with bundled wordlist                         |
+| `gobuster` | `autoscanner/gobuster:1.0` (custom build)   | Directory brute-force via gobuster — results stored as **Endpoint** |
 
 Custom images are built by `pnpm scanners:build` alongside the Phase 6.1 images.
 
-Discovered URLs are stored as **Endpoint** entities (`id`, `url`, `method`, `source`, `lastSeenAt`), surfaced in the UI as an **Endpoints** tab per engagement.
+Discovered URLs are stored as **Endpoint** entities (`id`, `url`, `method`, `source`, `lastSeenAt`), surfaced in the UI as an **Endpoints** tab per engagement. All four scanners reuse this existing surface; no new entity types are introduced.
 
 #### Run the template
 
@@ -166,20 +167,21 @@ query {
 
 ### Phase 6.3 — OSINT / external surface
 
-Three OSINT scanners extend the passive discovery stack with certificate transparency, WHOIS, and banner-grab intelligence:
+Four OSINT scanners extend the passive discovery stack with certificate transparency, WHOIS, banner-grab intelligence, and email harvesting:
 
-| Scanner  | Image                                   | Notes                                                               |
-| -------- | --------------------------------------- | ------------------------------------------------------------------- |
-| `whois`  | `autoscanner/whois:1.0` (custom build)  | WHOIS registry lookups — registrar, org, name-server data           |
-| `crtsh`  | `autoscanner/crtsh:1.0` (custom build)  | Certificate-transparency subdomain enumeration via crt.sh           |
-| `shodan` | `autoscanner/shodan:1.0` (custom build) | Banner-grab / port data from Shodan (**requires a Shodan API key**) |
+| Scanner        | Image                                         | Notes                                                                    |
+| -------------- | --------------------------------------------- | ------------------------------------------------------------------------ |
+| `whois`        | `autoscanner/whois:1.0` (custom build)        | WHOIS registry lookups — registrar, org, name-server data                |
+| `crtsh`        | `autoscanner/crtsh:1.0` (custom build)        | Certificate-transparency subdomain enumeration via crt.sh                |
+| `shodan`       | `autoscanner/shodan:1.0` (custom build)       | Banner-grab / port data from Shodan (**requires a Shodan API key**)      |
+| `theharvester` | `autoscanner/theharvester:1.0` (custom build) | OSINT email harvesting from public sources — results stored as **Email** |
 
 Custom images are built by `pnpm scanners:build` alongside the earlier custom scanner images.
 
-Discovered data surfaces as two new entity types:
+Discovered data surfaces as two entity types (no new entities in 6.5):
 
 - **OrgMetadata** (`id`, `kind`, `source`) — registrar / org / name-server records produced by the whois scanner.
-- **Email** (`id`, `address`, `source`) — email addresses extracted from public sources.
+- **Email** (`id`, `address`, `source`) — email addresses extracted from public sources (crtsh + theHarvester).
 
 Both are surfaced in the UI as an **OSINT** tab per engagement.
 
@@ -227,27 +229,28 @@ At scan time the `scan-worker` decrypts the stored credential entirely in-memory
 
 ### Phase 6.4 — fingerprint / TLS
 
-Two scanners add TLS certificate intelligence and web technology fingerprinting:
+Three scanners add TLS certificate intelligence, web technology fingerprinting, and weak protocol detection:
 
-| Scanner   | Image                                     | Notes                                                           |
-| --------- | ----------------------------------------- | --------------------------------------------------------------- |
-| `tlsx`    | `projectdiscovery/tlsx:latest` (registry) | TLS handshake / certificate enumeration — pull before the suite |
-| `whatweb` | `autoscanner/whatweb:1.0` (custom build)  | Web technology fingerprinting via WhatWeb                       |
+| Scanner   | Image                                     | Notes                                                                    |
+| --------- | ----------------------------------------- | ------------------------------------------------------------------------ |
+| `tlsx`    | `projectdiscovery/tlsx:latest` (registry) | TLS handshake / certificate enumeration — pull before the suite          |
+| `whatweb` | `autoscanner/whatweb:1.0` (custom build)  | Web technology fingerprinting via WhatWeb                                |
+| `sslscan` | `autoscanner/sslscan:1.0` (custom build)  | Weak SSL/TLS protocol + cipher detection — results stored as **Finding** |
 
 Custom images are built by `pnpm scanners:build`. Pull `tlsx` separately:
 
 ```bash
 docker pull projectdiscovery/tlsx:latest
-pnpm scanners:build   # builds autoscanner/whatweb:1.0
+pnpm scanners:build   # builds autoscanner/whatweb:1.0 and autoscanner/sslscan:1.0
 ```
 
-Discovered data surfaces as new entity types and findings:
+Discovered data surfaces as entity types and findings (sslscan reuses the existing **Finding** surface — no new entities):
 
 - **TlsCertificate** (`id`, `host`, `subject`, `issuer`, `SANs`, `validFrom`, `validTo`, `fingerprint`, `tlsVersion`) — one record per host/cert pair.
-- Weak-cert **Finding**s automatically raised for expired certificates, self-signed certificates, and weak TLS versions.
+- Weak-cert **Finding**s automatically raised for expired certificates, self-signed certificates, weak TLS versions, and weak ciphers (sslscan).
 - **Technology** entries (already modelled) populated by whatweb alongside httpx.
 
-Both are surfaced in the UI as a **TLS** tab per engagement.
+All are surfaced in the UI as a **TLS** tab per engagement.
 
 #### Run the template (`web-fingerprint` — httpx → tlsx → whatweb)
 

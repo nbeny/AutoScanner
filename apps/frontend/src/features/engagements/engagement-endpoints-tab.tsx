@@ -1,5 +1,6 @@
 import { useQuery } from '@apollo/client';
 import { ENDPOINTS_QUERY } from '../../lib/graphql/queries';
+import { formatDate } from '../../lib/format-date';
 
 interface EndpointRow {
   id: string;
@@ -9,14 +10,6 @@ interface EndpointRow {
   contentLength?: number | null;
   source: string;
   lastSeenAt: string;
-}
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toISOString().slice(0, 19).replace('T', ' ');
-  } catch {
-    return iso;
-  }
 }
 
 export function EngagementEndpointsTab({ engagementId }: { engagementId: string }) {
