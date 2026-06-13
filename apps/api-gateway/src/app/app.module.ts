@@ -14,6 +14,7 @@ import { formatGraphqlError } from './graphql-error.formatter';
 import { AssetsModule } from './assets/assets.module';
 import { AuthModule } from './auth/auth.module';
 import { DnsRecordsModule } from './dns-records/dns-records.module';
+import { EndpointsModule } from './endpoints/endpoints.module';
 import { EngagementEventsModule } from './engagement-events/engagement-events.module';
 import { EngagementsModule } from './engagements/engagements.module';
 import { FindingsModule } from './findings/findings.module';
@@ -66,6 +67,7 @@ import { UsersModule } from './users/users.module';
     AssetsModule,
     AuthModule,
     DnsRecordsModule,
+    EndpointsModule,
     EngagementEventsModule,
     EngagementsModule,
     FindingsModule,
