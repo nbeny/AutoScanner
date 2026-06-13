@@ -9,6 +9,7 @@ import { NaabuScannerModule } from '@autoscanner/scanners-naabu';
 import { NucleiScannerModule } from '@autoscanner/scanners-nuclei';
 import { FindomainScannerModule } from '@autoscanner/scanners-findomain';
 import { AmassScannerModule } from '@autoscanner/scanners-amass';
+import { AssetfinderScannerModule } from '@autoscanner/scanners-assetfinder';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -28,6 +29,7 @@ const SCANNER_MODULES = [
   NucleiScannerModule,
   FindomainScannerModule,
   AmassScannerModule,
+  AssetfinderScannerModule,
 ];
 
 @Module({

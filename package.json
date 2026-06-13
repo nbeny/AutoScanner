@@ -26,7 +26,8 @@
     "dev:logs": "docker compose -f docker/docker-compose.dev.yml logs -f",
     "dev:orchestrator-worker": "nx serve orchestrator-worker",
     "dev:scheduler": "nx serve scheduler",
-    "prepare": "husky"
+    "prepare": "husky",
+    "scanners:build": "bash tools/scanners/build-images.sh"
   },
   "lint-staged": {
     "*.{ts,tsx,js,json,md,yaml,yml}": [
