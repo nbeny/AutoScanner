@@ -7,6 +7,7 @@ import { HttpxScannerModule } from '@autoscanner/scanners-httpx';
 import { DnsxScannerModule } from '@autoscanner/scanners-dnsx';
 import { NaabuScannerModule } from '@autoscanner/scanners-naabu';
 import { NucleiScannerModule } from '@autoscanner/scanners-nuclei';
+import { FindomainScannerModule } from '@autoscanner/scanners-findomain';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -24,6 +25,7 @@ const SCANNER_MODULES = [
   DnsxScannerModule,
   NaabuScannerModule,
   NucleiScannerModule,
+  FindomainScannerModule,
 ];
 
 @Module({
