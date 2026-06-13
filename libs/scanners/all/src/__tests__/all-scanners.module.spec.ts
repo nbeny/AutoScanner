@@ -23,6 +23,7 @@ describe('AllScannersModule', () => {
       'puredns',
       'katana',
       'gau',
+      'ffuf',
     ]) {
       expect(registry.has(name)).toBe(true);
     }
