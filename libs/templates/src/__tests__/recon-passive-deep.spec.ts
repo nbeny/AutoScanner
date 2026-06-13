@@ -33,4 +33,18 @@ describe('recon-passive-deep template', () => {
       expect(step.target).toEqual({ kind: 'context', path: 'subdomains' });
     }
   });
+
+  it('wires the spec-mandated step inputs', () => {
+    const puredns = ReconPassiveDeep.steps.find((s) => s.scannerName === 'puredns')!;
+    expect(puredns.inputs).toEqual({ mode: { kind: 'static', value: 'bruteforce' } });
+
+    const httpx = ReconPassiveDeep.steps.find((s) => s.scannerName === 'httpx')!;
+    expect(httpx.inputs).toEqual({ techDetect: { kind: 'static', value: true } });
+
+    // The four pure-passive enumerators take no static inputs.
+    for (const name of ['subfinder', 'assetfinder', 'findomain', 'amass']) {
+      const step = ReconPassiveDeep.steps.find((s) => s.scannerName === name)!;
+      expect(step.inputs).toEqual({});
+    }
+  });
 });
