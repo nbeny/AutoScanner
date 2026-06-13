@@ -6,11 +6,7 @@ import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
 import { QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
-import { DnsxScannerModule } from '@autoscanner/scanners-dnsx';
-import { NaabuScannerModule } from '@autoscanner/scanners-naabu';
-import { NucleiScannerModule } from '@autoscanner/scanners-nuclei';
-import { SubfinderScannerModule } from '@autoscanner/scanners-subfinder';
-import { HttpxScannerModule } from '@autoscanner/scanners-httpx';
+import { AllScannersModule } from '@autoscanner/scanners-all';
 import { TemplatesModule } from '@autoscanner/templates';
 import { EngagementEventsModule } from '@autoscanner/engagement-events';
 
@@ -46,13 +42,7 @@ const redisSubscriber: Provider = {
     QueuesModule,
     TemplatesModule,
     ScannerSdkModule,
-    // Concrete scanners need to register themselves in `ScannerRegistry` so
-    // `StepExecutor` can look up their `defaultTimeoutMs`.
-    SubfinderScannerModule,
-    HttpxScannerModule,
-    DnsxScannerModule,
-    NaabuScannerModule,
-    NucleiScannerModule,
+    AllScannersModule,
     EngagementEventsModule.forRoot(),
   ],
   providers: [redisSubscriber, ContextBuilder, StepExecutor, TemplateRunProcessor],

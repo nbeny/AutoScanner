@@ -9,7 +9,7 @@ import { LogStreamModule } from '@autoscanner/log-stream';
 import { QueueName, QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { StorageModule } from '@autoscanner/storage';
-import { NmapScannerModule } from '@autoscanner/scanners-nmap';
+import { AllScannersModule } from '@autoscanner/scanners-all';
 
 import { ScanJobProcessor } from './scan-job.processor';
 
@@ -23,7 +23,7 @@ import { ScanJobProcessor } from './scan-job.processor';
     StorageModule,
     LogStreamModule,
     ScannerSdkModule,
-    NmapScannerModule,
+    AllScannersModule,
     BullModule.registerQueue({ name: QueueName.PARSE_JOBS }),
   ],
   providers: [ScanJobProcessor],
