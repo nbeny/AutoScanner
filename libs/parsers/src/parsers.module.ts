@@ -13,6 +13,7 @@ import { SubfinderJsonParser } from './subfinder-json';
 import { HostlinesTextParser } from './hostlines-text';
 import { UrllinesTextParser } from './urllines-text';
 import { WhoisTextParser } from './whois-text';
+import { TlsxJsonParser } from './tlsx-json';
 
 @Global()
 @Module({
@@ -31,6 +32,7 @@ import { WhoisTextParser } from './whois-text';
     WhoisTextParser,
     CrtshJsonParser,
     ShodanJsonParser,
+    TlsxJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -47,6 +49,7 @@ import { WhoisTextParser } from './whois-text';
     WhoisTextParser,
     CrtshJsonParser,
     ShodanJsonParser,
+    TlsxJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -65,6 +68,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly whoisText: WhoisTextParser,
     private readonly crtshJson: CrtshJsonParser,
     private readonly shodanJson: ShodanJsonParser,
+    private readonly tlsxJson: TlsxJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -81,5 +85,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.whoisText);
     this.registry.register(this.crtshJson);
     this.registry.register(this.shodanJson);
+    this.registry.register(this.tlsxJson);
   }
 }

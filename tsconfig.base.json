@@ -57,6 +57,7 @@
       "@autoscanner/scanners-puredns": ["libs/scanners/puredns/src/index.ts"],
       "@autoscanner/scanners-shodan": ["libs/scanners/shodan/src/index.ts"],
       "@autoscanner/scanners-subfinder": ["libs/scanners/subfinder/src/index.ts"],
+      "@autoscanner/scanners-tlsx": ["libs/scanners/tlsx/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
