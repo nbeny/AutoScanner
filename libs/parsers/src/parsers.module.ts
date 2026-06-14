@@ -27,6 +27,10 @@ import { JsReconJsonParser } from './js-recon-json';
 import { CloudEnumTextParser } from './cloud-enum-text';
 import { TrufflehogJsonParser } from './trufflehog-json';
 import { SecuritytrailsJsonParser } from './securitytrails-json';
+import { SmtpNmapXmlParser } from './smtp-nmap-xml';
+import { SnmpTextParser } from './snmp-text';
+import { SmbTextParser } from './smb-text';
+import { KiterunnerTextParser } from './kiterunner-text';
 
 @Global()
 @Module({
@@ -59,6 +63,10 @@ import { SecuritytrailsJsonParser } from './securitytrails-json';
     CloudEnumTextParser,
     TrufflehogJsonParser,
     SecuritytrailsJsonParser,
+    SmtpNmapXmlParser,
+    SnmpTextParser,
+    SmbTextParser,
+    KiterunnerTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -89,6 +97,10 @@ import { SecuritytrailsJsonParser } from './securitytrails-json';
     CloudEnumTextParser,
     TrufflehogJsonParser,
     SecuritytrailsJsonParser,
+    SmtpNmapXmlParser,
+    SnmpTextParser,
+    SmbTextParser,
+    KiterunnerTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -121,6 +133,10 @@ export class ParsersModule implements OnModuleInit {
     private readonly cloudEnumText: CloudEnumTextParser,
     private readonly trufflehogJson: TrufflehogJsonParser,
     private readonly securitytrailsJson: SecuritytrailsJsonParser,
+    private readonly smtpNmapXml: SmtpNmapXmlParser,
+    private readonly snmpText: SnmpTextParser,
+    private readonly smbText: SmbTextParser,
+    private readonly kiterunnerText: KiterunnerTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -151,5 +167,9 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.cloudEnumText);
     this.registry.register(this.trufflehogJson);
     this.registry.register(this.securitytrailsJson);
+    this.registry.register(this.smtpNmapXml);
+    this.registry.register(this.snmpText);
+    this.registry.register(this.smbText);
+    this.registry.register(this.kiterunnerText);
   }
 }

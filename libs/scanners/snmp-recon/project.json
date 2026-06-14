@@ -1,0 +1,22 @@
+{
+  "name": "scanners-snmp-recon",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/snmp-recon/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/snmp-recon"],
+      "options": {
+        "jestConfig": "libs/scanners/snmp-recon/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/snmp-recon/tsconfig.lib.json"
+      }
+    }
+  }
+}

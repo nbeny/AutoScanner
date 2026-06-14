@@ -43,6 +43,10 @@ describe('AllScannersModule', () => {
       'cdncheck',
       'js-recon',
       'gowitness',
+      'smtp-recon',
+      'snmp-recon',
+      'smb-enum',
+      'api-discovery',
     ]) {
       expect(registry.has(name)).toBe(true);
     }

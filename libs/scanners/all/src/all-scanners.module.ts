@@ -33,6 +33,10 @@ import { Wafw00fScannerModule } from '@autoscanner/scanners-wafw00f';
 import { CdncheckScannerModule } from '@autoscanner/scanners-cdncheck';
 import { JsReconScannerModule } from '@autoscanner/scanners-js-recon';
 import { GowitnessScannerModule } from '@autoscanner/scanners-gowitness';
+import { SmtpReconScannerModule } from '@autoscanner/scanners-smtp-recon';
+import { SnmpReconScannerModule } from '@autoscanner/scanners-snmp-recon';
+import { SmbEnumScannerModule } from '@autoscanner/scanners-smb-enum';
+import { ApiDiscoveryScannerModule } from '@autoscanner/scanners-api-discovery';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -76,6 +80,10 @@ const SCANNER_MODULES = [
   CdncheckScannerModule,
   JsReconScannerModule,
   GowitnessScannerModule,
+  SmtpReconScannerModule,
+  SnmpReconScannerModule,
+  SmbEnumScannerModule,
+  ApiDiscoveryScannerModule,
 ];
 
 @Module({
