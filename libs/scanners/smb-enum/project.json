@@ -1,0 +1,22 @@
+{
+  "name": "scanners-smb-enum",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/smb-enum/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/smb-enum"],
+      "options": {
+        "jestConfig": "libs/scanners/smb-enum/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/smb-enum/tsconfig.lib.json"
+      }
+    }
+  }
+}
