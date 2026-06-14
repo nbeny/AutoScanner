@@ -6,6 +6,7 @@ import {
   ReconActive,
   ReconPassive,
   ReconPassiveDeep,
+  ServiceRecon,
   TemplateRegistry,
   TemplatesModule,
   WebContent,
@@ -125,8 +126,8 @@ describe('builtin templates', () => {
   });
 
   describe('BUILTIN_TEMPLATES', () => {
-    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich', () => {
-      expect(BUILTIN_TEMPLATES).toHaveLength(10);
+    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich + service-recon', () => {
+      expect(BUILTIN_TEMPLATES).toHaveLength(11);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassive);
       expect(BUILTIN_TEMPLATES).toContain(ReconActive);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassiveDeep);
@@ -137,6 +138,7 @@ describe('builtin templates', () => {
       expect(BUILTIN_TEMPLATES).toContain(WebFingerprint);
       expect(BUILTIN_TEMPLATES).toContain(OsintPassiveDeep);
       expect(BUILTIN_TEMPLATES).toContain(WebEnrich);
+      expect(BUILTIN_TEMPLATES).toContain(ServiceRecon);
     });
 
     it('exposes unique template names', () => {
@@ -154,6 +156,7 @@ describe('builtin templates', () => {
       expect(registry.get('recon-active')).toBe(ReconActive);
       expect(registry.get('web-quick')).toBe(WebQuick);
       expect(registry.get('web-deep')).toBe(WebDeep);
+      expect(registry.get('service-recon')).toBe(ServiceRecon);
 
       expect(registry.list()).toHaveLength(BUILTIN_TEMPLATES.length);
     });
@@ -175,7 +178,8 @@ describe('builtin templates', () => {
       expect(registry.get('web-fingerprint')).toBe(WebFingerprint);
       expect(registry.get('osint-passive-deep')).toBe(OsintPassiveDeep);
       expect(registry.get('web-enrich')).toBe(WebEnrich);
-      expect(registry.list()).toHaveLength(10);
+      expect(registry.get('service-recon')).toBe(ServiceRecon);
+      expect(registry.list()).toHaveLength(11);
 
       // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
       const moduleInstance = ref.get(TemplatesModule);

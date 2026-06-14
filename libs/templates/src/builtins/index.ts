@@ -4,6 +4,7 @@ import { OsintPassiveDeep } from './osint-passive-deep';
 import { ReconActive } from './recon-active';
 import { ReconPassive } from './recon-passive';
 import { ReconPassiveDeep } from './recon-passive-deep';
+import { ServiceRecon } from './service-recon';
 import { WebContent } from './web-content';
 import { WebDeep } from './web-deep';
 import { WebEnrich } from './web-enrich';
@@ -16,6 +17,7 @@ export {
   ReconActive,
   ReconPassive,
   ReconPassiveDeep,
+  ServiceRecon,
   WebContent,
   WebDeep,
   WebEnrich,
@@ -39,4 +41,5 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   WebFingerprint,
   OsintPassiveDeep,
   WebEnrich,
+  ServiceRecon,
 ];
