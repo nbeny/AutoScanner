@@ -9,6 +9,7 @@ import type { TemplateDefinition } from '../types';
  *   - wafw00f   : WAF detection → Technology
  *   - cdncheck  : CDN/cloud/WAF host check → Technology
  *   - js-recon  : JS endpoint extraction + secret scanning → Endpoint + Finding
+ *   - gowitness : headless-chromium screenshot → Screenshot (PNG stored as binary raw output)
  */
 export const WebEnrich: TemplateDefinition = {
   name: 'web-enrich',
@@ -22,5 +23,6 @@ export const WebEnrich: TemplateDefinition = {
     { scannerName: 'wafw00f', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'cdncheck', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'js-recon', inputs: {}, target: { kind: 'context', path: 'target' } },
+    { scannerName: 'gowitness', inputs: {}, target: { kind: 'context', path: 'target' } },
   ],
 };
