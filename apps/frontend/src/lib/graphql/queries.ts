@@ -582,3 +582,61 @@ export const SET_FINDING_STATUS = gql`
     }
   }
 `;
+
+export const SCHEDULES_QUERY = gql`
+  query Schedules($engagementId: ID!) {
+    schedules(engagementId: $engagementId) {
+      id
+      name
+      cronExpr
+      timezone
+      targets
+      enabled
+      nextRunAt
+      lastRunAt
+      templateId
+      template {
+        id
+        name
+        displayName
+      }
+    }
+  }
+`;
+
+export const CREATE_SCHEDULE_MUTATION = gql`
+  mutation CreateSchedule($input: CreateScheduleInput!) {
+    createSchedule(input: $input) {
+      id
+      name
+      cronExpr
+      timezone
+      targets
+      enabled
+      nextRunAt
+      templateId
+      template {
+        id
+        displayName
+      }
+    }
+  }
+`;
+
+export const UPDATE_SCHEDULE_MUTATION = gql`
+  mutation UpdateSchedule($id: ID!, $input: UpdateScheduleInput!) {
+    updateSchedule(id: $id, input: $input) {
+      id
+      enabled
+      cronExpr
+      timezone
+      nextRunAt
+    }
+  }
+`;
+
+export const DELETE_SCHEDULE_MUTATION = gql`
+  mutation DeleteSchedule($id: ID!) {
+    deleteSchedule(id: $id)
+  }
+`;
