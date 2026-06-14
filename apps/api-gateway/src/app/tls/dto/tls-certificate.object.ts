@@ -11,13 +11,13 @@ export class TlsCertificateObject {
   @Field()
   host!: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   subjectCn?: string | null;
 
   @Field(() => [String])
   subjectAn!: string[];
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   issuerCn?: string | null;
 
   @Field(() => Date, { nullable: true })
@@ -29,7 +29,7 @@ export class TlsCertificateObject {
   @Field()
   fingerprintSha256!: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   tlsVersion?: string | null;
 
   @Field()

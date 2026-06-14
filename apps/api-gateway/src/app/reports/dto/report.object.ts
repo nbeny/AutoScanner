@@ -49,9 +49,9 @@ export class ReportObject {
   @Field()
   createdAt!: Date;
 
-  @Field({ nullable: true })
+  @Field(() => Date, { nullable: true })
   startedAt?: Date | null;
 
-  @Field({ nullable: true })
+  @Field(() => Date, { nullable: true })
   completedAt?: Date | null;
 }

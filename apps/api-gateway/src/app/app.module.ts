@@ -27,6 +27,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { TlsModule } from './tls/tls.module';
 import { ReportsModule } from './reports/reports.module';
 import { ScansModule } from './scans/scans.module';
+import { SchedulesModule } from './schedules/schedules.module';
 import { TemplatesModule } from './templates/templates.module';
 import { UsersModule } from './users/users.module';
 
@@ -84,6 +85,7 @@ import { UsersModule } from './users/users.module';
     ReportsModule,
     TlsModule,
     ScansModule,
+    SchedulesModule,
     TemplatesModule,
     UsersModule,
   ],

@@ -35,10 +35,10 @@ export class ScheduleObject {
   @Field()
   enabled!: boolean;
 
-  @Field({ nullable: true })
+  @Field(() => Date, { nullable: true })
   lastRunAt?: Date | null;
 
-  @Field({ nullable: true })
+  @Field(() => Date, { nullable: true })
   nextRunAt?: Date | null;
 
   @Field(() => ID, { nullable: true })
