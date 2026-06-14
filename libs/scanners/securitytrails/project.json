@@ -1,0 +1,22 @@
+{
+  "name": "scanners-securitytrails",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/securitytrails/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/securitytrails"],
+      "options": {
+        "jestConfig": "libs/scanners/securitytrails/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/securitytrails/tsconfig.lib.json"
+      }
+    }
+  }
+}

@@ -84,7 +84,7 @@ export interface NormalizedEmail {
 }
 
 export interface NormalizedOrgMetadata {
-  kind: 'WHOIS' | 'ASN' | 'ORG' | 'NETBLOCK' | 'OTHER';
+  kind: 'WHOIS' | 'ASN' | 'ORG' | 'NETBLOCK' | 'CLOUD_BUCKET' | 'OTHER';
   data: unknown;
 }
 

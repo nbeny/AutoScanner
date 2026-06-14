@@ -19,4 +19,8 @@ export * from './theharvester-text';
 export * from './sslscan-text';
 export * from './gobuster-text';
 export * from './censys-json';
+export * from './asnmap-json';
+export * from './cloud-enum-text';
+export * from './trufflehog-json';
+export * from './securitytrails-json';
 export * from './parsers.module';

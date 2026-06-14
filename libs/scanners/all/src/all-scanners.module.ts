@@ -23,6 +23,11 @@ import { WhatwebScannerModule } from '@autoscanner/scanners-whatweb';
 import { TheHarvesterScannerModule } from '@autoscanner/scanners-theharvester';
 import { SslscanScannerModule } from '@autoscanner/scanners-sslscan';
 import { CensysScannerModule } from '@autoscanner/scanners-censys';
+import { AsnmapScannerModule } from '@autoscanner/scanners-asnmap';
+import { CloudEnumScannerModule } from '@autoscanner/scanners-cloud-enum';
+import { GithubSubdomainsScannerModule } from '@autoscanner/scanners-github-subdomains';
+import { TrufflehogScannerModule } from '@autoscanner/scanners-trufflehog';
+import { SecuritytrailsScannerModule } from '@autoscanner/scanners-securitytrails';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -56,6 +61,11 @@ const SCANNER_MODULES = [
   TheHarvesterScannerModule,
   SslscanScannerModule,
   CensysScannerModule,
+  AsnmapScannerModule,
+  CloudEnumScannerModule,
+  GithubSubdomainsScannerModule,
+  TrufflehogScannerModule,
+  SecuritytrailsScannerModule,
 ];
 
 @Module({
