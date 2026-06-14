@@ -57,6 +57,9 @@ export const EnvSchema = z.object({
   OPERATOR_PASSWORD: z.string().min(8),
 
   PROMETHEUS_PORT: numericString(9091),
+
+  SMTP_URL: z.string().url().optional(),
+  NOTIFICATIONS_FROM: z.string().optional(),
 });
 
 export type AppEnv = z.infer<typeof EnvSchema>;

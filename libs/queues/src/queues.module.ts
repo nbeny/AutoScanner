@@ -21,6 +21,7 @@ import { QueueName } from './queue-names';
       { name: QueueName.TEMPLATE_RUNS },
       { name: QueueName.CVE_ENRICHMENT },
       { name: QueueName.REPORT_JOBS },
+      { name: QueueName.NOTIFICATION_JOBS },
     ),
   ],
   exports: [BullModule],
