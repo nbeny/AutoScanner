@@ -39,7 +39,8 @@ export class Wafw00fJsonParser implements Parser {
     for (const entry of entries) {
       if (!entry || entry.detected !== true) continue;
       const firewall = entry.firewall;
-      if (!firewall || firewall === 'None' || firewall === 'Generic') continue;
+      if (!firewall || firewall.toLowerCase() === 'none' || firewall.toLowerCase() === 'generic')
+        continue;
       const assetValue = entry.url ? hostFromUrl(entry.url, ctx.target) : ctx.target;
       out.technologies.push({ assetValue, name: `WAF: ${firewall}`, categories: ['waf'] });
     }

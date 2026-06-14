@@ -25,7 +25,7 @@ export const Wafw00fScanner: ScannerDefinition<Wafw00fInputType> = {
     defaultTimeoutMs: 180_000,
   },
   build(_input, target) {
-    const script = `wafw00f ${shellQuoteSingle(target)} -f json -o /dev/stdout 2>/dev/null || true`;
+    const script = `wafw00f ${shellQuoteSingle(target)} -f json -o /tmp/waf.json >/dev/null 2>&1; cat /tmp/waf.json 2>/dev/null || true`;
     return { cmd: ['sh', '-lc', script] };
   },
   outputs: [{ format: 'JSON', capture: 'stdout', parser: 'wafw00f-json' }],

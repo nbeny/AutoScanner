@@ -37,14 +37,16 @@ export class CdncheckJsonParser implements Parser {
 
       if (rec.cdn && typeof rec.cdn_name === 'string' && rec.cdn_name) {
         out.technologies.push({ assetValue, name: `CDN: ${rec.cdn_name}`, categories: ['cdn'] });
-      } else if (rec.cloud && typeof rec.cloud_name === 'string' && rec.cloud_name) {
+      }
+      if (rec.cloud && typeof rec.cloud_name === 'string' && rec.cloud_name) {
         out.technologies.push({
           assetValue,
           name: `cloud: ${rec.cloud_name}`,
           categories: ['cdn'],
         });
-      } else if (rec.waf && typeof rec.waf_name === 'string' && rec.waf_name) {
-        out.technologies.push({ assetValue, name: `WAF: ${rec.waf_name}`, categories: ['cdn'] });
+      }
+      if (rec.waf && typeof rec.waf_name === 'string' && rec.waf_name) {
+        out.technologies.push({ assetValue, name: `WAF: ${rec.waf_name}`, categories: ['waf'] });
       }
     }
     return out;
