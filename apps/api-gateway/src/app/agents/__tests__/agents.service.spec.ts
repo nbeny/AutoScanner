@@ -79,8 +79,9 @@ describe('AgentsService', () => {
       },
       scanJob: {
         findFirst: jest.fn(),
-        update: jest.fn(),
         findUnique: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       $transaction: jest.fn(),
     } as unknown as jest.Mocked<PrismaService>;
@@ -357,11 +358,17 @@ describe('AgentsService', () => {
         makeAgent({ publicKey: publicKeyBase64, status: 'ACTIVE' }),
       );
 
+      // CAS succeeds: updateMany matches the RUNNING job
+      (prisma.scanJob.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
       const runningJob = makeJob({ status: 'RUNNING', agentId: AGENT_ID });
-      (prisma.scanJob.findFirst as jest.Mock).mockResolvedValue(runningJob);
+      // findUnique loads job details after the CAS
+      (prisma.scanJob.findUnique as jest.Mock).mockResolvedValue(runningJob);
+      // update persists rawOutputKey
       (prisma.scanJob.update as jest.Mock).mockResolvedValue({
         ...runningJob,
         status: 'COMPLETED',
+        rawOutputKey: 'some/key',
       });
 
       const rawOutputBase64 = Buffer.from('<xml>output</xml>', 'utf8').toString('base64');
@@ -374,6 +381,18 @@ describe('AgentsService', () => {
         exitCode: 0,
         rawOutputBase64,
       });
+
+      // CAS called with RUNNING predicate and terminal status data
+      expect(prisma.scanJob.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: JOB_ID,
+            agentId: AGENT_ID,
+            status: 'RUNNING',
+          }),
+          data: expect.objectContaining({ status: 'COMPLETED', exitCode: 0 }),
+        }),
+      );
 
       expect(storage.ensureBucket).toHaveBeenCalledWith('raw-outputs');
       expect(storage.putObject).toHaveBeenCalledWith(
@@ -389,14 +408,15 @@ describe('AgentsService', () => {
           engagementId: ENGAGEMENT_ID,
         }),
       );
+      // rawOutputKey persisted via separate update
       expect(prisma.scanJob.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ status: 'COMPLETED', exitCode: 0 }),
+          data: expect.objectContaining({ rawOutputKey: expect.any(String) }),
         }),
       );
     });
 
-    it('sets FAILED when exitCode != 0', async () => {
+    it('sets FAILED when exitCode != 0 and does not enqueue parse-job', async () => {
       const { publicKeyBase64, privateKeyBase64 } = generateAgentKeypair();
       const ts = new Date().toISOString();
       const canonical = `result|${JOB_ID}|${AGENT_ID}|${ts}`;
@@ -406,9 +426,15 @@ describe('AgentsService', () => {
         makeAgent({ publicKey: publicKeyBase64, status: 'ACTIVE' }),
       );
 
+      (prisma.scanJob.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
       const runningJob = makeJob({ status: 'RUNNING', agentId: AGENT_ID });
-      (prisma.scanJob.findFirst as jest.Mock).mockResolvedValue(runningJob);
-      (prisma.scanJob.update as jest.Mock).mockResolvedValue({ ...runningJob, status: 'FAILED' });
+      (prisma.scanJob.findUnique as jest.Mock).mockResolvedValue(runningJob);
+      (prisma.scanJob.update as jest.Mock).mockResolvedValue({
+        ...runningJob,
+        status: 'FAILED',
+        rawOutputKey: 'some/key',
+      });
 
       await svc.submitResult({
         jobId: JOB_ID,
@@ -419,7 +445,7 @@ describe('AgentsService', () => {
         rawOutputBase64: Buffer.from('error output', 'utf8').toString('base64'),
       });
 
-      expect(prisma.scanJob.update).toHaveBeenCalledWith(
+      expect(prisma.scanJob.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: 'FAILED', exitCode: 1 }),
         }),
@@ -428,7 +454,7 @@ describe('AgentsService', () => {
       expect(parseQueue.add).not.toHaveBeenCalled();
     });
 
-    it('throws when job does not belong to this agent', async () => {
+    it('throws NotFoundError when CAS misses (already submitted, wrong agent, or not RUNNING)', async () => {
       const { publicKeyBase64, privateKeyBase64 } = generateAgentKeypair();
       const ts = new Date().toISOString();
       const canonical = `result|${JOB_ID}|${AGENT_ID}|${ts}`;
@@ -437,8 +463,9 @@ describe('AgentsService', () => {
       (prisma.agent.findUnique as jest.Mock).mockResolvedValue(
         makeAgent({ publicKey: publicKeyBase64, status: 'ACTIVE' }),
       );
-      // job belongs to a different agent
-      (prisma.scanJob.findFirst as jest.Mock).mockResolvedValue(null);
+
+      // CAS misses — job already transitioned or belongs to another agent
+      (prisma.scanJob.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
 
       await expect(
         svc.submitResult({
@@ -450,6 +477,10 @@ describe('AgentsService', () => {
           rawOutputBase64: 'aGVsbG8=',
         }),
       ).rejects.toBeInstanceOf(NotFoundError);
+
+      // Must NOT store output or enqueue parse-job when CAS misses
+      expect(storage.putObject).not.toHaveBeenCalled();
+      expect(parseQueue.add).not.toHaveBeenCalled();
     });
   });
 
