@@ -115,7 +115,7 @@ export function SchedulesTab({ engagementId }: Props) {
             {!templateId ? <option value="">— select —</option> : null}
             {tmplData?.scanTemplates?.map((t) => (
               <option key={t.id} value={t.id}>
-                {t.name}
+                {t.displayName}
               </option>
             ))}
           </select>
