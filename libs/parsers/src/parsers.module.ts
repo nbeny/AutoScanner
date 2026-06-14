@@ -27,6 +27,7 @@ import { JsReconJsonParser } from './js-recon-json';
 import { CloudEnumTextParser } from './cloud-enum-text';
 import { TrufflehogJsonParser } from './trufflehog-json';
 import { SecuritytrailsJsonParser } from './securitytrails-json';
+import { SmtpNmapXmlParser } from './smtp-nmap-xml';
 
 @Global()
 @Module({
@@ -59,6 +60,7 @@ import { SecuritytrailsJsonParser } from './securitytrails-json';
     CloudEnumTextParser,
     TrufflehogJsonParser,
     SecuritytrailsJsonParser,
+    SmtpNmapXmlParser,
   ],
   exports: [
     ParserRegistry,
@@ -89,6 +91,7 @@ import { SecuritytrailsJsonParser } from './securitytrails-json';
     CloudEnumTextParser,
     TrufflehogJsonParser,
     SecuritytrailsJsonParser,
+    SmtpNmapXmlParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -121,6 +124,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly cloudEnumText: CloudEnumTextParser,
     private readonly trufflehogJson: TrufflehogJsonParser,
     private readonly securitytrailsJson: SecuritytrailsJsonParser,
+    private readonly smtpNmapXml: SmtpNmapXmlParser,
   ) {}
 
   onModuleInit(): void {
@@ -151,5 +155,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.cloudEnumText);
     this.registry.register(this.trufflehogJson);
     this.registry.register(this.securitytrailsJson);
+    this.registry.register(this.smtpNmapXml);
   }
 }
