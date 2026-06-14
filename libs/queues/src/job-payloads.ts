@@ -30,12 +30,17 @@ export interface ReportJobPayload {
   reportId: string;
 }
 
+export interface NotificationJobPayload {
+  notificationId: string;
+}
+
 export interface QueuePayloadMap {
   [QueueName.SCAN_JOBS]: ScanJobPayload;
   [QueueName.PARSE_JOBS]: ParseJobPayload;
   [QueueName.TEMPLATE_RUNS]: TemplateRunPayload;
   [QueueName.CVE_ENRICHMENT]: CveEnrichmentPayload;
   [QueueName.REPORT_JOBS]: ReportJobPayload;
+  [QueueName.NOTIFICATION_JOBS]: NotificationJobPayload;
 }
 
 export type PayloadFor<Q extends QueueName> = QueuePayloadMap[Q];

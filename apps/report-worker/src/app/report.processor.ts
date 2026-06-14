@@ -12,6 +12,7 @@ import {
 import { PrismaService } from '@autoscanner/database';
 import { QueueName, type ReportJobPayload } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
+import { NotificationEventType, NotificationsFanoutService } from '@autoscanner/notifications';
 import {
   CsvRenderer,
   JsonExporter,
@@ -58,6 +59,7 @@ export class ReportProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(PDF_RENDERER) private readonly pdfRenderer: PdfRenderer,
+    private readonly fanout: NotificationsFanoutService,
   ) {
     super();
   }
@@ -100,6 +102,12 @@ export class ReportProcessor extends WorkerHost {
           errorMessage: null,
         },
       });
+      await this.fanout
+        .fanout(NotificationEventType.REPORT_READY, {
+          engagementId: report.engagementId,
+          reportId: report.id,
+        })
+        .catch((e) => this.logger.warn(`notification fanout failed: ${(e as Error).message}`));
       this.logger.log(`Report ${reportId} READY (${sizeBytes} bytes, key=${storageKey})`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

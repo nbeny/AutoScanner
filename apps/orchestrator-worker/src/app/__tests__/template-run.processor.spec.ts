@@ -8,6 +8,8 @@ import {
   type EngagementEventsPublisher,
 } from '@autoscanner/engagement-events';
 
+import { NotificationEventType, type NotificationsFanoutService } from '@autoscanner/notifications';
+
 import type { StepExecutor } from '../step-executor.service';
 import { TemplateRunProcessor } from '../template-run.processor';
 
@@ -91,6 +93,12 @@ function makeExecutor(): jest.Mocked<StepExecutor> {
   } as unknown as jest.Mocked<StepExecutor>;
 }
 
+function makeFanout(): jest.Mocked<NotificationsFanoutService> {
+  return {
+    fanout: jest.fn().mockResolvedValue(0),
+  } as unknown as jest.Mocked<NotificationsFanoutService>;
+}
+
 const job = (payload: TemplateRunPayload): Job<TemplateRunPayload> =>
   ({
     id: 'bull_1',
@@ -105,7 +113,8 @@ describe('TemplateRunProcessor', () => {
     const prisma = makePrisma(row);
     const registry = makeRegistry();
     const executor = makeExecutor();
-    const proc = new TemplateRunProcessor(prisma, registry, executor, makeEvents());
+    const fanout = makeFanout();
+    const proc = new TemplateRunProcessor(prisma, registry, executor, makeEvents(), fanout);
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 
@@ -160,13 +169,25 @@ describe('TemplateRunProcessor', () => {
         }),
       }),
     );
+
+    // Notification fanout fired with SCAN_COMPLETED
+    expect(fanout.fanout).toHaveBeenCalledWith(
+      NotificationEventType.SCAN_COMPLETED,
+      expect.objectContaining({ engagementId: 'eng_1', templateRunId: 'run_1' }),
+    );
   });
 
   it('resumes at currentStepIndex when the run was already partially executed', async () => {
     const row = makeRow({ status: 'RUNNING', currentStepIndex: 1, startedAt: new Date() });
     const prisma = makePrisma(row);
     const executor = makeExecutor();
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
+    const proc = new TemplateRunProcessor(
+      prisma,
+      makeRegistry(),
+      executor,
+      makeEvents(),
+      makeFanout(),
+    );
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 
@@ -180,7 +201,8 @@ describe('TemplateRunProcessor', () => {
     const prisma = makePrisma(row);
     const executor = makeExecutor();
     executor.runStep.mockRejectedValueOnce(new Error('docker boom'));
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
+    const fanout = makeFanout();
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents(), fanout);
 
     await expect(
       proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
@@ -196,13 +218,25 @@ describe('TemplateRunProcessor', () => {
         }),
       }),
     );
+
+    // Notification fanout fired with SCAN_FAILED before re-throw
+    expect(fanout.fanout).toHaveBeenCalledWith(
+      NotificationEventType.SCAN_FAILED,
+      expect.objectContaining({ engagementId: 'eng_1', templateRunId: 'run_1' }),
+    );
   });
 
   it('Already-CANCELLED -> early return, no executor calls, no status mutation', async () => {
     const row = makeRow({ status: 'CANCELLED' });
     const prisma = makePrisma(row);
     const executor = makeExecutor();
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
+    const proc = new TemplateRunProcessor(
+      prisma,
+      makeRegistry(),
+      executor,
+      makeEvents(),
+      makeFanout(),
+    );
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 
@@ -214,7 +248,13 @@ describe('TemplateRunProcessor', () => {
     const row = makeRow({ status: 'COMPLETED' });
     const prisma = makePrisma(row);
     const executor = makeExecutor();
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
+    const proc = new TemplateRunProcessor(
+      prisma,
+      makeRegistry(),
+      executor,
+      makeEvents(),
+      makeFanout(),
+    );
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 
@@ -234,7 +274,13 @@ describe('TemplateRunProcessor', () => {
       .mockResolvedValueOnce({}) // flip to RUNNING
       .mockResolvedValueOnce({}) // currentStepIndex = 0
       .mockRejectedValueOnce(new Error('db is down')); // FAILED reconciliation
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
+    const proc = new TemplateRunProcessor(
+      prisma,
+      makeRegistry(),
+      executor,
+      makeEvents(),
+      makeFanout(),
+    );
 
     await expect(
       proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
@@ -246,7 +292,13 @@ describe('TemplateRunProcessor', () => {
       const row = makeRow({ status: 'PENDING', currentStepIndex: 0 });
       const prisma = makePrisma(row);
       const events = makeEvents();
-      const proc = new TemplateRunProcessor(prisma, makeRegistry(), makeExecutor(), events);
+      const proc = new TemplateRunProcessor(
+        prisma,
+        makeRegistry(),
+        makeExecutor(),
+        events,
+        makeFanout(),
+      );
 
       await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 
@@ -264,7 +316,7 @@ describe('TemplateRunProcessor', () => {
       const executor = makeExecutor();
       executor.runStep.mockRejectedValueOnce(new Error('docker boom'));
       const events = makeEvents();
-      const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, events);
+      const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, events, makeFanout());
 
       await expect(
         proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
@@ -282,7 +334,13 @@ describe('TemplateRunProcessor', () => {
       const row = makeRow({ status: 'CANCELLED' });
       const prisma = makePrisma(row);
       const events = makeEvents();
-      const proc = new TemplateRunProcessor(prisma, makeRegistry(), makeExecutor(), events);
+      const proc = new TemplateRunProcessor(
+        prisma,
+        makeRegistry(),
+        makeExecutor(),
+        events,
+        makeFanout(),
+      );
 
       await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 
@@ -295,7 +353,13 @@ describe('TemplateRunProcessor', () => {
       const events: jest.Mocked<EngagementEventsPublisher> = {
         publish: jest.fn().mockRejectedValue(new Error('redis down')),
       };
-      const proc = new TemplateRunProcessor(prisma, makeRegistry(), makeExecutor(), events);
+      const proc = new TemplateRunProcessor(
+        prisma,
+        makeRegistry(),
+        makeExecutor(),
+        events,
+        makeFanout(),
+      );
 
       await expect(
         proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
@@ -308,7 +372,13 @@ describe('TemplateRunProcessor', () => {
     const row = makeRow({ status: 'RUNNING', currentStepIndex: 0, startedAt });
     const prisma = makePrisma(row);
     const executor = makeExecutor();
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents());
+    const proc = new TemplateRunProcessor(
+      prisma,
+      makeRegistry(),
+      executor,
+      makeEvents(),
+      makeFanout(),
+    );
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 

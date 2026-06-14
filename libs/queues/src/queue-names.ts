@@ -4,6 +4,7 @@ export const QueueName = {
   TEMPLATE_RUNS: 'template-runs',
   CVE_ENRICHMENT: 'cve-enrichment',
   REPORT_JOBS: 'report-jobs',
+  NOTIFICATION_JOBS: 'notification-jobs',
 } as const;
 
 export type QueueName = (typeof QueueName)[keyof typeof QueueName];

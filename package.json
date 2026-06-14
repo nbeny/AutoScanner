@@ -25,6 +25,7 @@
     "dev:down": "docker compose -f docker/docker-compose.dev.yml down",
     "dev:logs": "docker compose -f docker/docker-compose.dev.yml logs -f",
     "dev:orchestrator-worker": "nx serve orchestrator-worker",
+    "dev:notification-worker": "nx serve notification-worker",
     "dev:scheduler": "nx serve scheduler",
     "prepare": "husky",
     "scanners:build": "bash tools/scanners/build-images.sh"
@@ -67,6 +68,7 @@
     "@types/punycode": "^2.1.4",
     "@types/react": "18",
     "@types/react-dom": "18",
+    "@types/nodemailer": "^6.4.17",
     "@types/supertest": "6.0.2",
     "@types/ws": "^8.5.0",
     "@typescript-eslint/eslint-plugin": "8.18.1",
@@ -136,6 +138,7 @@
     "ipaddr.js": "^2.4.0",
     "jsonwebtoken": "9.0.2",
     "nestjs-pino": "4.2.0",
+    "nodemailer": "^6.9.0",
     "otpauth": "9.3.6",
     "passport": "0.7.0",
     "passport-jwt": "4.0.1",
