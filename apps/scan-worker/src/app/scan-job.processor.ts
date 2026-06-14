@@ -68,179 +68,183 @@ export class ScanJobProcessor extends WorkerHost {
       artifactHostDir = await mkdtemp(join(tmpdir(), 'autoscanner-art-'));
     }
 
-    const build = scanner.build(parsedInput, payload.target, {
-      scanJobId: payload.scanJobId,
-      engagementId: payload.engagementId,
-      scratchDir: artifactHostDir ? '/output' : '/tmp',
-    });
-
-    let extraEnv: Record<string, string> | undefined;
-    if (scanner.requiresCredential) {
-      const provider = scanner.requiresCredential;
-      const eng = await this.prisma.engagement.findUnique({
-        where: { id: payload.engagementId },
-        select: { ownerId: true },
-      });
-      const cred = eng
-        ? await this.prisma.apiCredential.findUnique({
-            where: { ownerId_provider: { ownerId: eng.ownerId, provider } },
-          })
-        : null;
-      if (!cred) {
-        const message = eng
-          ? `missing ${provider} API credential for engagement owner`
-          : `engagement ${payload.engagementId} not found; cannot resolve ${provider} API credential`;
-        await this.prisma.scanJob.update({
-          where: { id: payload.scanJobId },
-          data: { status: 'FAILED', completedAt: new Date(), errorMessage: message },
-        });
-        this.logger.error(`scanJob=${payload.scanJobId} ${message}`);
-        throw new Error(message);
-      }
-      const decryptedKey = this.secretBox.open(cred.ciphertext as Buffer);
-      extraEnv = { [scanner.credentialEnvVar ?? `${provider}_API_KEY`]: decryptedKey };
-    }
-
-    await this.docker.pullIfMissing(scanner.docker.image);
-
-    const runSpec: RunSpec = {
-      image: scanner.docker.image,
-      cmd: build.cmd,
-      env: { ...build.env, ...extraEnv },
-      binds: artifactHostDir
-        ? [...(build.binds ?? []), { src: artifactHostDir, dst: '/output' }]
-        : build.binds,
-      stdin: build.stdin,
-      network: scanner.docker.network,
-      capabilities: { add: scanner.docker.capabilities, drop: ['ALL'] },
-      readonlyRootfs: scanner.docker.readonlyRootfs,
-      memoryLimitMb: scanner.docker.memoryLimitMb,
-      cpuQuota: scanner.docker.cpuQuota,
-      timeoutMs: scanner.docker.defaultTimeoutMs,
-      user: scanner.docker.network === 'host' ? 'root' : undefined,
-    };
-
-    // Only one stream's bytes ever land in MinIO — the other is dead-weight
-    // if we accumulate it. Resolve the captured stream up front so the
-    // onStdout/onStderr closures can skip buffering the discarded side.
-    // For file-capture (object capture), capturedStream is the object itself —
-    // it will never equal 'stdout' or 'stderr', so captureChunk buffers nothing.
-    const capturedStream = out0.capture;
-
-    let result: RunResult;
-    // `string[] + join('')` rather than `string += chunk` — repeated `+=` on
-    // large strings is O(n²) in V8 once the rope optimisation gives up.
-    const capturedChunks: string[] = [];
-    let capturedBytes = 0;
-    let oversized = false;
-    const oversizeAbort = new AbortController();
-
-    // If pub/sub is down, a chatty scanner (nuclei emits thousands of chunks)
-    // produces one warn per chunk, drowning every other signal in the log.
-    // Cap to one warn per scan-job: subsequent failures stay suppressed for
-    // this run but the BullMQ retry on a fresh scan-job will warn again.
-    let publishFailureLogged = false;
-    const safePublish = (stream: 'stdout' | 'stderr', chunk: string): void => {
-      void this.logStream
-        .publish({ scanJobId: payload.scanJobId, stream, ts: Date.now(), chunk })
-        .catch((err) => {
-          if (publishFailureLogged) return;
-          publishFailureLogged = true;
-          this.logger.warn(
-            `scanJob=${payload.scanJobId} log stream publish failed (suppressing further warns for this scan): ${(err as Error).message}`,
-          );
-        });
-    };
-
-    const captureChunk = (stream: 'stdout' | 'stderr', chunk: string): void => {
-      if (stream !== capturedStream || oversized) return;
-      // `Buffer.byteLength`, not `chunk.length`: chunks are JS strings (UTF-16
-      // code units); non-ASCII would under-count. The cap is a byte budget
-      // because the parser-worker download cap is too.
-      const bytes = Buffer.byteLength(chunk, 'utf8');
-      if (capturedBytes + bytes > MAX_RAW_OUTPUT_BYTES) {
-        oversized = true;
-        const streamLabel = typeof capturedStream === 'string' ? capturedStream : 'output';
-        this.logger.error(
-          `scanJob=${payload.scanJobId} ${streamLabel} output exceeded ${MAX_RAW_OUTPUT_BYTES} bytes — killing container`,
-        );
-        // Kill the container instead of letting it run to completion. We
-        // already know the output is unusable; burning more CPU/disk on it
-        // just delays the FAILED status the orchestrator is waiting for.
-        oversizeAbort.abort();
-        return;
-      }
-      capturedChunks.push(chunk);
-      capturedBytes += bytes;
-    };
-
+    // Outer try/finally ensures artifactHostDir is removed even if the
+    // credential-missing throw or docker.run catch-rethrow fires before
+    // the store/parse block that originally held the only cleanup.
     try {
-      result = await this.docker.run({
-        ...runSpec,
-        abortSignal: oversizeAbort.signal,
-        onStdout: (chunk) => {
-          captureChunk('stdout', chunk);
-          safePublish('stdout', chunk);
-        },
-        onStderr: (chunk) => {
-          captureChunk('stderr', chunk);
-          safePublish('stderr', chunk);
-        },
+      const build = scanner.build(parsedInput, payload.target, {
+        scanJobId: payload.scanJobId,
+        engagementId: payload.engagementId,
+        scratchDir: artifactHostDir ? '/output' : '/tmp',
       });
-    } catch (err) {
-      this.logger.error(`scanJob=${payload.scanJobId} failed: ${(err as Error).message}`);
-      await this.prisma.scanJob.update({
-        where: { id: payload.scanJobId },
-        data: {
-          status: 'FAILED',
-          completedAt: new Date(),
-          errorMessage: (err as Error).message,
-        },
-      });
-      throw err;
-    }
 
-    // The abort-on-oversize path tripped `killedByUser` inside docker-runner,
-    // but this isn't a user cancellation — surface it as FAILED with an
-    // operator-readable message rather than the misleading CANCELLED status
-    // the normal mapping below would produce.
-    if (oversized) {
-      const streamName = typeof capturedStream === 'string' ? capturedStream : 'output';
-      const message = `${streamName} output exceeded ${MAX_RAW_OUTPUT_BYTES} bytes`;
-      await this.prisma.scanJob
-        .update({
+      let extraEnv: Record<string, string> | undefined;
+      if (scanner.requiresCredential) {
+        const provider = scanner.requiresCredential;
+        const eng = await this.prisma.engagement.findUnique({
+          where: { id: payload.engagementId },
+          select: { ownerId: true },
+        });
+        const cred = eng
+          ? await this.prisma.apiCredential.findUnique({
+              where: { ownerId_provider: { ownerId: eng.ownerId, provider } },
+            })
+          : null;
+        if (!cred) {
+          const message = eng
+            ? `missing ${provider} API credential for engagement owner`
+            : `engagement ${payload.engagementId} not found; cannot resolve ${provider} API credential`;
+          await this.prisma.scanJob.update({
+            where: { id: payload.scanJobId },
+            data: { status: 'FAILED', completedAt: new Date(), errorMessage: message },
+          });
+          this.logger.error(`scanJob=${payload.scanJobId} ${message}`);
+          throw new Error(message);
+        }
+        const decryptedKey = this.secretBox.open(cred.ciphertext as Buffer);
+        extraEnv = { [scanner.credentialEnvVar ?? `${provider}_API_KEY`]: decryptedKey };
+      }
+
+      await this.docker.pullIfMissing(scanner.docker.image);
+
+      const runSpec: RunSpec = {
+        image: scanner.docker.image,
+        cmd: build.cmd,
+        env: { ...build.env, ...extraEnv },
+        binds: artifactHostDir
+          ? [...(build.binds ?? []), { src: artifactHostDir, dst: '/output' }]
+          : build.binds,
+        stdin: build.stdin,
+        network: scanner.docker.network,
+        capabilities: { add: scanner.docker.capabilities, drop: ['ALL'] },
+        readonlyRootfs: scanner.docker.readonlyRootfs,
+        memoryLimitMb: scanner.docker.memoryLimitMb,
+        cpuQuota: scanner.docker.cpuQuota,
+        timeoutMs: scanner.docker.defaultTimeoutMs,
+        user: scanner.docker.network === 'host' ? 'root' : undefined,
+      };
+
+      // Only one stream's bytes ever land in MinIO — the other is dead-weight
+      // if we accumulate it. Resolve the captured stream up front so the
+      // onStdout/onStderr closures can skip buffering the discarded side.
+      // For file-capture (object capture), capturedStream is the object itself —
+      // it will never equal 'stdout' or 'stderr', so captureChunk buffers nothing.
+      const capturedStream = out0.capture;
+
+      let result: RunResult;
+      // `string[] + join('')` rather than `string += chunk` — repeated `+=` on
+      // large strings is O(n²) in V8 once the rope optimisation gives up.
+      const capturedChunks: string[] = [];
+      let capturedBytes = 0;
+      let oversized = false;
+      const oversizeAbort = new AbortController();
+
+      // If pub/sub is down, a chatty scanner (nuclei emits thousands of chunks)
+      // produces one warn per chunk, drowning every other signal in the log.
+      // Cap to one warn per scan-job: subsequent failures stay suppressed for
+      // this run but the BullMQ retry on a fresh scan-job will warn again.
+      let publishFailureLogged = false;
+      const safePublish = (stream: 'stdout' | 'stderr', chunk: string): void => {
+        void this.logStream
+          .publish({ scanJobId: payload.scanJobId, stream, ts: Date.now(), chunk })
+          .catch((err) => {
+            if (publishFailureLogged) return;
+            publishFailureLogged = true;
+            this.logger.warn(
+              `scanJob=${payload.scanJobId} log stream publish failed (suppressing further warns for this scan): ${(err as Error).message}`,
+            );
+          });
+      };
+
+      const captureChunk = (stream: 'stdout' | 'stderr', chunk: string): void => {
+        if (stream !== capturedStream || oversized) return;
+        // `Buffer.byteLength`, not `chunk.length`: chunks are JS strings (UTF-16
+        // code units); non-ASCII would under-count. The cap is a byte budget
+        // because the parser-worker download cap is too.
+        const bytes = Buffer.byteLength(chunk, 'utf8');
+        if (capturedBytes + bytes > MAX_RAW_OUTPUT_BYTES) {
+          oversized = true;
+          const streamLabel = typeof capturedStream === 'string' ? capturedStream : 'output';
+          this.logger.error(
+            `scanJob=${payload.scanJobId} ${streamLabel} output exceeded ${MAX_RAW_OUTPUT_BYTES} bytes — killing container`,
+          );
+          // Kill the container instead of letting it run to completion. We
+          // already know the output is unusable; burning more CPU/disk on it
+          // just delays the FAILED status the orchestrator is waiting for.
+          oversizeAbort.abort();
+          return;
+        }
+        capturedChunks.push(chunk);
+        capturedBytes += bytes;
+      };
+
+      try {
+        result = await this.docker.run({
+          ...runSpec,
+          abortSignal: oversizeAbort.signal,
+          onStdout: (chunk) => {
+            captureChunk('stdout', chunk);
+            safePublish('stdout', chunk);
+          },
+          onStderr: (chunk) => {
+            captureChunk('stderr', chunk);
+            safePublish('stderr', chunk);
+          },
+        });
+      } catch (err) {
+        this.logger.error(`scanJob=${payload.scanJobId} failed: ${(err as Error).message}`);
+        await this.prisma.scanJob.update({
           where: { id: payload.scanJobId },
           data: {
             status: 'FAILED',
             completedAt: new Date(),
-            exitCode: result.exitCode,
-            durationMs: result.durationMs,
-            errorMessage: message,
+            errorMessage: (err as Error).message,
           },
-        })
-        .catch((updateErr) => {
-          this.logger.warn(
-            `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
-          );
         });
-      throw new Error(`scanJob=${payload.scanJobId} ${message}`);
-    }
+        throw err;
+      }
 
-    const key = rawOutputKey({
-      engagementId: payload.engagementId,
-      scanId,
-      scanJobId: payload.scanJobId,
-      scannerName: payload.scannerName,
-      format: out0.format,
-    });
+      // The abort-on-oversize path tripped `killedByUser` inside docker-runner,
+      // but this isn't a user cancellation — surface it as FAILED with an
+      // operator-readable message rather than the misleading CANCELLED status
+      // the normal mapping below would produce.
+      if (oversized) {
+        const streamName = typeof capturedStream === 'string' ? capturedStream : 'output';
+        const message = `${streamName} output exceeded ${MAX_RAW_OUTPUT_BYTES} bytes`;
+        await this.prisma.scanJob
+          .update({
+            where: { id: payload.scanJobId },
+            data: {
+              status: 'FAILED',
+              completedAt: new Date(),
+              exitCode: result.exitCode,
+              durationMs: result.durationMs,
+              errorMessage: message,
+            },
+          })
+          .catch((updateErr) => {
+            this.logger.warn(
+              `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
+            );
+          });
+        throw new Error(`scanJob=${payload.scanJobId} ${message}`);
+      }
 
-    try {
+      const key = rawOutputKey({
+        engagementId: payload.engagementId,
+        scanId,
+        scanJobId: payload.scanJobId,
+        scannerName: payload.scannerName,
+        format: out0.format,
+      });
+
       let storeBody: Buffer;
       let storeContentType: string;
 
       if (fileCapture && artifactHostDir) {
         // File-capture branch: read the produced file from the bound host dir.
         const files = await readdir(artifactHostDir);
+        // Empty capture.path ⇒ take the only file the scanner produced (per-job mkdtemp isolates runs, so there is exactly one).
         const wanted = fileCapture.path
           ? files.find((f) => f === fileCapture.path || f.endsWith(fileCapture.path))
           : files[0];

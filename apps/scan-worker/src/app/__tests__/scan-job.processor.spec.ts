@@ -643,5 +643,22 @@ describe('ScanJobProcessor', () => {
       expect(capturedHostDir).toBeDefined();
       expect(fs.existsSync(capturedHostDir!)).toBe(false);
     });
+
+    it('cleans up the host temp dir even when docker.run rejects', async () => {
+      let lastBindSrc: string | undefined;
+
+      docker.run.mockImplementationOnce(async (spec: RunSpec): Promise<RunResult> => {
+        // Capture the bound host path before throwing so we can assert cleanup afterward.
+        lastBindSrc = spec.binds?.find((b) => b.dst === '/output')?.src;
+        throw new Error('docker.run kaboom');
+      });
+
+      await expect(processor.process(binaryJob())).rejects.toThrow('docker.run kaboom');
+
+      // The temp dir must have been removed by the outer finally even though
+      // docker.run threw before any file was written.
+      expect(lastBindSrc).toBeDefined();
+      expect(fs.existsSync(lastBindSrc!)).toBe(false);
+    });
   });
 });
