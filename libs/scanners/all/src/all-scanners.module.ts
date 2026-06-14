@@ -28,6 +28,10 @@ import { CloudEnumScannerModule } from '@autoscanner/scanners-cloud-enum';
 import { GithubSubdomainsScannerModule } from '@autoscanner/scanners-github-subdomains';
 import { TrufflehogScannerModule } from '@autoscanner/scanners-trufflehog';
 import { SecuritytrailsScannerModule } from '@autoscanner/scanners-securitytrails';
+import { FaviconScannerModule } from '@autoscanner/scanners-favicon';
+import { Wafw00fScannerModule } from '@autoscanner/scanners-wafw00f';
+import { CdncheckScannerModule } from '@autoscanner/scanners-cdncheck';
+import { JsReconScannerModule } from '@autoscanner/scanners-js-recon';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -66,6 +70,10 @@ const SCANNER_MODULES = [
   GithubSubdomainsScannerModule,
   TrufflehogScannerModule,
   SecuritytrailsScannerModule,
+  FaviconScannerModule,
+  Wafw00fScannerModule,
+  CdncheckScannerModule,
+  JsReconScannerModule,
 ];
 
 @Module({

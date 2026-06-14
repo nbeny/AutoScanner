@@ -10,6 +10,7 @@ import {
   TemplatesModule,
   WebContent,
   WebDeep,
+  WebEnrich,
   WebFingerprint,
   WebQuick,
 } from '../index';
@@ -124,8 +125,8 @@ describe('builtin templates', () => {
   });
 
   describe('BUILTIN_TEMPLATES', () => {
-    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep', () => {
-      expect(BUILTIN_TEMPLATES).toHaveLength(9);
+    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich', () => {
+      expect(BUILTIN_TEMPLATES).toHaveLength(10);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassive);
       expect(BUILTIN_TEMPLATES).toContain(ReconActive);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassiveDeep);
@@ -135,6 +136,7 @@ describe('builtin templates', () => {
       expect(BUILTIN_TEMPLATES).toContain(OsintPassive);
       expect(BUILTIN_TEMPLATES).toContain(WebFingerprint);
       expect(BUILTIN_TEMPLATES).toContain(OsintPassiveDeep);
+      expect(BUILTIN_TEMPLATES).toContain(WebEnrich);
     });
 
     it('exposes unique template names', () => {
@@ -172,7 +174,8 @@ describe('builtin templates', () => {
       expect(registry.get('osint-passive')).toBe(OsintPassive);
       expect(registry.get('web-fingerprint')).toBe(WebFingerprint);
       expect(registry.get('osint-passive-deep')).toBe(OsintPassiveDeep);
-      expect(registry.list()).toHaveLength(9);
+      expect(registry.get('web-enrich')).toBe(WebEnrich);
+      expect(registry.list()).toHaveLength(10);
 
       // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
       const moduleInstance = ref.get(TemplatesModule);
