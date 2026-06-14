@@ -161,4 +161,21 @@ describe('<SchedulesTab />', () => {
 
     await waitFor(() => expect(screen.getByText('No schedules yet.')).toBeInTheDocument());
   });
+
+  it('surfaces an error when disabling a schedule fails', async () => {
+    const updateErrorMock = {
+      request: {
+        query: UPDATE_SCHEDULE_MUTATION,
+        variables: { id: 'sch_1', input: { enabled: false } },
+      },
+      error: new Error('network down'),
+    };
+
+    renderTab([templatesMock, schedulesMock, updateErrorMock]);
+
+    await screen.findByText('nightly recon');
+    fireEvent.click(screen.getByRole('button', { name: 'Disable schedule sch_1' }));
+
+    await waitFor(() => expect(screen.getByText('network down')).toBeInTheDocument());
+  });
 });
