@@ -62,6 +62,7 @@
       "@autoscanner/scanners-shodan": ["libs/scanners/shodan/src/index.ts"],
       "@autoscanner/scanners-censys": ["libs/scanners/censys/src/index.ts"],
       "@autoscanner/scanners-github-subdomains": ["libs/scanners/github-subdomains/src/index.ts"],
+      "@autoscanner/scanners-trufflehog": ["libs/scanners/trufflehog/src/index.ts"],
       "@autoscanner/scanners-theharvester": ["libs/scanners/theharvester/src/index.ts"],
       "@autoscanner/scanners-subfinder": ["libs/scanners/subfinder/src/index.ts"],
       "@autoscanner/scanners-tlsx": ["libs/scanners/tlsx/src/index.ts"],

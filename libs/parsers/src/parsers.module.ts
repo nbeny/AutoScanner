@@ -21,6 +21,7 @@ import { GobusterTextParser } from './gobuster-text';
 import { CensysJsonParser } from './censys-json';
 import { AsnmapJsonParser } from './asnmap-json';
 import { CloudEnumTextParser } from './cloud-enum-text';
+import { TrufflehogJsonParser } from './trufflehog-json';
 
 @Global()
 @Module({
@@ -47,6 +48,7 @@ import { CloudEnumTextParser } from './cloud-enum-text';
     CensysJsonParser,
     AsnmapJsonParser,
     CloudEnumTextParser,
+    TrufflehogJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -71,6 +73,7 @@ import { CloudEnumTextParser } from './cloud-enum-text';
     CensysJsonParser,
     AsnmapJsonParser,
     CloudEnumTextParser,
+    TrufflehogJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -97,6 +100,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly censysJson: CensysJsonParser,
     private readonly asnmapJson: AsnmapJsonParser,
     private readonly cloudEnumText: CloudEnumTextParser,
+    private readonly trufflehogJson: TrufflehogJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -121,5 +125,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.censysJson);
     this.registry.register(this.asnmapJson);
     this.registry.register(this.cloudEnumText);
+    this.registry.register(this.trufflehogJson);
   }
 }
