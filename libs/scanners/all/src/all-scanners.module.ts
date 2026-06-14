@@ -32,6 +32,7 @@ import { FaviconScannerModule } from '@autoscanner/scanners-favicon';
 import { Wafw00fScannerModule } from '@autoscanner/scanners-wafw00f';
 import { CdncheckScannerModule } from '@autoscanner/scanners-cdncheck';
 import { JsReconScannerModule } from '@autoscanner/scanners-js-recon';
+import { GowitnessScannerModule } from '@autoscanner/scanners-gowitness';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -74,6 +75,7 @@ const SCANNER_MODULES = [
   Wafw00fScannerModule,
   CdncheckScannerModule,
   JsReconScannerModule,
+  GowitnessScannerModule,
 ];
 
 @Module({
