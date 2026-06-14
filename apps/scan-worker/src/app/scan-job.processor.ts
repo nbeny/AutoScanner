@@ -1,3 +1,6 @@
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
 import { Queue, type Job } from 'bullmq';
@@ -58,10 +61,17 @@ export class ScanJobProcessor extends WorkerHost {
       data: { status: 'RUNNING', startedAt: new Date() },
     });
 
+    const out0 = scanner.outputs[0];
+    const fileCapture = typeof out0.capture === 'object' ? out0.capture : null;
+    let artifactHostDir: string | null = null;
+    if (fileCapture) {
+      artifactHostDir = await mkdtemp(join(tmpdir(), 'autoscanner-art-'));
+    }
+
     const build = scanner.build(parsedInput, payload.target, {
       scanJobId: payload.scanJobId,
       engagementId: payload.engagementId,
-      scratchDir: '/tmp',
+      scratchDir: artifactHostDir ? '/output' : '/tmp',
     });
 
     let extraEnv: Record<string, string> | undefined;
@@ -97,7 +107,9 @@ export class ScanJobProcessor extends WorkerHost {
       image: scanner.docker.image,
       cmd: build.cmd,
       env: { ...build.env, ...extraEnv },
-      binds: build.binds,
+      binds: artifactHostDir
+        ? [...(build.binds ?? []), { src: artifactHostDir, dst: '/output' }]
+        : build.binds,
       stdin: build.stdin,
       network: scanner.docker.network,
       capabilities: { add: scanner.docker.capabilities, drop: ['ALL'] },
@@ -111,8 +123,9 @@ export class ScanJobProcessor extends WorkerHost {
     // Only one stream's bytes ever land in MinIO — the other is dead-weight
     // if we accumulate it. Resolve the captured stream up front so the
     // onStdout/onStderr closures can skip buffering the discarded side.
-    const output = scanner.outputs[0];
-    const capturedStream = output.capture;
+    // For file-capture (object capture), capturedStream is the object itself —
+    // it will never equal 'stdout' or 'stderr', so captureChunk buffers nothing.
+    const capturedStream = out0.capture;
 
     let result: RunResult;
     // `string[] + join('')` rather than `string += chunk` — repeated `+=` on
@@ -147,8 +160,9 @@ export class ScanJobProcessor extends WorkerHost {
       const bytes = Buffer.byteLength(chunk, 'utf8');
       if (capturedBytes + bytes > MAX_RAW_OUTPUT_BYTES) {
         oversized = true;
+        const streamLabel = typeof capturedStream === 'string' ? capturedStream : 'output';
         this.logger.error(
-          `scanJob=${payload.scanJobId} ${capturedStream} output exceeded ${MAX_RAW_OUTPUT_BYTES} bytes — killing container`,
+          `scanJob=${payload.scanJobId} ${streamLabel} output exceeded ${MAX_RAW_OUTPUT_BYTES} bytes — killing container`,
         );
         // Kill the container instead of letting it run to completion. We
         // already know the output is unusable; burning more CPU/disk on it
@@ -191,7 +205,8 @@ export class ScanJobProcessor extends WorkerHost {
     // operator-readable message rather than the misleading CANCELLED status
     // the normal mapping below would produce.
     if (oversized) {
-      const message = `${capturedStream} output exceeded ${MAX_RAW_OUTPUT_BYTES} bytes`;
+      const streamName = typeof capturedStream === 'string' ? capturedStream : 'output';
+      const message = `${streamName} output exceeded ${MAX_RAW_OUTPUT_BYTES} bytes`;
       await this.prisma.scanJob
         .update({
           where: { id: payload.scanJobId },
@@ -216,66 +231,64 @@ export class ScanJobProcessor extends WorkerHost {
       scanId,
       scanJobId: payload.scanJobId,
       scannerName: payload.scannerName,
-      format: output.format,
+      format: out0.format,
     });
 
-    const body = capturedChunks.join('');
     try {
-      await this.storage.ensureBucket('raw-outputs');
-      await this.storage.putObject({
-        bucket: 'raw-outputs',
-        key,
-        body: Buffer.from(body, 'utf8'),
-        contentType: output.format === 'XML' ? 'application/xml' : 'application/octet-stream',
-      });
-    } catch (err) {
-      const message = (err as Error).message;
-      this.logger.error(`scanJob=${payload.scanJobId} storage upload failed: ${message}`);
-      await this.prisma.scanJob
-        .update({
-          where: { id: payload.scanJobId },
-          data: {
-            status: 'FAILED',
-            completedAt: new Date(),
-            exitCode: result.exitCode,
-            durationMs: result.durationMs,
-            errorMessage: `storage upload failed: ${message}`,
-          },
-        })
-        .catch((updateErr) => {
-          this.logger.warn(
-            `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
-          );
-        });
-      throw err;
-    }
+      let storeBody: Buffer;
+      let storeContentType: string;
 
-    const status = result.timedOut
-      ? 'TIMEOUT'
-      : result.killedByUser
-        ? 'CANCELLED'
-        : result.exitCode === 0
-          ? 'COMPLETED'
-          : 'FAILED';
+      if (fileCapture && artifactHostDir) {
+        // File-capture branch: read the produced file from the bound host dir.
+        const files = await readdir(artifactHostDir);
+        const wanted = fileCapture.path
+          ? files.find((f) => f === fileCapture.path || f.endsWith(fileCapture.path))
+          : files[0];
+        if (!wanted) {
+          await this.prisma.scanJob.update({
+            where: { id: payload.scanJobId },
+            data: {
+              status: 'FAILED',
+              completedAt: new Date(),
+              exitCode: result.exitCode,
+              durationMs: result.durationMs,
+              errorMessage: 'scanner produced no artifact file',
+            },
+          });
+          throw new Error(`scanJob=${payload.scanJobId} produced no artifact file`);
+        }
+        storeBody = await readFile(join(artifactHostDir, wanted));
+        if (storeBody.byteLength > MAX_RAW_OUTPUT_BYTES) {
+          await this.prisma.scanJob.update({
+            where: { id: payload.scanJobId },
+            data: {
+              status: 'FAILED',
+              completedAt: new Date(),
+              exitCode: result.exitCode,
+              durationMs: result.durationMs,
+              errorMessage: `artifact exceeded ${MAX_RAW_OUTPUT_BYTES} bytes`,
+            },
+          });
+          throw new Error(`scanJob=${payload.scanJobId} artifact too large`);
+        }
+        storeContentType = wanted.endsWith('.png') ? 'image/png' : 'application/octet-stream';
+      } else {
+        // Text-capture branch: existing stdout/stderr path.
+        storeBody = Buffer.from(capturedChunks.join(''), 'utf8');
+        storeContentType = out0.format === 'XML' ? 'application/xml' : 'application/octet-stream';
+      }
 
-    // Enqueue BEFORE flipping the ScanJob status to COMPLETED so the
-    // orchestrator's polling never observes a clean COMPLETED while no
-    // ParseJob is queued. Without this, a Redis blip between the status
-    // update and the enqueue would silently drop the asset/finding
-    // persistence — the step appears successful but no results materialise.
-    if (status === 'COMPLETED') {
       try {
-        await this.parseQueue.add('parse', {
-          scanJobId: payload.scanJobId,
-          rawOutputKey: key,
-          parserName: output.parser,
-          scannerName: payload.scannerName,
-          target: payload.target,
-          engagementId: payload.engagementId,
+        await this.storage.ensureBucket('raw-outputs');
+        await this.storage.putObject({
+          bucket: 'raw-outputs',
+          key,
+          body: storeBody,
+          contentType: storeContentType,
         });
       } catch (err) {
         const message = (err as Error).message;
-        this.logger.error(`scanJob=${payload.scanJobId} parse enqueue failed: ${message}`);
+        this.logger.error(`scanJob=${payload.scanJobId} storage upload failed: ${message}`);
         await this.prisma.scanJob
           .update({
             where: { id: payload.scanJobId },
@@ -284,8 +297,7 @@ export class ScanJobProcessor extends WorkerHost {
               completedAt: new Date(),
               exitCode: result.exitCode,
               durationMs: result.durationMs,
-              rawOutputKey: key,
-              errorMessage: `parse enqueue failed: ${message}`,
+              errorMessage: `storage upload failed: ${message}`,
             },
           })
           .catch((updateErr) => {
@@ -295,23 +307,76 @@ export class ScanJobProcessor extends WorkerHost {
           });
         throw err;
       }
+
+      const status = result.timedOut
+        ? 'TIMEOUT'
+        : result.killedByUser
+          ? 'CANCELLED'
+          : result.exitCode === 0
+            ? 'COMPLETED'
+            : 'FAILED';
+
+      // Enqueue BEFORE flipping the ScanJob status to COMPLETED so the
+      // orchestrator's polling never observes a clean COMPLETED while no
+      // ParseJob is queued. Without this, a Redis blip between the status
+      // update and the enqueue would silently drop the asset/finding
+      // persistence — the step appears successful but no results materialise.
+      // BINARY format scanners produce no normalised parse output — skip enqueue.
+      if (status === 'COMPLETED' && out0.format !== 'BINARY') {
+        try {
+          await this.parseQueue.add('parse', {
+            scanJobId: payload.scanJobId,
+            rawOutputKey: key,
+            parserName: out0.parser,
+            scannerName: payload.scannerName,
+            target: payload.target,
+            engagementId: payload.engagementId,
+          });
+        } catch (err) {
+          const message = (err as Error).message;
+          this.logger.error(`scanJob=${payload.scanJobId} parse enqueue failed: ${message}`);
+          await this.prisma.scanJob
+            .update({
+              where: { id: payload.scanJobId },
+              data: {
+                status: 'FAILED',
+                completedAt: new Date(),
+                exitCode: result.exitCode,
+                durationMs: result.durationMs,
+                rawOutputKey: key,
+                errorMessage: `parse enqueue failed: ${message}`,
+              },
+            })
+            .catch((updateErr) => {
+              this.logger.warn(
+                `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
+              );
+            });
+          throw err;
+        }
+      }
+
+      await this.prisma.scanJob.update({
+        where: { id: payload.scanJobId },
+        data: {
+          status,
+          completedAt: new Date(),
+          exitCode: result.exitCode,
+          durationMs: result.durationMs,
+          rawOutputKey: key,
+        },
+      });
+
+      this.logger.log(
+        `scanJob=${payload.scanJobId} status=${status} exit=${result.exitCode} duration=${result.durationMs}ms`,
+      );
+
+      return { rawOutputKey: key, exitCode: result.exitCode };
+    } finally {
+      // Always clean up the per-job host dir (never leaks even on error paths).
+      if (artifactHostDir) {
+        await rm(artifactHostDir, { recursive: true, force: true }).catch(() => {});
+      }
     }
-
-    await this.prisma.scanJob.update({
-      where: { id: payload.scanJobId },
-      data: {
-        status,
-        completedAt: new Date(),
-        exitCode: result.exitCode,
-        durationMs: result.durationMs,
-        rawOutputKey: key,
-      },
-    });
-
-    this.logger.log(
-      `scanJob=${payload.scanJobId} status=${status} exit=${result.exitCode} duration=${result.durationMs}ms`,
-    );
-
-    return { rawOutputKey: key, exitCode: result.exitCode };
   }
 }
