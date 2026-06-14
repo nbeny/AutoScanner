@@ -9,7 +9,7 @@ function shellQuoteSingle(s: string): string {
 }
 
 function orgFromTarget(target: string): string {
-  return target.trim().toLowerCase().replace(/^\*\./, '').split('.')[0] ?? target;
+  return target.trim().toLowerCase().replace(/^\*\./, '').split('.')[0] || target;
 }
 
 export const TrufflehogScanner: ScannerDefinition<TrufflehogInputType> = {

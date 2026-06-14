@@ -1,7 +1,9 @@
 # cloud_enum: multi-cloud asset enumeration (AWS/Azure/GCP buckets, etc.).
 FROM python:3.12-slim
-# Cloned from GitHub; no PyPI release exists. Pinned to a known-good commit
-# (2024-05 HEAD of main) — update the commit hash when upgrading.
+# Cloned from GitHub (no PyPI release). NOTE: this tracks HEAD of the default
+# branch — builds are not reproducible. TODO(phase-8.1 follow-up): pin to a
+# specific commit SHA (git clone --depth 1 then `git checkout <sha>`) for
+# reproducible images.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates \
  && rm -rf /var/lib/apt/lists/* \

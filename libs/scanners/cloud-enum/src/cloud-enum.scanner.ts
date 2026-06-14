@@ -9,17 +9,17 @@ function shellQuoteSingle(s: string): string {
 }
 
 function keywordFromTarget(target: string): string {
-  const label = target.trim().toLowerCase().replace(/^\*\./, '').split('.')[0] ?? target;
+  const label = target.trim().toLowerCase().replace(/^\*\./, '').split('.')[0] || target;
   return label;
 }
 
 export const CloudEnumScanner: ScannerDefinition<CloudEnumInputType> = {
   name: 'cloud-enum',
-  displayName: 'cloud_enum (S3/Azure/GCS)',
+  displayName: 'cloud_enum (S3/GCS)',
   category: [ScannerCategory.CLOUD, ScannerCategory.OSINT],
   description:
-    'Passive enumeration of public cloud storage (S3/Azure/GCS) from the target keyword. ' +
-    'Touches cloud provider endpoints, not the target.',
+    'Passive enumeration of public cloud storage (S3/GCS) from the target keyword. ' +
+    'Azure is disabled for speed. Touches cloud provider endpoints, not the target.',
   inputSchema: CloudEnumInput,
   docker: {
     image: 'autoscanner/cloud-enum:1.0',
