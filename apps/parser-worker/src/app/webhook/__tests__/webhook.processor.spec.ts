@@ -312,6 +312,68 @@ describe('WebhookProcessor – missing WebhookEvent', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Test 5b — findings cap (>1000 findings → error, no scan created)
+// ---------------------------------------------------------------------------
+
+describe('WebhookProcessor – findings count cap (>1000)', () => {
+  let prisma: ReturnType<typeof defaultPrisma>;
+  let findingPersister: jest.Mocked<FindingPersister>;
+  let processor: WebhookProcessor;
+
+  const webhookEventId = 'event-cap';
+  const engagementId = 'eng-1';
+
+  // Build a generic payload with 1001 findings (each valid)
+  const oversizedFindings = Array.from({ length: 1001 }, (_, i) => ({
+    title: `Finding ${i}`,
+    severity: 'LOW',
+    assetValue: 'host.example.com',
+  }));
+
+  const payload = { engagementId, findings: oversizedFindings };
+
+  beforeEach(() => {
+    prisma = defaultPrisma();
+    prisma.webhookEvent.findUnique.mockResolvedValue({
+      id: webhookEventId,
+      source: 'generic',
+      payload,
+    });
+
+    findingPersister = buildFindingPersister();
+    processor = new WebhookProcessor(prisma as unknown as PrismaService, findingPersister);
+  });
+
+  it('returns findingsPersisted = 0', async () => {
+    const result = await processor.process(makeJob({ webhookEventId }));
+    expect(result).toEqual({ findingsPersisted: 0 });
+  });
+
+  it('updates the event errorMessage with "too many findings" and sets processedAt', async () => {
+    await processor.process(makeJob({ webhookEventId }));
+    expect(prisma.webhookEvent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: webhookEventId },
+        data: expect.objectContaining({
+          errorMessage: expect.stringContaining('too many findings'),
+          processedAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
+  it('does NOT create a Scan', async () => {
+    await processor.process(makeJob({ webhookEventId }));
+    expect(prisma.scan.create).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call findingPersister.upsert', async () => {
+    await processor.process(makeJob({ webhookEventId }));
+    expect(findingPersister.upsert).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Test 5 — asset already exists (findFirst returns a row → no create call)
 // ---------------------------------------------------------------------------
 

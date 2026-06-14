@@ -142,7 +142,7 @@ function normalizeBurp(payload: Record<string, unknown>): NormalizedWebhookBatch
       title: String(item['name'] ?? ''),
       severity,
       assetValue: host,
-      location: host + path || undefined,
+      location: host || path ? `${host}${path ?? ''}` : undefined,
     };
   });
 
@@ -153,11 +153,16 @@ function normalizeBurp(payload: Record<string, unknown>): NormalizedWebhookBatch
 // Public entry point
 // ---------------------------------------------------------------------------
 
-const ADAPTERS: Record<string, (payload: Record<string, unknown>) => NormalizedWebhookBatch> = {
-  generic: normalizeGeneric,
-  zap: normalizeZap,
-  burp: normalizeBurp,
-};
+// Use Object.create(null) so the object has no prototype chain — prevents a
+// source value of "__proto__" or "constructor" from resolving to inherited members.
+const ADAPTERS: Record<string, (payload: Record<string, unknown>) => NormalizedWebhookBatch> =
+  Object.create(null) as Record<
+    string,
+    (payload: Record<string, unknown>) => NormalizedWebhookBatch
+  >;
+ADAPTERS['generic'] = normalizeGeneric;
+ADAPTERS['zap'] = normalizeZap;
+ADAPTERS['burp'] = normalizeBurp;
 
 /**
  * Normalise a raw webhook payload for a given source into a
@@ -166,9 +171,11 @@ const ADAPTERS: Record<string, (payload: Record<string, unknown>) => NormalizedW
  * Throws `WebhookNormalizationError` on any validation failure.
  */
 export function normalizeWebhook(source: string, payload: unknown): NormalizedWebhookBatch {
-  const adapter = ADAPTERS[source];
-  if (!adapter) {
+  // hasOwnProperty guard is redundant when ADAPTERS has no prototype, but is
+  // kept as defence-in-depth should the declaration ever change.
+  if (!Object.prototype.hasOwnProperty.call(ADAPTERS, source)) {
     throw new WebhookNormalizationError(`Unknown webhook source: "${source}"`);
   }
+  const adapter = ADAPTERS[source];
   return adapter(payload as Record<string, unknown>);
 }

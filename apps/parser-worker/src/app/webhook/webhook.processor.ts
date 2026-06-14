@@ -67,8 +67,28 @@ export class WebhookProcessor extends WorkerHost {
     }
 
     // -----------------------------------------------------------------------
+    // Step 2b: per-event finding-count cap (DoS guard)
+    // -----------------------------------------------------------------------
+    const MAX_FINDINGS_PER_EVENT = 1000;
+    if (batch.findings.length > MAX_FINDINGS_PER_EVENT) {
+      await this.prisma.webhookEvent.update({
+        where: { id: webhookEventId },
+        data: {
+          errorMessage: `too many findings: ${batch.findings.length} (max ${MAX_FINDINGS_PER_EVENT})`,
+          processedAt: new Date(),
+        },
+      });
+      return { findingsPersisted: 0 };
+    }
+
+    // -----------------------------------------------------------------------
     // Step 3: validate the engagement exists
     // -----------------------------------------------------------------------
+    // SECURITY (v1 trust model): the webhook token is per-SOURCE, not per-engagement.
+    // A holder of WEBHOOK_<SOURCE>_TOKEN can write findings into ANY existing engagement
+    // by supplying its id. This assumes a single-tenant deployment where the token is a
+    // trusted operator secret. TODO(phase-5 follow-up): per-engagement HMAC tokens for
+    // multi-tenant deployments.
     const engagement = await this.prisma.engagement.findUnique({
       where: { id: batch.engagementId },
     });

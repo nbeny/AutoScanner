@@ -245,4 +245,20 @@ describe('normalizeWebhook – unknown source', () => {
       }),
     ).toThrow(WebhookNormalizationError);
   });
+
+  it('throws WebhookNormalizationError for source "__proto__" (prototype-pollution guard)', () => {
+    expect(() =>
+      normalizeWebhook('__proto__', {
+        engagementId: 'eng-1',
+      }),
+    ).toThrow(WebhookNormalizationError);
+  });
+
+  it('throws WebhookNormalizationError for source "constructor" (prototype-pollution guard)', () => {
+    expect(() =>
+      normalizeWebhook('constructor', {
+        engagementId: 'eng-1',
+      }),
+    ).toThrow(WebhookNormalizationError);
+  });
 });
