@@ -127,6 +127,7 @@
     "date-fns": "4.1.0",
     "dockerode": "4.0.2",
     "dotenv": "16.4.7",
+    "express": "4.22.2",
     "fast-xml-parser": "4.5.0",
     "graphql": "16.10.0",
     "graphql-request": "^7.4.0",
