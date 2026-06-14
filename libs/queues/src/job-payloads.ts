@@ -34,6 +34,10 @@ export interface NotificationJobPayload {
   notificationId: string;
 }
 
+export interface WebhookJobPayload {
+  webhookEventId: string;
+}
+
 export interface QueuePayloadMap {
   [QueueName.SCAN_JOBS]: ScanJobPayload;
   [QueueName.PARSE_JOBS]: ParseJobPayload;
@@ -41,6 +45,7 @@ export interface QueuePayloadMap {
   [QueueName.CVE_ENRICHMENT]: CveEnrichmentPayload;
   [QueueName.REPORT_JOBS]: ReportJobPayload;
   [QueueName.NOTIFICATION_JOBS]: NotificationJobPayload;
+  [QueueName.WEBHOOK_JOBS]: WebhookJobPayload;
 }
 
 export type PayloadFor<Q extends QueueName> = QueuePayloadMap[Q];

@@ -864,6 +864,24 @@ model Agent {
   @@index([lastHeartbeatAt])
 }
 
+// =====================================================================
+// WEBHOOKS (Phase 5.5)
+// =====================================================================
+
+model WebhookEvent {
+  id              String    @id @default(cuid())
+  source          String
+  payload         Json
+  receivedFromIp  String?
+  receivedAt      DateTime  @default(now())
+  processedAt     DateTime?
+  resultingScanId String?
+  errorMessage    String?
+
+  @@index([source])
+  @@index([processedAt])
+}
+
 // FINGERPRINT / TLS (Phase 6.4)
 
 model TlsCertificate {

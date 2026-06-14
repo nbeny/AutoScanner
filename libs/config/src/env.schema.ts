@@ -60,6 +60,10 @@ export const EnvSchema = z.object({
 
   SMTP_URL: z.string().url().optional(),
   NOTIFICATIONS_FROM: z.string().optional(),
+
+  WEBHOOK_GENERIC_TOKEN: z.string().optional(),
+  WEBHOOK_ZAP_TOKEN: z.string().optional(),
+  WEBHOOK_BURP_TOKEN: z.string().optional(),
 });
 
 export type AppEnv = z.infer<typeof EnvSchema>;
