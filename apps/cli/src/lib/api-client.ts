@@ -165,7 +165,122 @@ export class ApiClient {
     }
     throw new Error(`raw output request failed: HTTP ${res.status} ${await safeText(res)}`);
   }
+
+  async enrollAgent(body: EnrollAgentBody): Promise<EnrollAgentResult> {
+    const res = await fetch(`${this.baseUrl}/agents/enroll`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      throw new Error(`enroll failed: HTTP ${res.status} ${await safeText(res)}`);
+    }
+    return (await res.json()) as EnrollAgentResult;
+  }
+
+  async agentHeartbeat(body: AgentHeartbeatBody): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/agents/heartbeat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      throw new Error(`heartbeat failed: HTTP ${res.status} ${await safeText(res)}`);
+    }
+  }
+
+  async agentClaim(body: AgentClaimBody): Promise<AgentClaimResult | null> {
+    const res = await fetch(`${this.baseUrl}/agents/jobs/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      throw new Error(`claim failed: HTTP ${res.status} ${await safeText(res)}`);
+    }
+    const data = (await res.json()) as AgentClaimResult | null | Record<string, never>;
+    // Server returns null or empty object when no job is available
+    if (!data || !('jobId' in data) || !data.jobId) return null;
+    return data as AgentClaimResult;
+  }
+
+  async agentSubmitResult(jobId: string, body: AgentSubmitResultBody): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/agents/jobs/${jobId}/result`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      throw new Error(`submit result failed: HTTP ${res.status} ${await safeText(res)}`);
+    }
+  }
+
+  async listAgents(): Promise<AgentSummary[]> {
+    const query = /* GraphQL */ `
+      query Agents {
+        agents {
+          id
+          name
+          status
+          lastHeartbeatAt
+        }
+      }
+    `;
+    const data = await this.gql.request<{ agents: AgentSummary[] }>(query);
+    return data.agents;
+  }
 }
+
+// ── Agent REST types ───────────────────────────────────────────────────────
+
+export interface EnrollAgentBody {
+  bootstrapToken: string;
+  publicKey: string;
+  capabilities?: Record<string, unknown>;
+  hostname?: string;
+  version?: string;
+}
+
+export interface EnrollAgentResult {
+  agentId: string;
+}
+
+export interface AgentHeartbeatBody {
+  agentId: string;
+  ts: string;
+  signature: string;
+  capabilities?: Record<string, unknown>;
+}
+
+export interface AgentClaimBody {
+  agentId: string;
+  ts: string;
+  signature: string;
+}
+
+export interface AgentClaimResult {
+  jobId: string;
+  scannerName: string;
+  target: string;
+  input?: Record<string, unknown>;
+}
+
+export interface AgentSubmitResultBody {
+  agentId: string;
+  ts: string;
+  signature: string;
+  exitCode: number;
+  rawOutputBase64: string;
+}
+
+export interface AgentSummary {
+  id: string;
+  name: string;
+  status: string;
+  lastHeartbeatAt: string | null;
+}
+
+// ── Agent methods ──────────────────────────────────────────────────────────
 
 async function safeText(res: Response): Promise<string> {
   try {

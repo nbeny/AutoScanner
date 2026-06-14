@@ -707,3 +707,34 @@ export const CHANNEL_DELIVERIES_QUERY = gql`
     }
   }
 `;
+
+export const AGENTS_QUERY = gql`
+  query Agents {
+    agents {
+      id
+      name
+      hostname
+      status
+      capabilities
+      version
+      lastHeartbeatAt
+      enrolledAt
+      createdAt
+    }
+  }
+`;
+
+export const CREATE_AGENT_REGISTRATION_MUTATION = gql`
+  mutation CreateAgentRegistration($input: CreateAgentRegistrationInput!) {
+    createAgentRegistration(input: $input) {
+      agentId
+      bootstrapToken
+    }
+  }
+`;
+
+export const REVOKE_AGENT_MUTATION = gql`
+  mutation RevokeAgent($id: ID!) {
+    revokeAgent(id: $id)
+  }
+`;
