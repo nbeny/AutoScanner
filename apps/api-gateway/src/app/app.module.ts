@@ -32,6 +32,7 @@ import { ScansModule } from './scans/scans.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { TemplatesModule } from './templates/templates.module';
 import { UsersModule } from './users/users.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { UsersModule } from './users/users.module';
     SchedulesModule,
     TemplatesModule,
     UsersModule,
+    WebhooksModule,
   ],
   providers: [
     {
