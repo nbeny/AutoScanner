@@ -1,8 +1,10 @@
 import { Command } from 'commander';
 import { ApiClient } from './lib/api-client';
 import { ConfigStore } from './lib/config-store';
+import { AgentStore } from './lib/agent-store';
 import { runLogin } from './commands/login';
 import { runScanRun } from './commands/scan';
+import { runAgentRegister, runAgentRun, runAgentList } from './commands/agent';
 
 async function buildAuthenticatedClient(store: ConfigStore): Promise<ApiClient> {
   const cfg = await store.load();
@@ -14,6 +16,7 @@ async function buildAuthenticatedClient(store: ConfigStore): Promise<ApiClient> 
 
 async function main(): Promise<void> {
   const store = new ConfigStore();
+  const agentStore = new AgentStore();
   const program = new Command();
 
   program.name('autoscanner').description('AutoScanner command-line client').version('0.1.0');
@@ -108,6 +111,53 @@ async function main(): Promise<void> {
       const api = await buildAuthenticatedClient(store);
       const url = await api.fetchRawOutputUrl(scanJobId);
       console.log(url);
+    });
+
+  const agent = program.command('agent').description('Manage distributed scan agents');
+
+  agent
+    .command('register')
+    .description('Enrol this machine as a scan agent using a one-time bootstrap token')
+    .requiredOption('--api-url <url>', 'api-gateway base URL, e.g. http://localhost:3000')
+    .requiredOption('--token <token>', 'one-time bootstrap token from createAgentRegistration')
+    .option('--name <name>', 'optional agent label')
+    .action(async (opts: { apiUrl: string; token: string; name?: string }) => {
+      const api = new ApiClient(opts.apiUrl);
+      await runAgentRegister(
+        {
+          enrollAgent: (body) => api.enrollAgent(body),
+          store: agentStore,
+          log: (m) => console.log(m),
+        },
+        { apiUrl: opts.apiUrl, token: opts.token, name: opts.name },
+      );
+    });
+
+  agent
+    .command('run')
+    .description('Start the agent poll loop (heartbeat → claim → run → submit)')
+    .option('--interval <ms>', 'poll interval in milliseconds', '30000')
+    .option('--once', 'run a single iteration and exit (useful for tests)')
+    .action(async (opts: { interval: string; once?: boolean }) => {
+      await runAgentRun(
+        {
+          store: agentStore,
+          buildClient: (apiUrl) => new ApiClient(apiUrl),
+          log: (m) => console.log(m),
+        },
+        { intervalMs: Number(opts.interval), once: opts.once },
+      );
+    });
+
+  agent
+    .command('list')
+    .description('List agents visible to the authenticated operator')
+    .action(async () => {
+      const api = await buildAuthenticatedClient(store);
+      await runAgentList({
+        listAgents: () => api.listAgents(),
+        log: (m) => console.log(m),
+      });
     });
 
   await program.parseAsync(process.argv);
