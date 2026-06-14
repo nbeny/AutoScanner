@@ -71,6 +71,8 @@
       "@autoscanner/scanners-sslscan": ["libs/scanners/sslscan/src/index.ts"],
       "@autoscanner/scanners-favicon": ["libs/scanners/favicon/src/index.ts"],
       "@autoscanner/scanners-wafw00f": ["libs/scanners/wafw00f/src/index.ts"],
+      "@autoscanner/scanners-cdncheck": ["libs/scanners/cdncheck/src/index.ts"],
+      "@autoscanner/scanners-js-recon": ["libs/scanners/js-recon/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }

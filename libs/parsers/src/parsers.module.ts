@@ -22,6 +22,8 @@ import { CensysJsonParser } from './censys-json';
 import { AsnmapJsonParser } from './asnmap-json';
 import { FaviconJsonParser } from './favicon-json';
 import { Wafw00fJsonParser } from './wafw00f-json';
+import { CdncheckJsonParser } from './cdncheck-json';
+import { JsReconJsonParser } from './js-recon-json';
 import { CloudEnumTextParser } from './cloud-enum-text';
 import { TrufflehogJsonParser } from './trufflehog-json';
 import { SecuritytrailsJsonParser } from './securitytrails-json';
@@ -52,6 +54,8 @@ import { SecuritytrailsJsonParser } from './securitytrails-json';
     AsnmapJsonParser,
     FaviconJsonParser,
     Wafw00fJsonParser,
+    CdncheckJsonParser,
+    JsReconJsonParser,
     CloudEnumTextParser,
     TrufflehogJsonParser,
     SecuritytrailsJsonParser,
@@ -80,6 +84,8 @@ import { SecuritytrailsJsonParser } from './securitytrails-json';
     AsnmapJsonParser,
     FaviconJsonParser,
     Wafw00fJsonParser,
+    CdncheckJsonParser,
+    JsReconJsonParser,
     CloudEnumTextParser,
     TrufflehogJsonParser,
     SecuritytrailsJsonParser,
@@ -110,6 +116,8 @@ export class ParsersModule implements OnModuleInit {
     private readonly asnmapJson: AsnmapJsonParser,
     private readonly faviconJson: FaviconJsonParser,
     private readonly wafw00fJson: Wafw00fJsonParser,
+    private readonly cdncheckJson: CdncheckJsonParser,
+    private readonly jsReconJson: JsReconJsonParser,
     private readonly cloudEnumText: CloudEnumTextParser,
     private readonly trufflehogJson: TrufflehogJsonParser,
     private readonly securitytrailsJson: SecuritytrailsJsonParser,
@@ -138,6 +146,8 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.asnmapJson);
     this.registry.register(this.faviconJson);
     this.registry.register(this.wafw00fJson);
+    this.registry.register(this.cdncheckJson);
+    this.registry.register(this.jsReconJson);
     this.registry.register(this.cloudEnumText);
     this.registry.register(this.trufflehogJson);
     this.registry.register(this.securitytrailsJson);
