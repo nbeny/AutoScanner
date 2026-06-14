@@ -640,3 +640,70 @@ export const DELETE_SCHEDULE_MUTATION = gql`
     deleteSchedule(id: $id)
   }
 `;
+
+export const NOTIFICATION_CHANNELS_QUERY = gql`
+  query NotificationChannels {
+    notificationChannels {
+      id
+      name
+      type
+      enabled
+      eventFilters
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_NOTIFICATION_CHANNEL_MUTATION = gql`
+  mutation CreateNotificationChannel($input: CreateNotificationChannelInput!) {
+    createNotificationChannel(input: $input) {
+      id
+      name
+      type
+      enabled
+      eventFilters
+    }
+  }
+`;
+
+export const UPDATE_NOTIFICATION_CHANNEL_MUTATION = gql`
+  mutation UpdateNotificationChannel($id: ID!, $input: UpdateNotificationChannelInput!) {
+    updateNotificationChannel(id: $id, input: $input) {
+      id
+      enabled
+      eventFilters
+    }
+  }
+`;
+
+export const DELETE_NOTIFICATION_CHANNEL_MUTATION = gql`
+  mutation DeleteNotificationChannel($id: ID!) {
+    deleteNotificationChannel(id: $id)
+  }
+`;
+
+export const TEST_NOTIFICATION_CHANNEL_MUTATION = gql`
+  mutation TestNotificationChannel($id: ID!) {
+    testNotificationChannel(id: $id) {
+      id
+      deliveryStatus
+    }
+  }
+`;
+
+export const CHANNEL_DELIVERIES_QUERY = gql`
+  query ChannelDeliveries($channelId: ID!) {
+    channelDeliveries(channelId: $channelId) {
+      id
+      channelId
+      eventType
+      deliveryStatus
+      attemptCount
+      lastAttemptAt
+      errorMessage
+      sentAt
+      createdAt
+    }
+  }
+`;
