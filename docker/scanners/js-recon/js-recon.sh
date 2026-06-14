@@ -20,16 +20,20 @@ if [ -z "$HOST" ]; then
   exit 0
 fi
 
-TMPDIR_WORK=$(mktemp -d)
-trap 'rm -rf "$TMPDIR_WORK"' EXIT INT TERM
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT INT TERM
 
-ENDPOINTS_FILE="$TMPDIR_WORK/endpoints.txt"
-SECRETS_JSON="$TMPDIR_WORK/secrets.json"
+ENDPOINTS_FILE="$WORK/endpoints.txt"
+SECRETS_JSON="$WORK/secrets.json"
+MATCH_TMP="$WORK/m.txt"
+JS_URLS_FILE="$WORK/jsurls.txt"
 touch "$ENDPOINTS_FILE"
 printf '[' > "$SECRETS_JSON"
 FIRST_SECRET=1
 
 # Helper: append one secret JSON object (no full secret value, truncated to 20 chars).
+# Must be called in the parent shell (never inside a pipe subshell) so that
+# FIRST_SECRET propagates correctly across invocations.
 append_secret() {
   TYPE="$1"
   MATCH="$2"
@@ -46,10 +50,13 @@ append_secret() {
 }
 
 # 1. Enumerate JS URLs via subjs (cap to 50 to limit runtime/bandwidth).
-JS_URLS=$(printf 'https://%s\n' "$HOST" | subjs 2>/dev/null | head -50 || true)
+#    Write to a file so the loop below runs in the parent shell (no subshell pipe).
+printf 'https://%s\n' "$HOST" | subjs 2>/dev/null | head -50 > "$JS_URLS_FILE" 2>/dev/null || true
 
-for JS_URL in $JS_URLS; do
-  JS_FILE="$TMPDIR_WORK/js_$(printf '%s' "$JS_URL" | md5sum | cut -c1-8).js"
+# M4 fix: loop over the file with while-read instead of unquoted `for` expansion,
+# so JS URLs containing spaces or glob characters are handled safely.
+while IFS= read -r JS_URL; do
+  JS_FILE="$WORK/js_$(printf '%s' "$JS_URL" | md5sum | cut -c1-8).js"
 
   # 2. Fetch JS file (15 s timeout, 5 MB max, follow redirects).
   curl -s --max-time 15 --max-filesize 5000000 -L "$JS_URL" -o "$JS_FILE" 2>/dev/null || continue
@@ -60,33 +67,35 @@ for JS_URL in $JS_URLS; do
     | grep -v '^$' >> "$ENDPOINTS_FILE" || true
 
   # 4. Secret scanning (grep -oP = Perl regex, print only the match).
+  # C1 fix: redirect grep output to a temp file and loop with `while … done < file`
+  # so append_secret runs in the PARENT shell and FIRST_SECRET propagates correctly.
+  # (A `grep … | while …` pipe spawns a subshell where variable changes are lost.)
+
   # AWS access key
-  grep -oP 'AKIA[0-9A-Z]{16}' "$JS_FILE" 2>/dev/null | while IFS= read -r M; do
-    append_secret 'aws_access_key' "$M" "$JS_URL"
-  done || true
+  grep -oP 'AKIA[0-9A-Z]{16}' "$JS_FILE" 2>/dev/null > "$MATCH_TMP" || true
+  while IFS= read -r M; do append_secret 'aws_access_key' "$M" "$JS_URL"; done < "$MATCH_TMP"
 
   # Google API key
-  grep -oP 'AIza[0-9A-Za-z\-_]{35}' "$JS_FILE" 2>/dev/null | while IFS= read -r M; do
-    append_secret 'google_api_key' "$M" "$JS_URL"
-  done || true
+  grep -oP 'AIza[0-9A-Za-z\-_]{35}' "$JS_FILE" 2>/dev/null > "$MATCH_TMP" || true
+  while IFS= read -r M; do append_secret 'google_api_key' "$M" "$JS_URL"; done < "$MATCH_TMP"
 
   # Slack token
-  grep -oP 'xox[baprs]-[0-9a-zA-Z\-]{10,48}' "$JS_FILE" 2>/dev/null | while IFS= read -r M; do
-    append_secret 'slack_token' "$M" "$JS_URL"
-  done || true
+  grep -oP 'xox[baprs]-[0-9a-zA-Z\-]{10,48}' "$JS_FILE" 2>/dev/null > "$MATCH_TMP" || true
+  while IFS= read -r M; do append_secret 'slack_token' "$M" "$JS_URL"; done < "$MATCH_TMP"
 
   # Generic api_key assignment (case-insensitive)
-  grep -oiP 'api[_-]?key\s*[=:]\s*["\x27]?[A-Za-z0-9_\-]{16,64}' "$JS_FILE" 2>/dev/null | while IFS= read -r M; do
-    append_secret 'generic_api_key' "$M" "$JS_URL"
-  done || true
-done
+  grep -oiP 'api[_-]?key\s*[=:]\s*["\x27]?[A-Za-z0-9_\-]{16,64}' "$JS_FILE" 2>/dev/null > "$MATCH_TMP" || true
+  while IFS= read -r M; do append_secret 'generic_api_key' "$M" "$JS_URL"; done < "$MATCH_TMP"
+
+done < "$JS_URLS_FILE"
 
 printf ']' >> "$SECRETS_JSON"
 
 # 5. Build deduplicated endpoints JSON array.
+# I2 fix: escape backslashes BEFORE escaping double-quotes to produce valid JSON.
 ENDPOINTS_JSON=$(
   sort -u "$ENDPOINTS_FILE" 2>/dev/null \
-  | awk 'BEGIN{printf "["} NR>1{printf ","} {gsub(/"/,"\\\"",$0); printf "\"%s\"",$0} END{printf "]"}' \
+  | awk 'BEGIN{printf "["} NR>1{printf ","} {gsub(/\\/,"\\\\",$0); gsub(/"/,"\\\"",$0); printf "\"%s\"",$0} END{printf "]"}' \
   || printf '[]'
 )
 # Safety: if awk produced nothing (empty file), use empty array.

@@ -23,6 +23,28 @@ describe('CdncheckJsonParser', () => {
     expect(out.technologies.every((t) => t.categories?.includes('cdn'))).toBe(true);
   });
 
+  it('emits a WAF Technology with category waf (not cdn)', async () => {
+    const input = JSON.stringify({ input: '1.1.1.1', waf: true, waf_name: 'cloudflare' });
+    const out = await parser.parse(input, ctx);
+    expect(out.technologies).toHaveLength(1);
+    expect(out.technologies[0]).toMatchObject({ name: 'WAF: cloudflare', categories: ['waf'] });
+  });
+
+  it('emits two technologies when a record has both cdn and waf flags', async () => {
+    const input = JSON.stringify({
+      input: '1.1.1.1',
+      cdn: true,
+      cdn_name: 'akamai',
+      waf: true,
+      waf_name: 'akamai',
+    });
+    const out = await parser.parse(input, ctx);
+    const names = out.technologies.map((t) => t.name).sort();
+    expect(names).toEqual(['CDN: akamai', 'WAF: akamai']);
+    expect(out.technologies.find((t) => t.name === 'CDN: akamai')?.categories).toEqual(['cdn']);
+    expect(out.technologies.find((t) => t.name === 'WAF: akamai')?.categories).toEqual(['waf']);
+  });
+
   it('tolerant of blank/garbage', async () => {
     expect((await parser.parse('', ctx)).technologies).toHaveLength(0);
   });

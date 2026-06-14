@@ -19,6 +19,8 @@ export const JsReconScanner: ScannerDefinition<JsReconInputType> = {
     image: 'autoscanner/js-recon:1.0',
     network: 'bridge',
     capabilities: [],
+    // readonlyRootfs is safe: the docker-runner always mounts /tmp as tmpfs, so the
+    // wrapper's `mktemp -d` and temp files work despite a read-only root filesystem.
     readonlyRootfs: true,
     memoryLimitMb: 768,
     cpuQuota: 2_000_000,
