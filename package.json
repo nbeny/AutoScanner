@@ -25,6 +25,7 @@
     "dev:down": "docker compose -f docker/docker-compose.dev.yml down",
     "dev:logs": "docker compose -f docker/docker-compose.dev.yml logs -f",
     "dev:orchestrator-worker": "nx serve orchestrator-worker",
+    "dev:notification-worker": "nx serve notification-worker",
     "dev:scheduler": "nx serve scheduler",
     "prepare": "husky",
     "scanners:build": "bash tools/scanners/build-images.sh"
