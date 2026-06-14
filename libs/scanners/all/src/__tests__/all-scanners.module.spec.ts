@@ -33,6 +33,11 @@ describe('AllScannersModule', () => {
       'theharvester',
       'sslscan',
       'censys',
+      'asnmap',
+      'cloud-enum',
+      'github-subdomains',
+      'trufflehog',
+      'securitytrails',
     ]) {
       expect(registry.has(name)).toBe(true);
     }
