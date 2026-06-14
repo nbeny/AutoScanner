@@ -22,4 +22,5 @@ export * from './censys-json';
 export * from './asnmap-json';
 export * from './cloud-enum-text';
 export * from './trufflehog-json';
+export * from './securitytrails-json';
 export * from './parsers.module';
