@@ -65,9 +65,8 @@ export class SchedulesService {
     }) as Promise<ScheduleWithTemplate[]>;
   }
 
-  async getForOwner(userId: string, id: string): Promise<ScheduleWithTemplate> {
-    const found = await this.requireOwned(userId, id);
-    return found;
+  getForOwner(userId: string, id: string): Promise<ScheduleWithTemplate> {
+    return this.requireOwned(userId, id);
   }
 
   async update(
