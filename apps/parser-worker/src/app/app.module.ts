@@ -10,6 +10,7 @@ import { StorageModule } from '@autoscanner/storage';
 import { EngagementEventsModule } from '@autoscanner/engagement-events';
 
 import { ParseJobProcessor } from './parse-job.processor';
+import { WebhookProcessor } from './webhook/webhook.processor';
 import { AssetPersister } from './persisters/asset-persister';
 import { DnsRecordPersister } from './persisters/dns-record-persister';
 import { FindingPersister } from './persisters/finding-persister';
@@ -36,6 +37,7 @@ import { TlsCertificatePersister } from './persisters/tls-certificate-persister'
   ],
   providers: [
     ParseJobProcessor,
+    WebhookProcessor,
     AssetPersister,
     PortPersister,
     ServicePersister,
