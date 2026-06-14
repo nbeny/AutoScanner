@@ -27,4 +27,8 @@ export * from './js-recon-json';
 export * from './cloud-enum-text';
 export * from './trufflehog-json';
 export * from './securitytrails-json';
+export * from './smtp-nmap-xml';
+export * from './snmp-text';
+export * from './smb-text';
+export * from './kiterunner-text';
 export * from './parsers.module';
