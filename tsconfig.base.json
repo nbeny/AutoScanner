@@ -69,6 +69,8 @@
       "@autoscanner/scanners-tlsx": ["libs/scanners/tlsx/src/index.ts"],
       "@autoscanner/scanners-whatweb": ["libs/scanners/whatweb/src/index.ts"],
       "@autoscanner/scanners-sslscan": ["libs/scanners/sslscan/src/index.ts"],
+      "@autoscanner/scanners-favicon": ["libs/scanners/favicon/src/index.ts"],
+      "@autoscanner/scanners-wafw00f": ["libs/scanners/wafw00f/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
