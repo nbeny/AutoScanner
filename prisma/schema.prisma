@@ -27,13 +27,14 @@ model User {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  sessions            Session[]
-  engagements         Engagement[]
-  scansCreated        Scan[]
-  templateRunsCreated TemplateRun[]
-  reportsCreated      Report[]
-  schedulesCreated    Schedule[]
-  apiCredentials      ApiCredential[]
+  sessions             Session[]
+  engagements          Engagement[]
+  scansCreated         Scan[]
+  templateRunsCreated  TemplateRun[]
+  reportsCreated       Report[]
+  schedulesCreated     Schedule[]
+  apiCredentials       ApiCredential[]
+  notificationChannels NotificationChannel[]
 
   @@index([deletedAt])
 }
@@ -765,6 +766,60 @@ model Schedule {
   @@index([engagementId])
   @@index([enabled, nextRunAt])
   @@index([deletedAt])
+}
+
+// =====================================================================
+// NOTIFICATIONS (Phase 5.3)
+// =====================================================================
+
+enum NotificationChannelType {
+  EMAIL
+  SLACK
+  DISCORD
+  WEBHOOK
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model NotificationChannel {
+  id              String                  @id @default(cuid())
+  userId          String
+  name            String
+  type            NotificationChannelType
+  configEncrypted Bytes
+  enabled         Boolean                 @default(true)
+  eventFilters    String[]
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  deletedAt       DateTime?
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@index([userId])
+  @@index([deletedAt])
+}
+
+model Notification {
+  id             String         @id @default(cuid())
+  channelId      String
+  eventType      String
+  payload        Json
+  deliveryStatus DeliveryStatus @default(PENDING)
+  attemptCount   Int            @default(0)
+  lastAttemptAt  DateTime?
+  errorMessage   String?
+  sentAt         DateTime?
+  createdAt      DateTime       @default(now())
+
+  channel NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, createdAt(sort: Desc)])
+  @@index([deliveryStatus])
 }
 
 // FINGERPRINT / TLS (Phase 6.4)
