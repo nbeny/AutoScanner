@@ -1,5 +1,6 @@
 import { ApiKeysPanel } from './api-keys-panel';
 import { NotificationsPanel } from '../notifications/notifications-panel';
+import { AgentsPanel } from '../agents/agents-panel';
 
 export function SettingsPage() {
   return (
@@ -9,6 +10,10 @@ export function SettingsPage() {
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Notification channels</h2>
         <NotificationsPanel />
+      </div>
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Distributed agents</h2>
+        <AgentsPanel />
       </div>
     </div>
   );
