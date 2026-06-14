@@ -513,12 +513,15 @@ enum OrgMetadataKind {
   ASN
   ORG
   NETBLOCK
+  CLOUD_BUCKET
   OTHER
 }
 
 enum ApiProvider {
   SHODAN
   CENSYS
+  GITHUB
+  SECURITYTRAILS
 }
 
 model Email {
