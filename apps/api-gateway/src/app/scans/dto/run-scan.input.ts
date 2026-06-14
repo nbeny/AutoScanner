@@ -30,4 +30,9 @@ export class RunScanInput {
   @IsString()
   @MaxLength(200)
   name?: string;
+
+  @Field(() => ID, { nullable: true })
+  @IsOptional()
+  @IsString()
+  agentId?: string;
 }
