@@ -3,11 +3,14 @@ import GraphQLJSON from 'graphql-type-json';
 import {
   ArrayMinSize,
   IsBoolean,
+  IsIn,
   IsOptional,
   IsString,
   MaxLength,
   MinLength,
 } from 'class-validator';
+
+import { NotificationEventType } from '@autoscanner/notifications';
 
 @InputType()
 export class UpdateNotificationChannelInput {
@@ -26,6 +29,7 @@ export class UpdateNotificationChannelInput {
   @Field(() => [String], { nullable: true })
   @IsOptional()
   @ArrayMinSize(1)
+  @IsIn(Object.values(NotificationEventType), { each: true })
   @IsString({ each: true })
   eventFilters?: string[];
 

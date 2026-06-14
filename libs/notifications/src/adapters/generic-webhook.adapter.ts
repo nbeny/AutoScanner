@@ -6,6 +6,9 @@ export class GenericWebhookAdapter implements NotificationAdapter {
   readonly type: NotificationChannelType = 'WEBHOOK';
 
   async send(ctx: DeliveryContext): Promise<void> {
+    // TODO(security): the target URL is user-supplied — add an SSRF allowlist
+    // (block private/link-local ranges + non-http(s) schemes) before exposing
+    // notifications to non-operator tenants.
     const url = ctx.config['url'] as string;
     const secret = ctx.config['secret'] as string | undefined;
     const bodyStr = JSON.stringify({ subject: ctx.message.subject, body: ctx.message.body });
