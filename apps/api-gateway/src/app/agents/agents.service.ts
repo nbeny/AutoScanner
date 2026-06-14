@@ -193,6 +193,10 @@ export class AgentsService {
     const canonical = `claim|${input.agentId}|${input.ts}`;
     await this.verifyAndLoad(input.agentId, canonical, input.signature, input.ts);
 
+    // TODO(phase-5.4 follow-up): claimJob uses findFirst+update inside a tx without
+    // row locking. For multi-agent concurrency, switch to a `FOR UPDATE SKIP LOCKED`
+    // raw query. Safe in v1 (single agent/loop); double-claim is also neutralised by
+    // the compare-and-swap in submitResult (only one submit can transition RUNNING).
     return this.prisma.$transaction(async (tx) => {
       const job = await tx.scanJob.findFirst({
         where: { agentId: input.agentId, status: 'QUEUED' },
@@ -221,19 +225,38 @@ export class AgentsService {
     const canonical = `result|${input.jobId}|${input.agentId}|${input.ts}`;
     await this.verifyAndLoad(input.agentId, canonical, input.signature, input.ts);
 
-    const job = await this.prisma.scanJob.findFirst({
+    // C2 + I4: Atomic compare-and-swap — transition RUNNING → terminal status first.
+    // This is idempotent: if the job was already submitted (or belongs to another agent,
+    // or is not RUNNING), updateMany returns count=0 and we bail out safely.
+    const terminalStatus = input.exitCode === 0 ? 'COMPLETED' : 'FAILED';
+    const claimed = await this.prisma.scanJob.updateMany({
       where: { id: input.jobId, agentId: input.agentId, status: 'RUNNING' },
+      data: { status: terminalStatus, exitCode: input.exitCode, completedAt: new Date() },
+    });
+
+    if (claimed.count === 0) {
+      throw new NotFoundError('ScanJob', input.jobId);
+    }
+
+    // Load the job details needed for storage key and parse-job enqueue.
+    const job = await this.prisma.scanJob.findUnique({
+      where: { id: input.jobId },
       include: { scan: { select: { id: true, engagementId: true } } },
     });
 
+    // job must exist here (we just updated it), but guard for type safety.
     if (!job) {
-      throw new NotFoundError('ScanJob', { jobId: input.jobId, agentId: input.agentId });
+      throw new NotFoundError('ScanJob', input.jobId);
     }
 
-    const rawBytes = Buffer.from(input.rawOutputBase64, 'base64');
+    // I3: Guard scanner registry lookup before accessing outputs.
     const scanner = this.registry.get(job.scannerName);
+    if (!scanner || !scanner.outputs?.length) {
+      throw new NotFoundError('Scanner', job.scannerName);
+    }
     const output = scanner.outputs[0];
 
+    const rawBytes = Buffer.from(input.rawOutputBase64, 'base64');
     const key = rawOutputKey({
       engagementId: job.scan.engagementId,
       scanId: job.scanId,
@@ -250,9 +273,13 @@ export class AgentsService {
       contentType: output.format === 'XML' ? 'application/xml' : 'application/octet-stream',
     });
 
-    const status = input.exitCode === 0 ? 'COMPLETED' : 'FAILED';
+    // Persist the storage key now that the object is durably stored.
+    await this.prisma.scanJob.update({
+      where: { id: job.id },
+      data: { rawOutputKey: key },
+    });
 
-    if (status === 'COMPLETED') {
+    if (terminalStatus === 'COMPLETED') {
       await this.parseQueue.add('parse', {
         scanJobId: job.id,
         rawOutputKey: key,
@@ -263,17 +290,9 @@ export class AgentsService {
       });
     }
 
-    await this.prisma.scanJob.update({
-      where: { id: job.id },
-      data: {
-        status,
-        completedAt: new Date(),
-        exitCode: input.exitCode,
-        rawOutputKey: key,
-      },
-    });
-
-    this.logger.log(`Result submitted: job=${job.id} status=${status} exitCode=${input.exitCode}`);
+    this.logger.log(
+      `Result submitted: job=${job.id} status=${terminalStatus} exitCode=${input.exitCode}`,
+    );
   }
 
   listForOwner(userId: string) {

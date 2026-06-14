@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBase64, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class EnrollDto {
   @IsString()
@@ -6,6 +6,8 @@ export class EnrollDto {
 
   @IsString()
   @MinLength(1)
+  @IsBase64()
+  @MaxLength(256)
   publicKey!: string;
 
   @IsOptional()

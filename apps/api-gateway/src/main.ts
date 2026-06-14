@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { config as loadEnv } from 'dotenv';
 loadEnv();
 
+import { json } from 'express';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { AppConfigService } from '@autoscanner/config';
@@ -11,6 +12,10 @@ import { AppModule } from './app/app.module';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
+
+  // Explicit body limit to handle agent result submissions (~10 MB raw ≈ ~13.4 MB base64)
+  // while preventing unbounded request bodies.
+  app.use(json({ limit: '15mb' }));
 
   const cfg = app.get(AppConfigService);
   app.enableCors({ origin: cfg.env.FRONTEND_URL, credentials: true });
