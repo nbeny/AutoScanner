@@ -44,8 +44,8 @@ export function SchedulesTab({ engagementId }: Props) {
 
   const [createSchedule, { loading: creating, error: createError }] =
     useMutation(CREATE_SCHEDULE_MUTATION);
-  const [updateSchedule] = useMutation(UPDATE_SCHEDULE_MUTATION);
-  const [deleteSchedule] = useMutation(DELETE_SCHEDULE_MUTATION);
+  const [updateSchedule, { error: updateError }] = useMutation(UPDATE_SCHEDULE_MUTATION);
+  const [deleteSchedule, { error: deleteError }] = useMutation(DELETE_SCHEDULE_MUTATION);
 
   const [templateId, setTemplateId] = useState('');
   const [name, setName] = useState('');
@@ -66,7 +66,11 @@ export function SchedulesTab({ engagementId }: Props) {
     .filter((t) => t.length > 0);
 
   const submitDisabled =
-    creating || !templateId || name.trim().length === 0 || parsedTargets.length === 0;
+    creating ||
+    !templateId ||
+    name.trim().length === 0 ||
+    timezone.trim().length === 0 ||
+    parsedTargets.length === 0;
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -153,6 +157,7 @@ export function SchedulesTab({ engagementId }: Props) {
             value={timezone}
             onChange={(e) => setTimezone(e.target.value)}
             placeholder="UTC"
+            required
           />
         </label>
 
@@ -187,6 +192,16 @@ export function SchedulesTab({ engagementId }: Props) {
       {error ? (
         <p className="text-red-400" role="alert">
           {error.message}
+        </p>
+      ) : null}
+      {updateError ? (
+        <p className="text-red-400" role="alert">
+          {updateError.message}
+        </p>
+      ) : null}
+      {deleteError ? (
+        <p className="text-red-400" role="alert">
+          {deleteError.message}
         </p>
       ) : null}
 
