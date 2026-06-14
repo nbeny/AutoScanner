@@ -38,6 +38,10 @@ describe('AllScannersModule', () => {
       'github-subdomains',
       'trufflehog',
       'securitytrails',
+      'favicon',
+      'wafw00f',
+      'cdncheck',
+      'js-recon',
     ]) {
       expect(registry.has(name)).toBe(true);
     }
