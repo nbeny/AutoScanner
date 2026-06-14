@@ -47,6 +47,17 @@ export class ScansService {
     const rawOptions = this.parseOptions(input.optionsJson);
     const parsedInput = this.validateScannerInput(scanner, rawOptions);
 
+    const agentId = input.agentId ?? null;
+
+    if (agentId) {
+      const agent = await this.prisma.agent.findFirst({
+        where: { id: agentId, createdById: userId, status: { in: ['ACTIVE', 'IDLE'] } },
+      });
+      if (!agent) {
+        throw new NotFoundError('Agent', agentId);
+      }
+    }
+
     // Atomic: either both Scan and ScanJob land, or neither does. Without
     // the transaction, a failure between the two creates leaves an orphan
     // Scan with no jobs that the UI would render as "stuck QUEUED".
@@ -67,51 +78,58 @@ export class ScansService {
           input: parsedInput as never,
           status: 'QUEUED',
           queuedAt: new Date(),
+          ...(agentId ? { agentId } : {}),
         },
       });
       return { scan, scanJob };
     });
 
-    const payload: ScanJobPayload = {
-      scanJobId: scanJob.id,
-      scannerName: scanner.name,
-      target: input.target,
-      input: parsedInput as Record<string, unknown>,
-      engagementId: input.engagementId,
-    };
+    if (!agentId) {
+      const payload: ScanJobPayload = {
+        scanJobId: scanJob.id,
+        scannerName: scanner.name,
+        target: input.target,
+        input: parsedInput as Record<string, unknown>,
+        engagementId: input.engagementId,
+      };
 
-    try {
-      await this.scanQueue.add('scan', payload);
-    } catch (err) {
-      // The DB rows are already committed; if the enqueue fails (Redis
-      // unavailable, queue rejected the job, etc.) we must mark both rows
-      // FAILED so the UI doesn't show a phantom QUEUED scan that no worker
-      // will ever pick up. Update errors don't propagate to the caller —
-      // the original enqueue error must surface intact — but we log them at
-      // warn so an operator hit by Redis-down *and* DB-flake at once still
-      // sees both signals instead of just the BullMQ failure.
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Failed to enqueue scan=${scan.id} job=${scanJob.id}: ${message}`);
-      const [scanUpdate, scanJobUpdate] = await Promise.allSettled([
-        this.prisma.scan.update({ where: { id: scan.id }, data: { status: 'FAILED' } }),
-        this.prisma.scanJob.update({
-          where: { id: scanJob.id },
-          data: { status: 'FAILED', errorMessage: `enqueue failed: ${message}` },
-        }),
-      ]);
-      if (scanUpdate.status === 'rejected') {
-        this.logger.warn(
-          `scan=${scan.id} FAILED-status reconciliation failed: ${(scanUpdate.reason as Error).message}`,
-        );
+      try {
+        await this.scanQueue.add('scan', payload);
+      } catch (err) {
+        // The DB rows are already committed; if the enqueue fails (Redis
+        // unavailable, queue rejected the job, etc.) we must mark both rows
+        // FAILED so the UI doesn't show a phantom QUEUED scan that no worker
+        // will ever pick up. Update errors don't propagate to the caller —
+        // the original enqueue error must surface intact — but we log them at
+        // warn so an operator hit by Redis-down *and* DB-flake at once still
+        // sees both signals instead of just the BullMQ failure.
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Failed to enqueue scan=${scan.id} job=${scanJob.id}: ${message}`);
+        const [scanUpdate, scanJobUpdate] = await Promise.allSettled([
+          this.prisma.scan.update({ where: { id: scan.id }, data: { status: 'FAILED' } }),
+          this.prisma.scanJob.update({
+            where: { id: scanJob.id },
+            data: { status: 'FAILED', errorMessage: `enqueue failed: ${message}` },
+          }),
+        ]);
+        if (scanUpdate.status === 'rejected') {
+          this.logger.warn(
+            `scan=${scan.id} FAILED-status reconciliation failed: ${(scanUpdate.reason as Error).message}`,
+          );
+        }
+        if (scanJobUpdate.status === 'rejected') {
+          this.logger.warn(
+            `scanJob=${scanJob.id} FAILED-status reconciliation failed: ${(scanJobUpdate.reason as Error).message}`,
+          );
+        }
+        throw err;
       }
-      if (scanJobUpdate.status === 'rejected') {
-        this.logger.warn(
-          `scanJob=${scanJob.id} FAILED-status reconciliation failed: ${(scanJobUpdate.reason as Error).message}`,
-        );
-      }
-      throw err;
+      this.logger.log(`Enqueued scanJob=${scanJob.id} scanner=${scanner.name}`);
+    } else {
+      this.logger.log(
+        `Agent-routed scanJob=${scanJob.id} agent=${agentId} scanner=${scanner.name}`,
+      );
     }
-    this.logger.log(`Enqueued scanJob=${scanJob.id} scanner=${scanner.name}`);
 
     return scan;
   }

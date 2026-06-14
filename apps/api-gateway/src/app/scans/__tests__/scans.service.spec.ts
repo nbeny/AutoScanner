@@ -47,8 +47,12 @@ describe('ScansService.runScan', () => {
           status: 'QUEUED',
           queuedAt: new Date(),
           createdAt: new Date(),
+          agentId: data.agentId ?? null,
         })),
         update: jest.fn(async ({ where, data }) => ({ id: where.id, ...data })),
+        findFirst: jest.fn(),
+      },
+      agent: {
         findFirst: jest.fn(),
       },
       // Callback form: invoke the callback with `prisma` itself as the tx
@@ -208,6 +212,49 @@ describe('ScansService.runScan', () => {
         optionsJson: JSON.stringify({ timingTemplate: 99 }),
       }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  describe('agent-routed scans', () => {
+    const agentId = 'agent_1';
+    const activeAgent = { id: agentId, createdById: userId, status: 'ACTIVE' };
+
+    it('creates ScanJob with agentId and does NOT enqueue when agentId is set', async () => {
+      (prisma.agent.findFirst as jest.Mock).mockResolvedValueOnce(activeAgent);
+
+      const scan = await svc.runScan(userId, {
+        engagementId,
+        scannerName: 'nmap',
+        target: '127.0.0.1',
+        agentId,
+      });
+
+      expect(prisma.agent.findFirst).toHaveBeenCalledWith({
+        where: { id: agentId, createdById: userId, status: { in: ['ACTIVE', 'IDLE'] } },
+      });
+      expect(prisma.scanJob.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ agentId }),
+        }),
+      );
+      expect(scanQueue.add).not.toHaveBeenCalled();
+      expect(scan.id).toBe('scan_1');
+    });
+
+    it('throws NotFoundError and creates no scan when the agent is not found or not owned', async () => {
+      (prisma.agent.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        svc.runScan(userId, {
+          engagementId,
+          scannerName: 'nmap',
+          target: '127.0.0.1',
+          agentId,
+        }),
+      ).rejects.toBeInstanceOf(NotFoundError);
+
+      expect(prisma.scan.create).not.toHaveBeenCalled();
+      expect(scanQueue.add).not.toHaveBeenCalled();
+    });
   });
 
   describe('getRawOutputPresignedUrl', () => {
