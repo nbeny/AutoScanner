@@ -5,6 +5,7 @@ import type { Job } from 'bullmq';
 import { PrismaService } from '@autoscanner/database';
 import { OBJECT_STORAGE } from '@autoscanner/storage';
 import { PDF_RENDERER } from '@autoscanner/reporting';
+import { NotificationEventType, NotificationsFanoutService } from '@autoscanner/notifications';
 
 import { ReportProcessor } from '../report.processor';
 
@@ -57,6 +58,7 @@ describe('ReportProcessor', () => {
   };
   let storage: { putObject: jest.Mock };
   let pdf: { renderHtml: jest.Mock };
+  let fanout: { fanout: jest.Mock };
 
   beforeEach(async () => {
     jest.useFakeTimers().setSystemTime(NOW);
@@ -72,6 +74,7 @@ describe('ReportProcessor', () => {
     };
     storage = { putObject: jest.fn().mockResolvedValue({ etag: 'etag-1' }) };
     pdf = { renderHtml: jest.fn().mockResolvedValue(Buffer.from('%PDF-mock')) };
+    fanout = { fanout: jest.fn().mockResolvedValue(0) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -79,6 +82,7 @@ describe('ReportProcessor', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: OBJECT_STORAGE, useValue: storage },
         { provide: PDF_RENDERER, useValue: pdf },
+        { provide: NotificationsFanoutService, useValue: fanout },
       ],
     }).compile();
 
@@ -119,6 +123,12 @@ describe('ReportProcessor', () => {
         errorMessage: null,
       }),
     });
+
+    // Notification fanout fired with REPORT_READY
+    expect(fanout.fanout).toHaveBeenCalledWith(
+      NotificationEventType.REPORT_READY,
+      expect.objectContaining({ engagementId: 'eng-1', reportId: 'r-1' }),
+    );
   });
 
   it('renders a CSV report with text/csv contentType and findings rows', async () => {

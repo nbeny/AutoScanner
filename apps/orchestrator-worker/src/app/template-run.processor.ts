@@ -10,6 +10,7 @@ import {
   EngagementUpdateKind,
   type EngagementEventsPublisher,
 } from '@autoscanner/engagement-events';
+import { NotificationEventType, NotificationsFanoutService } from '@autoscanner/notifications';
 
 import { StepExecutor } from './step-executor.service';
 
@@ -41,6 +42,7 @@ export class TemplateRunProcessor extends WorkerHost {
     private readonly executor: StepExecutor,
     @Inject(ENGAGEMENT_EVENTS_PUBLISHER)
     private readonly events: EngagementEventsPublisher,
+    private readonly fanout: NotificationsFanoutService,
   ) {
     super();
   }
@@ -110,6 +112,12 @@ export class TemplateRunProcessor extends WorkerHost {
         },
       });
       this.publishStatusChange(run.engagementId, run.id);
+      await this.fanout
+        .fanout(NotificationEventType.SCAN_COMPLETED, {
+          engagementId: run.engagementId,
+          templateRunId: run.id,
+        })
+        .catch((e) => this.logger.warn(`notification fanout failed: ${(e as Error).message}`));
       this.logger.log(`TemplateRun ${run.id} COMPLETED`);
     } catch (err) {
       const message = (err as Error).message;
@@ -134,6 +142,12 @@ export class TemplateRunProcessor extends WorkerHost {
           );
         });
       this.publishStatusChange(run.engagementId, run.id);
+      await this.fanout
+        .fanout(NotificationEventType.SCAN_FAILED, {
+          engagementId: run.engagementId,
+          templateRunId: run.id,
+        })
+        .catch((e) => this.logger.warn(`notification fanout failed: ${(e as Error).message}`));
       throw err;
     }
   }
