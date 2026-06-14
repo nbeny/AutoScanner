@@ -7,6 +7,7 @@ import { EngagementTlsTab } from './engagement-tls-tab';
 import { FindingsTable } from '../findings/findings-table';
 import { CorrelatedFindingsView } from '../findings/correlated-findings-view';
 import { EngagementSynthesisPage } from './synthesis/engagement-synthesis-page';
+import { SchedulesTab } from '../schedules/schedules-tab';
 import { useEngagementUpdates } from './use-engagement-updates';
 
 type TabKey =
@@ -20,7 +21,8 @@ type TabKey =
   | 'osint'
   | 'tls'
   | 'findings'
-  | 'correlated';
+  | 'correlated'
+  | 'schedules';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
@@ -34,6 +36,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'tls', label: 'TLS' },
   { key: 'findings', label: 'Findings' },
   { key: 'correlated', label: 'Correlated' },
+  { key: 'schedules', label: 'Schedules' },
 ];
 
 export function EngagementPage() {
@@ -91,6 +94,7 @@ export function EngagementPage() {
         {tab === 'tls' ? <EngagementTlsTab engagementId={engagementId} /> : null}
         {tab === 'findings' ? <FindingsTable engagementId={engagementId} /> : null}
         {tab === 'correlated' ? <CorrelatedFindingsView engagementId={engagementId} /> : null}
+        {tab === 'schedules' ? <SchedulesTab engagementId={engagementId} /> : null}
       </section>
     </div>
   );
