@@ -1,0 +1,22 @@
+{
+  "name": "scanners-favicon",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/favicon/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/favicon"],
+      "options": {
+        "jestConfig": "libs/scanners/favicon/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/favicon/tsconfig.lib.json"
+      }
+    }
+  }
+}
