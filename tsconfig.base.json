@@ -56,6 +56,7 @@
       "@autoscanner/scanners-smtp-recon": ["libs/scanners/smtp-recon/src/index.ts"],
       "@autoscanner/scanners-snmp-recon": ["libs/scanners/snmp-recon/src/index.ts"],
       "@autoscanner/scanners-smb-enum": ["libs/scanners/smb-enum/src/index.ts"],
+      "@autoscanner/scanners-api-discovery": ["libs/scanners/api-discovery/src/index.ts"],
       "@autoscanner/scanners-cloud-enum": ["libs/scanners/cloud-enum/src/index.ts"],
       "@autoscanner/scanners-whois": ["libs/scanners/whois/src/index.ts"],
       "@autoscanner/scanners-gau": ["libs/scanners/gau/src/index.ts"],
