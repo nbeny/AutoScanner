@@ -72,7 +72,10 @@ export class SmtpNmapXmlParser implements Parser {
             const id = script['@_id'];
             const output = script['@_output'] ?? '';
 
-            if (id === 'smtp-open-relay' && output.toLowerCase().includes('open relay')) {
+            if (
+              id === 'smtp-open-relay' &&
+              output.toLowerCase().includes('server is an open relay')
+            ) {
               out.findings.push({
                 scannerName: ctx.scannerName,
                 title: 'SMTP open relay',

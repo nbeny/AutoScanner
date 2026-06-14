@@ -6,9 +6,10 @@ import { emptyNormalizedOutput } from '../types';
 // Matches onesixtyone output: e.g. "10.0.0.1 [public] Linux router 5.10"
 const COMMUNITY_RE = /\[(\w+)\]/;
 // Matches snmpwalk sysDescr line. snmpwalk prints the OID as either
-// 'iso.3.6.1.2.1.1.1.0' or '1.3.6.1.2.1.1.1.0' or 'SNMPv2-MIB::sysDescr.0'
+// 'iso.3.6.1.2.1.1.1.0', '1.3.6.1.2.1.1.1.0', or 'SNMPv2-MIB::sysDescr.0'
 // We match any of these followed by = STRING:
-const SYSDESCR_RE = /(?:(?:iso\.)?3\.6\.1\.2\.1\.1\.1\.0|sysDescr\.0)\s*=\s*STRING:\s*"?([^"]+)"?/;
+const SYSDESCR_RE =
+  /(?:iso\.3\.6\.1\.2\.1\.1\.1\.0|1\.3\.6\.1\.2\.1\.1\.1\.0|sysDescr\.0)\s*=\s*STRING:\s*"?([^"]+)"?/;
 
 @Injectable()
 export class SnmpTextParser implements Parser {
