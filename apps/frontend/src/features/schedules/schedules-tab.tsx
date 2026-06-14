@@ -90,13 +90,21 @@ export function SchedulesTab({ engagementId }: Props) {
   }
 
   async function onToggle(s: ScheduleRow) {
-    await updateSchedule({ variables: { id: s.id, input: { enabled: !s.enabled } } });
-    await refetch();
+    try {
+      await updateSchedule({ variables: { id: s.id, input: { enabled: !s.enabled } } });
+      await refetch();
+    } catch {
+      // surfaced via updateError
+    }
   }
 
   async function onDelete(s: ScheduleRow) {
-    await deleteSchedule({ variables: { id: s.id } });
-    await refetch();
+    try {
+      await deleteSchedule({ variables: { id: s.id } });
+      await refetch();
+    } catch {
+      // surfaced via deleteError
+    }
   }
 
   return (
