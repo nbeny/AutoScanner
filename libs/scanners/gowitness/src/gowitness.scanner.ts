@@ -29,6 +29,10 @@ export const GowitnessScanner: ScannerDefinition<GowitnessInputType> = {
     // gowitness v2 writes <host>.png into --screenshot-path; the worker bind-mounts
     // ctx.scratchDir (=/output) to a host dir and stores the produced PNG.
     // --disable-db skips the gowitness sqlite database (not needed for capture-only use).
+    // `|| true` keeps exit 0 even when gowitness exits non-zero (common in headless
+    // containers, e.g. partial chromium errors) AS LONG AS a PNG was written — the
+    // scan-worker's "no artifact file" check is the real success signal. Downside:
+    // the stored exitCode is always 0 for gowitness.
     const script = `gowitness single ${shellQuoteSingle(target)} --screenshot-path ${ctx.scratchDir} --disable-db || true`;
     return { cmd: ['sh', '-lc', script] };
   },
