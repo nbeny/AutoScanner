@@ -30,6 +30,7 @@ import { SecuritytrailsJsonParser } from './securitytrails-json';
 import { SmtpNmapXmlParser } from './smtp-nmap-xml';
 import { SnmpTextParser } from './snmp-text';
 import { SmbTextParser } from './smb-text';
+import { KiterunnerTextParser } from './kiterunner-text';
 
 @Global()
 @Module({
@@ -65,6 +66,7 @@ import { SmbTextParser } from './smb-text';
     SmtpNmapXmlParser,
     SnmpTextParser,
     SmbTextParser,
+    KiterunnerTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -98,6 +100,7 @@ import { SmbTextParser } from './smb-text';
     SmtpNmapXmlParser,
     SnmpTextParser,
     SmbTextParser,
+    KiterunnerTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -133,6 +136,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly smtpNmapXml: SmtpNmapXmlParser,
     private readonly snmpText: SnmpTextParser,
     private readonly smbText: SmbTextParser,
+    private readonly kiterunnerText: KiterunnerTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -166,5 +170,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.smtpNmapXml);
     this.registry.register(this.snmpText);
     this.registry.register(this.smbText);
+    this.registry.register(this.kiterunnerText);
   }
 }
