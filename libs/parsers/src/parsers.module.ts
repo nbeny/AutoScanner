@@ -21,6 +21,7 @@ import { GobusterTextParser } from './gobuster-text';
 import { CensysJsonParser } from './censys-json';
 import { AsnmapJsonParser } from './asnmap-json';
 import { FaviconJsonParser } from './favicon-json';
+import { Wafw00fJsonParser } from './wafw00f-json';
 import { CloudEnumTextParser } from './cloud-enum-text';
 import { TrufflehogJsonParser } from './trufflehog-json';
 import { SecuritytrailsJsonParser } from './securitytrails-json';
@@ -50,6 +51,7 @@ import { SecuritytrailsJsonParser } from './securitytrails-json';
     CensysJsonParser,
     AsnmapJsonParser,
     FaviconJsonParser,
+    Wafw00fJsonParser,
     CloudEnumTextParser,
     TrufflehogJsonParser,
     SecuritytrailsJsonParser,
@@ -77,6 +79,7 @@ import { SecuritytrailsJsonParser } from './securitytrails-json';
     CensysJsonParser,
     AsnmapJsonParser,
     FaviconJsonParser,
+    Wafw00fJsonParser,
     CloudEnumTextParser,
     TrufflehogJsonParser,
     SecuritytrailsJsonParser,
@@ -106,6 +109,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly censysJson: CensysJsonParser,
     private readonly asnmapJson: AsnmapJsonParser,
     private readonly faviconJson: FaviconJsonParser,
+    private readonly wafw00fJson: Wafw00fJsonParser,
     private readonly cloudEnumText: CloudEnumTextParser,
     private readonly trufflehogJson: TrufflehogJsonParser,
     private readonly securitytrailsJson: SecuritytrailsJsonParser,
@@ -133,6 +137,7 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.censysJson);
     this.registry.register(this.asnmapJson);
     this.registry.register(this.faviconJson);
+    this.registry.register(this.wafw00fJson);
     this.registry.register(this.cloudEnumText);
     this.registry.register(this.trufflehogJson);
     this.registry.register(this.securitytrailsJson);

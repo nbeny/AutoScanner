@@ -21,6 +21,7 @@ export * from './gobuster-text';
 export * from './censys-json';
 export * from './asnmap-json';
 export * from './favicon-json';
+export * from './wafw00f-json';
 export * from './cloud-enum-text';
 export * from './trufflehog-json';
 export * from './securitytrails-json';
