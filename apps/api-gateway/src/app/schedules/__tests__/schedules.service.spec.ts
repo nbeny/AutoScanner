@@ -160,6 +160,19 @@ describe('SchedulesService', () => {
       expect(updateArg.data.nextRunAt).toBeInstanceOf(Date);
     });
 
+    it('recomputes nextRunAt when only timezone changes', async () => {
+      (prisma.schedule.findFirst as jest.Mock).mockResolvedValue(makeSchedule());
+      (prisma.schedule.update as jest.Mock).mockImplementation(({ data }) =>
+        Promise.resolve(makeSchedule(data)),
+      );
+
+      await svc.update(USER_ID, 'sch_1', { timezone: 'Europe/Paris' });
+
+      const updateArg = (prisma.schedule.update as jest.Mock).mock.calls[0][0];
+      expect(updateArg.data.timezone).toBe('Europe/Paris');
+      expect(updateArg.data.nextRunAt).toBeInstanceOf(Date);
+    });
+
     it('toggles enabled without recomputing nextRunAt when cron is unchanged', async () => {
       (prisma.schedule.findFirst as jest.Mock).mockResolvedValue(makeSchedule());
       (prisma.schedule.update as jest.Mock).mockImplementation(({ data }) =>
@@ -201,6 +214,7 @@ describe('SchedulesService', () => {
       const updateArg = (prisma.schedule.update as jest.Mock).mock.calls[0][0];
       expect(updateArg.where).toEqual({ id: 'sch_1' });
       expect(updateArg.data.deletedAt).toBeInstanceOf(Date);
+      expect(updateArg.data.enabled).toBe(false);
     });
 
     it('throws NotFoundError when the schedule is not owned by the user', async () => {
