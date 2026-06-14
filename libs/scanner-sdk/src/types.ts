@@ -51,7 +51,8 @@ export type ProducedEntity =
   | 'Endpoint'
   | 'Email'
   | 'OrgMetadata'
-  | 'TlsCertificate';
+  | 'TlsCertificate'
+  | 'Screenshot';
 
 export interface BuildContext {
   scanJobId: string;
