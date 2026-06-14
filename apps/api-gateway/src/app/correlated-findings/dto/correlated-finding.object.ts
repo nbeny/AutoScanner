@@ -13,7 +13,7 @@ export class CorrelatedFindingObject {
   @Field()
   structuralHash!: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   category?: string | null;
 
   @Field()
@@ -22,7 +22,7 @@ export class CorrelatedFindingObject {
   @Field(() => Severity)
   severity!: Severity;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   cveId?: string | null;
 
   @Field(() => FindingStatus)
