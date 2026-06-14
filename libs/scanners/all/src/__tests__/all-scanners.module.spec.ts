@@ -42,6 +42,7 @@ describe('AllScannersModule', () => {
       'wafw00f',
       'cdncheck',
       'js-recon',
+      'gowitness',
     ]) {
       expect(registry.has(name)).toBe(true);
     }
