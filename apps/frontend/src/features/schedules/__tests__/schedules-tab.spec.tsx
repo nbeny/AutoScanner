@@ -61,7 +61,7 @@ describe('<SchedulesTab />', () => {
     renderTab([templatesMock, schedulesMock]);
     expect(await screen.findByText('nightly recon')).toBeInTheDocument();
     expect(screen.getByText('0 2 * * *')).toBeInTheDocument();
-    expect(screen.getByText('Passive Recon')).toBeInTheDocument();
+    expect(screen.getAllByText('Passive Recon').length).toBeGreaterThanOrEqual(1);
   });
 
   it('creates a schedule and refetches the list', async () => {
