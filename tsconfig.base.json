@@ -53,6 +53,7 @@
       "@autoscanner/scanners-assetfinder": ["libs/scanners/assetfinder/src/index.ts"],
       "@autoscanner/scanners-crtsh": ["libs/scanners/crtsh/src/index.ts"],
       "@autoscanner/scanners-asnmap": ["libs/scanners/asnmap/src/index.ts"],
+      "@autoscanner/scanners-cloud-enum": ["libs/scanners/cloud-enum/src/index.ts"],
       "@autoscanner/scanners-whois": ["libs/scanners/whois/src/index.ts"],
       "@autoscanner/scanners-gau": ["libs/scanners/gau/src/index.ts"],
       "@autoscanner/scanners-ffuf": ["libs/scanners/ffuf/src/index.ts"],
