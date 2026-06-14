@@ -28,6 +28,7 @@ import { CloudEnumTextParser } from './cloud-enum-text';
 import { TrufflehogJsonParser } from './trufflehog-json';
 import { SecuritytrailsJsonParser } from './securitytrails-json';
 import { SmtpNmapXmlParser } from './smtp-nmap-xml';
+import { SnmpTextParser } from './snmp-text';
 
 @Global()
 @Module({
@@ -61,6 +62,7 @@ import { SmtpNmapXmlParser } from './smtp-nmap-xml';
     TrufflehogJsonParser,
     SecuritytrailsJsonParser,
     SmtpNmapXmlParser,
+    SnmpTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -92,6 +94,7 @@ import { SmtpNmapXmlParser } from './smtp-nmap-xml';
     TrufflehogJsonParser,
     SecuritytrailsJsonParser,
     SmtpNmapXmlParser,
+    SnmpTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -125,6 +128,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly trufflehogJson: TrufflehogJsonParser,
     private readonly securitytrailsJson: SecuritytrailsJsonParser,
     private readonly smtpNmapXml: SmtpNmapXmlParser,
+    private readonly snmpText: SnmpTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -156,5 +160,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.trufflehogJson);
     this.registry.register(this.securitytrailsJson);
     this.registry.register(this.smtpNmapXml);
+    this.registry.register(this.snmpText);
   }
 }
