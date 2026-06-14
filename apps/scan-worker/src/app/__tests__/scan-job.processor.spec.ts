@@ -1,3 +1,5 @@
+import * as fs from 'node:fs';
+import { join } from 'node:path';
 import type { Job, Queue } from 'bullmq';
 import { SecretBox } from '@autoscanner/common';
 import type { PrismaService } from '@autoscanner/database';
@@ -487,6 +489,159 @@ describe('ScanJobProcessor', () => {
       expect(prisma.engagement.findUnique).not.toHaveBeenCalled();
       expect(prisma.apiCredential.findUnique).not.toHaveBeenCalled();
       expect(docker.run).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('file capture (binary artifact)', () => {
+    // A minimal scanner stub with BINARY file capture (e.g. gowitness).
+    const binaryScanner: ScannerDefinition = {
+      ...NmapScanner,
+      name: 'gowitness',
+      displayName: 'gowitness (screenshot)',
+      requiresCredential: undefined,
+      credentialEnvVar: undefined,
+      outputs: [{ format: 'BINARY', capture: { path: '' }, parser: 'noop' }],
+      build: jest.fn((_input, _target, ctx) => ({
+        cmd: ['sh', '-lc', `gowitness single 'example.com' --screenshot-path ${ctx.scratchDir}`],
+        binds: [],
+      })),
+    };
+
+    // Fake PNG magic bytes
+    const FAKE_PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+
+    beforeEach(() => {
+      registry.register(binaryScanner);
+
+      // Reset the build mock so call tracking is fresh each test
+      (binaryScanner.build as jest.Mock).mockClear();
+      (binaryScanner.build as jest.Mock).mockImplementation((_input, _target, ctx) => ({
+        cmd: ['sh', '-lc', `gowitness single 'example.com' --screenshot-path ${ctx.scratchDir}`],
+        binds: [],
+      }));
+
+      // Docker mock that writes a fake PNG into the bound host dir
+      docker.run.mockImplementation(async (spec: RunSpec): Promise<RunResult> => {
+        // Find the /output bind and write shot.png into the host src dir
+        const outputBind = spec.binds?.find((b) => b.dst === '/output');
+        if (outputBind) {
+          fs.writeFileSync(join(outputBind.src, 'shot.png'), FAKE_PNG);
+        }
+        spec.onStdout?.('some stdout noise');
+        return {
+          exitCode: 0,
+          durationMs: 500,
+          containerId: 'c_gowitness',
+          timedOut: false,
+          killedByUser: false,
+        };
+      });
+    });
+
+    const binaryJob = () =>
+      job({
+        scanJobId: 'job_1',
+        scannerName: 'gowitness',
+        target: 'example.com',
+        input: {},
+        engagementId: 'eng_1',
+      });
+
+    it('calls scanner.build with scratchDir === /output (not /tmp)', async () => {
+      await processor.process(binaryJob());
+      expect(binaryScanner.build).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({ scratchDir: '/output' }),
+      );
+    });
+
+    it('passes a bind with dst === /output to docker.run', async () => {
+      await processor.process(binaryJob());
+      const runCall = (docker.run as jest.Mock).mock.calls[0][0] as RunSpec;
+      const outputBind = runCall.binds?.find((b: { dst: string }) => b.dst === '/output');
+      expect(outputBind).toBeDefined();
+      expect(outputBind?.src).toBeTruthy(); // real host path, not empty
+    });
+
+    it('stores the produced PNG with content-type image/png and the correct bytes', async () => {
+      await processor.process(binaryJob());
+      expect(storage.putObject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bucket: 'raw-outputs',
+          body: FAKE_PNG,
+          contentType: 'image/png',
+        }),
+      );
+    });
+
+    it('does NOT enqueue a parse job for BINARY format', async () => {
+      await processor.process(binaryJob());
+      expect(parseQueue.add).not.toHaveBeenCalled();
+    });
+
+    it('marks the job COMPLETED with a rawOutputKey', async () => {
+      await processor.process(binaryJob());
+      expect(prisma.scanJob.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'job_1' },
+          data: expect.objectContaining({
+            status: 'COMPLETED',
+            rawOutputKey: expect.stringContaining('gowitness'),
+          }),
+        }),
+      );
+    });
+
+    it('marks job FAILED with "no artifact" message when docker writes no file', async () => {
+      // Override: docker run produces no file
+      docker.run.mockImplementationOnce(
+        async (): Promise<RunResult> => ({
+          exitCode: 0,
+          durationMs: 100,
+          containerId: 'c_empty',
+          timedOut: false,
+          killedByUser: false,
+        }),
+      );
+
+      await expect(processor.process(binaryJob())).rejects.toThrow(/no artifact/);
+
+      expect(prisma.scanJob.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'job_1' },
+          data: expect.objectContaining({
+            status: 'FAILED',
+            errorMessage: expect.stringMatching(/no artifact/),
+          }),
+        }),
+      );
+      expect(storage.putObject).not.toHaveBeenCalled();
+      expect(parseQueue.add).not.toHaveBeenCalled();
+    });
+
+    it('cleans up the host temp dir after successful processing', async () => {
+      let capturedHostDir: string | undefined;
+      docker.run.mockImplementationOnce(async (spec: RunSpec): Promise<RunResult> => {
+        const outputBind = spec.binds?.find((b) => b.dst === '/output');
+        if (outputBind) {
+          capturedHostDir = outputBind.src;
+          fs.writeFileSync(join(outputBind.src, 'shot.png'), FAKE_PNG);
+        }
+        return {
+          exitCode: 0,
+          durationMs: 100,
+          containerId: 'c_cleanup',
+          timedOut: false,
+          killedByUser: false,
+        };
+      });
+
+      await processor.process(binaryJob());
+
+      // The host dir must have been removed by the finally block
+      expect(capturedHostDir).toBeDefined();
+      expect(fs.existsSync(capturedHostDir!)).toBe(false);
     });
   });
 });
