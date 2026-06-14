@@ -18,8 +18,12 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && adduser --disabled-password --gecos '' --uid 10001 scanner \
  && mkdir -p /wordlists \
- && (wget -qO- "${WORDLIST_URL}" | tar -xz -C /wordlists/ 2>/dev/null \
-     || echo "# PLACEHOLDER: real routes-small.kite wordlist must be baked in.\n# Download from https://github.com/assetnote/kiterunner/releases and rebuild." > /wordlists/routes-small.kite) \
+ # Wordlist: must be the assetnote routes-small.kite binary (not a text file).
+ # The extracted file must end up at /wordlists/routes-small.kite to match
+ # the scanner's `-w` flag. If the archive extracts under a different name,
+ # add a `mv` step here. Fail the build loudly if the download or extraction
+ # fails rather than silently producing a non-functional image.
+ && set -eux; wget -O- "${WORDLIST_URL}" | tar -xz -C /wordlists/ \
  && chmod -R a+r /wordlists
 
 COPY --from=build /go/bin/kite /usr/local/bin/kite

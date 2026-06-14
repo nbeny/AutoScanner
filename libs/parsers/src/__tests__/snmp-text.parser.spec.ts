@@ -19,6 +19,11 @@ describe('SnmpTextParser', () => {
     );
     expect(out.orgMetadata.some((m) => m.kind === 'OTHER')).toBe(true);
   });
+  it('emits OrgMetadata for sysDescr using fully-numeric OID form (1.3.6.1...)', async () => {
+    const text = '1.3.6.1.2.1.1.1.0 = STRING: "Cisco IOS Software"';
+    const out = await parser.parse(text, ctx);
+    expect(out.orgMetadata.some((m) => m.kind === 'OTHER')).toBe(true);
+  });
   it('tolerant of blank/garbage', async () => {
     expect((await parser.parse('', ctx)).findings).toHaveLength(0);
   });
