@@ -48,7 +48,7 @@ export class WebhooksService {
   verifyToken(source: string, provided: string): void {
     const configured = this.tokenForSource(source);
 
-    if (configured === undefined) {
+    if (!configured) {
       throw new ServiceUnavailableException('webhook source not configured');
     }
 

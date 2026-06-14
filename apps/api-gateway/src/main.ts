@@ -13,6 +13,10 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 
+  // Tighter body limit for webhook ingest — must be registered BEFORE the global parser
+  // so Express picks this scoped handler first for /webhooks requests.
+  app.use('/webhooks', json({ limit: '5mb' }));
+
   // Explicit body limit to handle agent result submissions (~10 MB raw ≈ ~13.4 MB base64)
   // while preventing unbounded request bodies.
   app.use(json({ limit: '15mb' }));

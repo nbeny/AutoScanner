@@ -113,6 +113,20 @@ describe('WebhooksService', () => {
       );
     });
 
+    it('throws ServiceUnavailableException when configured token is an empty string', () => {
+      // An empty WEBHOOK_GENERIC_TOKEN= in env must not silently pass through;
+      // treat it the same as unconfigured → 503.
+      const emptySvc = new WebhooksService(
+        prisma,
+        queue,
+        makeMockCfg({ WEBHOOK_GENERIC_TOKEN: '' }) as never,
+      );
+
+      expect(() => emptySvc.verifyToken('generic', GENERIC_TOKEN)).toThrow(
+        ServiceUnavailableException,
+      );
+    });
+
     it('throws UnauthorizedException when provided token is missing (undefined)', () => {
       expect(() => svc.verifyToken('generic', undefined as unknown as string)).toThrow(
         UnauthorizedException,
