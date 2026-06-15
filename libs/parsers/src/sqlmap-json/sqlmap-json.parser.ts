@@ -9,7 +9,9 @@ const PARAM_RE = /^Parameter:\s*(.+?)\s*\((GET|POST|COOKIE|URI|[A-Z]+)\)/;
 @Injectable()
 export class SqlmapJsonParser implements Parser {
   readonly name = 'sqlmap-json';
-  readonly formats: RawOutputFormat[] = ['TEXT', 'JSON'];
+  // Parses sqlmap's human-readable stdout (TEXT). Named '*-json' for naming
+  // consistency with the scanner's parser key, not because it consumes JSON.
+  readonly formats: RawOutputFormat[] = ['TEXT'];
 
   async parse(input: Buffer | string, ctx: ParserContext): Promise<NormalizedOutput> {
     const out = emptyNormalizedOutput();
