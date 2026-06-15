@@ -6,9 +6,9 @@
  * (xss-scan + sqli-scan + cmdi-scan) out of the shared CI job;
  * run it in a dedicated job with the full stack + Docker daemon
  * and the scanner images available:
- *   autoscanner/xss-scan:1.0    (dalfox)
- *   autoscanner/sqli-scan:1.0   (sqlmap)
- *   autoscanner/cmdi-scan:1.0   (commix)
+ *   ghcr.io/hahwul/dalfox:v2.9.4 (xss-scan; public image, reused)
+ *   autoscanner/sqli-scan:1.0    (sqlmap)
+ *   autoscanner/cmdi-scan:1.0    (commix)
  *
  * Required env:
  *   E2E_API_URL           e.g. http://localhost:4000
