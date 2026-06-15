@@ -31,6 +31,9 @@ import { SmtpNmapXmlParser } from './smtp-nmap-xml';
 import { SnmpTextParser } from './snmp-text';
 import { SmbTextParser } from './smb-text';
 import { KiterunnerTextParser } from './kiterunner-text';
+import { DalfoxJsonParser } from './dalfox-json';
+import { SqlmapJsonParser } from './sqlmap-json';
+import { CommixTextParser } from './commix-text';
 
 @Global()
 @Module({
@@ -67,6 +70,9 @@ import { KiterunnerTextParser } from './kiterunner-text';
     SnmpTextParser,
     SmbTextParser,
     KiterunnerTextParser,
+    DalfoxJsonParser,
+    SqlmapJsonParser,
+    CommixTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -101,6 +107,9 @@ import { KiterunnerTextParser } from './kiterunner-text';
     SnmpTextParser,
     SmbTextParser,
     KiterunnerTextParser,
+    DalfoxJsonParser,
+    SqlmapJsonParser,
+    CommixTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -137,6 +146,9 @@ export class ParsersModule implements OnModuleInit {
     private readonly snmpText: SnmpTextParser,
     private readonly smbText: SmbTextParser,
     private readonly kiterunnerText: KiterunnerTextParser,
+    private readonly dalfoxJson: DalfoxJsonParser,
+    private readonly sqlmapJson: SqlmapJsonParser,
+    private readonly commixText: CommixTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -171,5 +183,8 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.snmpText);
     this.registry.register(this.smbText);
     this.registry.register(this.kiterunnerText);
+    this.registry.register(this.dalfoxJson);
+    this.registry.register(this.sqlmapJson);
+    this.registry.register(this.commixText);
   }
 }

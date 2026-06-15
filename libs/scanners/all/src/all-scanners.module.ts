@@ -37,6 +37,9 @@ import { SmtpReconScannerModule } from '@autoscanner/scanners-smtp-recon';
 import { SnmpReconScannerModule } from '@autoscanner/scanners-snmp-recon';
 import { SmbEnumScannerModule } from '@autoscanner/scanners-smb-enum';
 import { ApiDiscoveryScannerModule } from '@autoscanner/scanners-api-discovery';
+import { XssScanScannerModule } from '@autoscanner/scanners-xss-scan';
+import { SqliScanScannerModule } from '@autoscanner/scanners-sqli-scan';
+import { CmdiScanScannerModule } from '@autoscanner/scanners-cmdi-scan';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -84,6 +87,9 @@ const SCANNER_MODULES = [
   SnmpReconScannerModule,
   SmbEnumScannerModule,
   ApiDiscoveryScannerModule,
+  XssScanScannerModule,
+  SqliScanScannerModule,
+  CmdiScanScannerModule,
 ];
 
 @Module({

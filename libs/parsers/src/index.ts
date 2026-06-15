@@ -31,4 +31,7 @@ export * from './smtp-nmap-xml';
 export * from './snmp-text';
 export * from './smb-text';
 export * from './kiterunner-text';
+export * from './dalfox-json';
+export * from './sqlmap-json';
+export * from './commix-text';
 export * from './parsers.module';
