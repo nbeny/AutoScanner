@@ -31,6 +31,7 @@ import { SmtpNmapXmlParser } from './smtp-nmap-xml';
 import { SnmpTextParser } from './snmp-text';
 import { SmbTextParser } from './smb-text';
 import { KiterunnerTextParser } from './kiterunner-text';
+import { DalfoxJsonParser } from './dalfox-json';
 
 @Global()
 @Module({
@@ -67,6 +68,7 @@ import { KiterunnerTextParser } from './kiterunner-text';
     SnmpTextParser,
     SmbTextParser,
     KiterunnerTextParser,
+    DalfoxJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -101,6 +103,7 @@ import { KiterunnerTextParser } from './kiterunner-text';
     SnmpTextParser,
     SmbTextParser,
     KiterunnerTextParser,
+    DalfoxJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -137,6 +140,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly snmpText: SnmpTextParser,
     private readonly smbText: SmbTextParser,
     private readonly kiterunnerText: KiterunnerTextParser,
+    private readonly dalfoxJson: DalfoxJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -171,5 +175,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.snmpText);
     this.registry.register(this.smbText);
     this.registry.register(this.kiterunnerText);
+    this.registry.register(this.dalfoxJson);
   }
 }
