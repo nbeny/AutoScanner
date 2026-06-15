@@ -47,6 +47,9 @@ describe('AllScannersModule', () => {
       'snmp-recon',
       'smb-enum',
       'api-discovery',
+      'xss-scan',
+      'sqli-scan',
+      'cmdi-scan',
     ]) {
       expect(registry.has(name)).toBe(true);
     }

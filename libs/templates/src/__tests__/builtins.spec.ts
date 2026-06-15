@@ -9,6 +9,7 @@ import {
   ServiceRecon,
   TemplateRegistry,
   TemplatesModule,
+  VulnActive,
   WebContent,
   WebDeep,
   WebEnrich,
@@ -126,8 +127,8 @@ describe('builtin templates', () => {
   });
 
   describe('BUILTIN_TEMPLATES', () => {
-    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich + service-recon', () => {
-      expect(BUILTIN_TEMPLATES).toHaveLength(11);
+    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich + service-recon + vuln-active', () => {
+      expect(BUILTIN_TEMPLATES).toHaveLength(12);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassive);
       expect(BUILTIN_TEMPLATES).toContain(ReconActive);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassiveDeep);
@@ -139,6 +140,7 @@ describe('builtin templates', () => {
       expect(BUILTIN_TEMPLATES).toContain(OsintPassiveDeep);
       expect(BUILTIN_TEMPLATES).toContain(WebEnrich);
       expect(BUILTIN_TEMPLATES).toContain(ServiceRecon);
+      expect(BUILTIN_TEMPLATES).toContain(VulnActive);
     });
 
     it('exposes unique template names', () => {
@@ -157,6 +159,7 @@ describe('builtin templates', () => {
       expect(registry.get('web-quick')).toBe(WebQuick);
       expect(registry.get('web-deep')).toBe(WebDeep);
       expect(registry.get('service-recon')).toBe(ServiceRecon);
+      expect(registry.get('vuln-active')).toBe(VulnActive);
 
       expect(registry.list()).toHaveLength(BUILTIN_TEMPLATES.length);
     });
@@ -179,7 +182,8 @@ describe('builtin templates', () => {
       expect(registry.get('osint-passive-deep')).toBe(OsintPassiveDeep);
       expect(registry.get('web-enrich')).toBe(WebEnrich);
       expect(registry.get('service-recon')).toBe(ServiceRecon);
-      expect(registry.list()).toHaveLength(11);
+      expect(registry.get('vuln-active')).toBe(VulnActive);
+      expect(registry.list()).toHaveLength(12);
 
       // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
       const moduleInstance = ref.get(TemplatesModule);
