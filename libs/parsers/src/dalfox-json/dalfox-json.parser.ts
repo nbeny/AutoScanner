@@ -61,6 +61,7 @@ export class DalfoxJsonParser implements Parser {
     try {
       const seen = new Set<string>();
       for (const poc of parsePocs(text)) {
+        if (!poc || typeof poc !== 'object') continue;
         if (poc.type !== 'V' && poc.type !== 'R') continue;
         const loc = poc.data ?? ctx.target;
         const key = `${poc.param ?? ''}|${loc}`;

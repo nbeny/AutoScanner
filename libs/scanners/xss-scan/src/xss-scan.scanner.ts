@@ -28,8 +28,9 @@ export const XssScanScanner: ScannerDefinition<XssScanInputType> = {
   },
   build(input, target) {
     const t = shellQuoteSingle(target);
-    const extra = input.level === 'aggressive' ? '--mining-dom --deep-domxss' : '';
-    const script = `dalfox url ${t} --format json --no-color --silence ${extra} 2>/dev/null || true`;
+    const flags = ['--format', 'json', '--no-color', '--silence'];
+    if (input.level === 'aggressive') flags.push('--mining-dom', '--deep-domxss');
+    const script = `dalfox url ${t} ${flags.join(' ')} 2>/dev/null || true`;
     return { cmd: ['sh', '-lc', script] };
   },
   outputs: [{ format: 'JSON', capture: 'stdout', parser: 'dalfox-json' }],
