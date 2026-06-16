@@ -686,6 +686,16 @@ model CveCache {
   @@index([fetchStatus])
 }
 
+model CpeCveCache {
+  cpe       String   @id
+  cveIds    String[]
+  scores    Json     // map of cveId -> CVSS base score (number) or null
+  fetchedAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 // =====================================================================
 // REPORTING (Phase 4)
 // =====================================================================

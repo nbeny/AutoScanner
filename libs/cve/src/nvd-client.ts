@@ -1,6 +1,7 @@
 import type { TokenBucketRateLimiter } from './rate-limiter';
 
 const NVD_URL = 'https://services.nvd.nist.gov/rest/json/cves/2.0';
+const CPE_RESULTS_PER_PAGE = 2000;
 
 export class NvdNotFoundError extends Error {
   constructor(cveId: string) {
@@ -51,6 +52,11 @@ export interface NvdCveData {
   lastModified: Date | null;
 }
 
+export interface CpeCveMatch {
+  cveId: string;
+  cvssScore: number | null;
+}
+
 export interface NvdClientOptions {
   apiKey: string | undefined;
   rateLimiter: TokenBucketRateLimiter;
@@ -76,6 +82,13 @@ interface NvdResponse {
       };
     };
   }>;
+}
+
+interface NvdListResponse {
+  totalResults: number;
+  resultsPerPage: number;
+  startIndex: number;
+  vulnerabilities: NvdResponse['vulnerabilities'];
 }
 
 export class NvdClient {
@@ -138,11 +151,79 @@ export class NvdClient {
     throw lastErr instanceof Error ? lastErr : new Error('NVD fetch failed');
   }
 
+  async findCvesByCpe(cpe: string): Promise<CpeCveMatch[]> {
+    const paramKey = cpe.startsWith('cpe:2.3:') ? 'cpeName' : 'virtualMatchString';
+    const encoded = encodeURIComponent(cpe);
+    const results: CpeCveMatch[] = [];
+    let startIndex = 0;
+    let totalResults = 1; // initialise to >0 so we enter the loop
+
+    while (startIndex < totalResults) {
+      const url = `${NVD_URL}?${paramKey}=${encoded}&resultsPerPage=${CPE_RESULTS_PER_PAGE}&startIndex=${startIndex}`;
+      let lastErr: unknown;
+      let body: NvdListResponse | null = null;
+
+      for (let attempt = 0; attempt < this.maxRetries; attempt += 1) {
+        await this.rateLimiter.acquire();
+        try {
+          const response = await this.fetchImpl(url, {
+            method: 'GET',
+            headers: this.apiKey ? { apiKey: this.apiKey } : {},
+          });
+
+          if (response.status === 404) return results;
+          if (response.status === 429) {
+            const retryAfter = parseRetryAfter(
+              response.headers?.get?.('retry-after') ?? null,
+              Date.now(),
+            );
+            throw new NvdRateLimitedError(retryAfter);
+          }
+          if (response.status >= 500) {
+            lastErr = new Error(`NVD HTTP ${response.status}`);
+            await this.sleep(this.backoffMs(attempt));
+            continue;
+          }
+          if (!response.ok) {
+            throw new Error(`NVD HTTP ${response.status}: ${await response.text()}`);
+          }
+
+          body = (await response.json()) as NvdListResponse;
+          break;
+        } catch (err) {
+          if (err instanceof NvdRateLimitedError) throw err;
+          lastErr = err;
+          if (attempt < this.maxRetries - 1) {
+            await this.sleep(this.backoffMs(attempt));
+          }
+        }
+      }
+
+      if (body === null) {
+        throw lastErr instanceof Error ? lastErr : new Error('NVD CPE fetch failed');
+      }
+
+      totalResults = body.totalResults;
+      const page = body.vulnerabilities ?? [];
+      if (page.length === 0) break;
+
+      for (const entry of page) {
+        results.push({
+          cveId: entry.cve.id,
+          cvssScore: this.extractCvssScore(entry.cve.metrics),
+        });
+      }
+
+      startIndex += page.length;
+    }
+
+    return results;
+  }
+
   private parse(entry: NvdResponse['vulnerabilities'][number]): NvdCveData {
     const cve = entry.cve;
     const desc = cve.descriptions.find((d) => d.lang === 'en') ?? cve.descriptions[0];
-    const metric =
-      cve.metrics?.cvssMetricV31?.[0]?.cvssData ?? cve.metrics?.cvssMetricV30?.[0]?.cvssData;
+    const metric = this.extractCvssMetric(cve.metrics);
     return {
       cveId: cve.id,
       cvssV3Score: metric?.baseScore ?? null,
@@ -151,6 +232,18 @@ export class NvdClient {
       publishedAt: cve.published ? new Date(cve.published) : null,
       lastModified: cve.lastModified ? new Date(cve.lastModified) : null,
     };
+  }
+
+  private extractCvssMetric(
+    metrics: NvdResponse['vulnerabilities'][number]['cve']['metrics'],
+  ): { baseScore: number; vectorString: string } | undefined {
+    return metrics?.cvssMetricV31?.[0]?.cvssData ?? metrics?.cvssMetricV30?.[0]?.cvssData;
+  }
+
+  private extractCvssScore(
+    metrics: NvdResponse['vulnerabilities'][number]['cve']['metrics'],
+  ): number | null {
+    return this.extractCvssMetric(metrics)?.baseScore ?? null;
   }
 
   private backoffMs(attempt: number): number {
