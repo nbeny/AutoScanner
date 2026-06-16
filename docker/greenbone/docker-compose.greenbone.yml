@@ -1,0 +1,170 @@
+# =============================================================================
+# Greenbone Community Container — Scanner Subset
+# =============================================================================
+# This compose file brings up the Greenbone/OpenVAS scanning engine ONLY.
+# It does NOT include the management layer (gvmd) or the web UI (GSA/gsad).
+# The openvasd HTTP API is the sole integration point for AutoScanner.
+#
+# IMAGE-TAG NOTICE: Greenbone Community Container image tags are version-
+# sensitive and change with each release. The tags pinned here via .env vars
+# must be verified against the current release at deploy time:
+#   https://github.com/greenbone/greenbone-community-container/releases
+#   https://hub.docker.com/u/greenbone
+#
+# FEED SIZE WARNING: The vulnerability-tests (NASL), notus-data, and scap-data
+# feeds are multi-GB in total. First-boot feed sync can take 30–60+ minutes
+# depending on connection speed. Do NOT start scanning until feed sync
+# completes. See README.md for how to verify the feed is loaded.
+# =============================================================================
+
+name: autoscanner-greenbone
+
+services:
+  # ---------------------------------------------------------------------------
+  # MQTT broker — carries openvasd ↔ notus-scanner messages
+  # ---------------------------------------------------------------------------
+  mqtt-broker:
+    image: greenbone/mqtt-broker:${MQTT_BROKER_TAG:-latest}
+    container_name: autoscanner-mqtt-broker
+    restart: unless-stopped
+    networks:
+      - autoscanner-greenbone
+
+  # ---------------------------------------------------------------------------
+  # Redis — openvas-scanner key-value / knowledge-base store
+  # ---------------------------------------------------------------------------
+  redis-server:
+    image: greenbone/redis-server:${REDIS_SERVER_TAG:-latest}
+    container_name: autoscanner-redis-server
+    restart: unless-stopped
+    volumes:
+      - redis_socket:/run/redis/
+    networks:
+      - autoscanner-greenbone
+
+  # ---------------------------------------------------------------------------
+  # Feed-sync helper containers (run once, then stay idle / restart: no)
+  # Each mounts the shared feed volume and pulls data from the Greenbone feed.
+  # Re-run daily (e.g. via cron / docker compose run) to keep feeds current.
+  # ---------------------------------------------------------------------------
+
+  # Vulnerability Tests (NASL scripts) feed
+  vulnerability-tests:
+    image: greenbone/vulnerability-tests:${VT_TAG:-latest}
+    container_name: autoscanner-vulnerability-tests
+    environment:
+      STORAGE_PATH: /var/lib/openvas/22.04/vt-data/nasl
+    volumes:
+      - vt_data:/var/lib/openvas/22.04/vt-data/nasl
+    networks:
+      - autoscanner-greenbone
+
+  # Notus data (JSON-based advisories for notus-scanner)
+  notus-data:
+    image: greenbone/notus-data:${NOTUS_DATA_TAG:-latest}
+    container_name: autoscanner-notus-data
+    volumes:
+      - notus_data:/var/lib/notus
+    networks:
+      - autoscanner-greenbone
+
+  # SCAP data (NVD CVE / SCAP feeds used by openvas)
+  scap-data:
+    image: greenbone/scap-data:${SCAP_DATA_TAG:-latest}
+    container_name: autoscanner-scap-data
+    volumes:
+      - scap_data:/var/lib/gvm/scap-data
+    networks:
+      - autoscanner-greenbone
+
+  # ---------------------------------------------------------------------------
+  # Notus Scanner — processes JSON-based OS-package vulnerability advisories
+  # ---------------------------------------------------------------------------
+  notus-scanner:
+    image: greenbone/notus-scanner:${NOTUS_SCANNER_TAG:-latest}
+    container_name: autoscanner-notus-scanner
+    restart: unless-stopped
+    depends_on:
+      - mqtt-broker
+      - notus-data
+    environment:
+      NOTUS_SCANNER_MQTT_BROKER_ADDRESS: mqtt-broker
+      NOTUS_SCANNER_MQTT_BROKER_PORT: '1883'
+      NOTUS_SCANNER_PRODUCTS_DIRECTORY: /var/lib/notus/products
+      NOTUS_SCANNER_DISABLE_HASHSUM_VERIFICATION: '${NOTUS_DISABLE_HASHSUM_VERIFICATION:-false}'
+    volumes:
+      - notus_data:/var/lib/notus
+    networks:
+      - autoscanner-greenbone
+
+  # ---------------------------------------------------------------------------
+  # openvasd — OpenVAS daemon + HTTP API (port 3000 inside the network)
+  #
+  # Authentication: API-key mode. Clients must send the header:
+  #   X-API-Key: <value of OPENVASD_API_KEY>
+  # This key must also be stored in AutoScanner's credential store so the
+  # scan-worker can inject it into requests (see .env.example).
+  #
+  # No host-port mapping by default — clients join the autoscanner-greenbone
+  # network and reach the daemon at http://openvasd:3000.
+  # Uncomment the ports block below for local debugging via curl/browser.
+  # ---------------------------------------------------------------------------
+  openvasd:
+    image: greenbone/openvasd:${OPENVASD_TAG:-latest}
+    container_name: autoscanner-openvasd
+    restart: unless-stopped
+    depends_on:
+      - mqtt-broker
+      - redis-server
+      - notus-scanner
+      - vulnerability-tests
+      - scap-data
+    environment:
+      # API-key authentication — required; change from default in production
+      OPENVASD_API_KEY: '${OPENVASD_API_KEY}'
+      # Listening address inside the container
+      OPENVASD_LISTENING: '0.0.0.0:3000'
+      # Feed paths
+      OPENVASD_NASL_PATH: /var/lib/openvas/22.04/vt-data/nasl
+      OPENVASD_SCAP_DATA_PATH: /var/lib/gvm/scap-data
+      # Redis socket (must match redis-server volume mount)
+      OPENVASD_REDIS_SOCKET_PATH: /run/redis/redis.sock
+      # MQTT — for notus-scanner notifications
+      OPENVASD_MQTT_BROKER_ADDRESS: mqtt-broker
+      OPENVASD_MQTT_BROKER_PORT: '1883'
+      # Log level: trace | debug | info | warn | error
+      OPENVASD_LOG_LEVEL: '${OPENVASD_LOG_LEVEL:-info}'
+    volumes:
+      - vt_data:/var/lib/openvas/22.04/vt-data/nasl:ro
+      - scap_data:/var/lib/gvm/scap-data:ro
+      - redis_socket:/run/redis/
+      - openvasd_socket:/run/openvasd/
+    # Uncomment to expose the API on the host for debugging:
+    # ports:
+    #   - "127.0.0.1:3000:3000"
+    networks:
+      - autoscanner-greenbone
+
+# =============================================================================
+# Named volumes — persist feed data and sockets across container restarts
+# =============================================================================
+volumes:
+  vt_data:
+    # Vulnerability Tests / NASL scripts (populated by vulnerability-tests service)
+  notus_data:
+    # Notus JSON advisories (populated by notus-data service)
+  scap_data:
+    # SCAP/NVD data (populated by scap-data service)
+  redis_socket:
+    # Redis UNIX socket shared between redis-server and openvasd
+  openvasd_socket:
+    # openvasd UNIX socket (reserved for future socket-mode clients)
+
+# =============================================================================
+# Network — external-joinable so the AutoScanner scan-worker container can
+# attach with: docker run --network autoscanner-greenbone ...
+# and resolve openvasd by hostname.
+# =============================================================================
+networks:
+  autoscanner-greenbone:
+    name: autoscanner-greenbone
