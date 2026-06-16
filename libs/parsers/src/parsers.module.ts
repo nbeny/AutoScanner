@@ -34,6 +34,7 @@ import { KiterunnerTextParser } from './kiterunner-text';
 import { DalfoxJsonParser } from './dalfox-json';
 import { SqlmapJsonParser } from './sqlmap-json';
 import { CommixTextParser } from './commix-text';
+import { OpenvasdJsonParser } from './openvasd-json';
 
 @Global()
 @Module({
@@ -73,6 +74,7 @@ import { CommixTextParser } from './commix-text';
     DalfoxJsonParser,
     SqlmapJsonParser,
     CommixTextParser,
+    OpenvasdJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -110,6 +112,7 @@ import { CommixTextParser } from './commix-text';
     DalfoxJsonParser,
     SqlmapJsonParser,
     CommixTextParser,
+    OpenvasdJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -149,6 +152,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly dalfoxJson: DalfoxJsonParser,
     private readonly sqlmapJson: SqlmapJsonParser,
     private readonly commixText: CommixTextParser,
+    private readonly openvasdJson: OpenvasdJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -186,5 +190,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.dalfoxJson);
     this.registry.register(this.sqlmapJson);
     this.registry.register(this.commixText);
+    this.registry.register(this.openvasdJson);
   }
 }
