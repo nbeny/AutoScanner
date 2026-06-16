@@ -697,6 +697,67 @@ model CpeCveCache {
 }
 
 // =====================================================================
+// NVD OFFLINE MIRROR (Phase 8.7a)
+// =====================================================================
+
+enum NvdConfigOperator {
+  AND
+  OR
+}
+
+model NvdCve {
+  cveId        String          @id
+  cvssV3Score  Float?
+  cvssV3Vector String?
+  severity     Severity?
+  summary      String?
+  publishedAt  DateTime?
+  lastModified DateTime?
+  syncedAt     DateTime        @default(now())
+  nodes        NvdConfigNode[]
+
+  @@index([lastModified])
+}
+
+model NvdConfigNode {
+  id       String            @id @default(cuid())
+  cveId    String
+  operator NvdConfigOperator
+  negate   Boolean           @default(false)
+  cve      NvdCve            @relation(fields: [cveId], references: [cveId], onDelete: Cascade)
+  matches  NvdCpeMatch[]
+
+  @@index([cveId])
+}
+
+model NvdCpeMatch {
+  id                    String        @id @default(cuid())
+  nodeId                String
+  criteria              String
+  vulnerable            Boolean
+  cpeVendor             String
+  cpeProduct            String
+  versionStartIncluding String?
+  versionStartExcluding String?
+  versionEndIncluding   String?
+  versionEndExcluding   String?
+  node                  NvdConfigNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@index([cpeVendor, cpeProduct])
+  @@index([nodeId])
+}
+
+model NvdSyncState {
+  id                  String    @id @default("singleton")
+  lastModEndDate      DateTime?
+  fullSyncCompletedAt DateTime?
+  lastFullSyncAt      DateTime?
+  lastStartIndex      Int       @default(0)
+  totalCves           Int       @default(0)
+  updatedAt           DateTime  @updatedAt
+}
+
+// =====================================================================
 // REPORTING (Phase 4)
 // =====================================================================
 
