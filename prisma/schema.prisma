@@ -522,6 +522,7 @@ enum ApiProvider {
   CENSYS
   GITHUB
   SECURITYTRAILS
+  OPENVAS
 }
 
 model Email {
