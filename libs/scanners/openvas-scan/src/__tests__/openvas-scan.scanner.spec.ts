@@ -24,6 +24,6 @@ describe('OpenvasScanScanner', () => {
       ctx,
     );
     expect(cmd).toEqual(['openvas-scan-run', 'scanme.test']);
-    expect(env?.OPENVASD_URL).toBe('http://openvasd:3000');
+    expect(env?.['OPENVASD_URL']).toBe('http://openvasd:3000');
   });
 });
