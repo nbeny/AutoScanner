@@ -7,11 +7,13 @@ import { PrismaModule } from '@autoscanner/database';
 import { QueuesModule } from '@autoscanner/queues';
 
 import { NvdSyncProcessor } from './nvd-sync.processor';
+import { NvdSyncScheduler } from './nvd-sync.scheduler';
 
 @Module({
   imports: [AppConfigModule, AppLoggingModule, PrismaModule, QueuesModule],
   providers: [
     NvdSyncProcessor,
+    NvdSyncScheduler,
     {
       provide: NvdClient,
       useFactory: () => {
