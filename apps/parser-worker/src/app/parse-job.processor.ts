@@ -7,7 +7,12 @@ import {
   type NormalizedHttpProbe,
   type NormalizedOutput,
 } from '@autoscanner/parsers';
-import { QueueName, type ParseJobPayload, type CveEnrichmentPayload } from '@autoscanner/queues';
+import {
+  QueueName,
+  type ParseJobPayload,
+  type CveEnrichmentPayload,
+  type CveDiscoveryPayload,
+} from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 import { PrismaService } from '@autoscanner/database';
 import {
@@ -76,6 +81,8 @@ export class ParseJobProcessor extends WorkerHost {
     private readonly tlsCertificatePersister: TlsCertificatePersister,
     private readonly prisma: PrismaService,
     @InjectQueue(QueueName.CVE_ENRICHMENT) private readonly cveQueue: Queue<CveEnrichmentPayload>,
+    @InjectQueue(QueueName.CVE_DISCOVERY)
+    private readonly cveDiscoveryQueue: Queue<CveDiscoveryPayload>,
     @Inject(ENGAGEMENT_EVENTS_PUBLISHER)
     private readonly events: EngagementEventsPublisher,
   ) {
@@ -147,6 +154,67 @@ export class ParseJobProcessor extends WorkerHost {
           `CVE_ENRICHMENT enqueue failed for ${cveId}: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
+    }
+
+    // Enqueue CVE_DISCOVERY jobs for each (service, cpe) pair in this engagement.
+    // We query by engagement scope (port.asset.engagementId) so any service-with-CPE
+    // persisted by earlier parse jobs in the same engagement is also covered. This is
+    // intentionally engagement-wide: BullMQ deduplicates by jobId (`${svc.id}:${cpe}`)
+    // so re-enqueueing an already-discovered pair is a no-op, and the discovery
+    // processor + finding.upsert are idempotent.
+    try {
+      const cpeServices = await this.prisma.service.findMany({
+        where: {
+          cpe: { isEmpty: false },
+          port: { asset: { engagementId: payload.engagementId } },
+        },
+        select: {
+          id: true,
+          cpe: true,
+          product: true,
+          version: true,
+          port: {
+            select: {
+              assetId: true,
+              number: true,
+              protocol: true,
+              asset: { select: { value: true, canonicalValue: true } },
+            },
+          },
+        },
+      });
+      for (const svc of cpeServices) {
+        const assetId = svc.port.assetId;
+        const assetCanonical = svc.port.asset.canonicalValue;
+        const location = `${svc.port.asset.value}:${svc.port.number}/${svc.port.protocol.toLowerCase()}`;
+        for (const cpe of svc.cpe) {
+          try {
+            await this.cveDiscoveryQueue.add(
+              'discover',
+              {
+                scanJobId: payload.scanJobId,
+                engagementId: payload.engagementId,
+                assetId,
+                assetCanonical,
+                serviceId: svc.id,
+                cpe,
+                location,
+                product: svc.product ?? undefined,
+                version: svc.version ?? undefined,
+              },
+              { jobId: `${svc.id}:${cpe}` },
+            );
+          } catch (err) {
+            this.logger.warn(
+              `CVE_DISCOVERY enqueue failed for ${svc.id}:${cpe}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `CVE_DISCOVERY service query failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
     // Correlation v1: defensive merges/dedups. Each pass is best-effort —
