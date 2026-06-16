@@ -10,7 +10,11 @@ import {
   SubfinderJsonParser,
 } from '@autoscanner/parsers';
 import { NmapXmlParser } from '@autoscanner/parsers';
-import type { CveEnrichmentPayload, ParseJobPayload } from '@autoscanner/queues';
+import type {
+  CveDiscoveryPayload,
+  CveEnrichmentPayload,
+  ParseJobPayload,
+} from '@autoscanner/queues';
 import type { ObjectStorage } from '@autoscanner/storage';
 import {
   EngagementUpdateKind,
@@ -63,6 +67,7 @@ describe('ParseJobProcessor', () => {
   let assetMerge: AssetMergeService;
   let correlateFindingsSvc: CorrelateFindingsService;
   let cveQueueMock: jest.Mocked<Pick<Queue<CveEnrichmentPayload>, 'add'>>;
+  let cveDiscoveryQueueMock: jest.Mocked<Pick<Queue<CveDiscoveryPayload>, 'add'>>;
   let eventsMock: jest.Mocked<EngagementEventsPublisher>;
   let processor: ParseJobProcessor;
 
@@ -91,6 +96,7 @@ describe('ParseJobProcessor', () => {
       },
       service: {
         findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn(async ({ data }) => ({ id: `svc_${data.portId}`, ...data })),
         update: jest.fn(async ({ data, where }) => ({ id: where.id, ...data })),
       },
@@ -197,6 +203,7 @@ describe('ParseJobProcessor', () => {
     jest.spyOn(correlateFindingsSvc, 'correlateFindings').mockResolvedValue({ clusters: 0 });
 
     cveQueueMock = { add: jest.fn().mockResolvedValue({}) };
+    cveDiscoveryQueueMock = { add: jest.fn().mockResolvedValue({}) };
     eventsMock = { publish: jest.fn().mockResolvedValue(undefined) };
 
     processor = new ParseJobProcessor(
@@ -218,6 +225,7 @@ describe('ParseJobProcessor', () => {
       new TlsCertificatePersister(prisma),
       prisma,
       cveQueueMock as unknown as Queue<CveEnrichmentPayload>,
+      cveDiscoveryQueueMock as unknown as Queue<CveDiscoveryPayload>,
       eventsMock,
     );
   });
@@ -1477,6 +1485,139 @@ describe('ParseJobProcessor', () => {
     it('does not throw when publisher rejects (swallowed by void)', async () => {
       eventsMock.publish.mockRejectedValue(new Error('redis down'));
       await expect(processor.process(job(payload))).resolves.toBeDefined();
+    });
+  });
+
+  describe('CVE_DISCOVERY enqueue after service persist', () => {
+    // Nmap payload: parses into 1 IP asset, 2 ports (22/tcp, 5432/tcp), 2 services.
+    // We mock service.findMany to return services with CPE so the enqueue is exercised
+    // independently of what the parser emits (the query is engagement-scoped, not parse-output-scoped).
+
+    it('enqueues once per (service, cpe) for services with non-empty cpe', async () => {
+      // Simulate a service with 2 CPE entries returned by the post-persist query.
+      (prisma.service as unknown as { findMany: jest.Mock }).findMany.mockResolvedValueOnce([
+        {
+          id: 'svc_1',
+          cpe: ['cpe:/a:openbsd:openssh:9.0', 'cpe:/o:linux:linux_kernel'],
+          product: 'OpenSSH',
+          version: '9.0',
+          port: {
+            assetId: 'asset_10.0.0.5',
+            number: 22,
+            protocol: 'TCP',
+            asset: { value: '10.0.0.5', canonicalValue: '10.0.0.5' },
+          },
+        },
+      ]);
+
+      await processor.process(job(payload));
+
+      // 2 CPEs on 1 service → 2 enqueue calls.
+      expect(cveDiscoveryQueueMock.add).toHaveBeenCalledTimes(2);
+
+      // First CPE
+      expect(cveDiscoveryQueueMock.add).toHaveBeenCalledWith(
+        'discover',
+        expect.objectContaining({
+          scanJobId: 'job_1',
+          engagementId: 'eng_1',
+          assetId: 'asset_10.0.0.5',
+          assetCanonical: '10.0.0.5',
+          serviceId: 'svc_1',
+          cpe: 'cpe:/a:openbsd:openssh:9.0',
+          location: '10.0.0.5:22/tcp',
+        }),
+        { jobId: 'svc_1:cpe:/a:openbsd:openssh:9.0' },
+      );
+
+      // Second CPE
+      expect(cveDiscoveryQueueMock.add).toHaveBeenCalledWith(
+        'discover',
+        expect.objectContaining({
+          scanJobId: 'job_1',
+          engagementId: 'eng_1',
+          assetId: 'asset_10.0.0.5',
+          serviceId: 'svc_1',
+          cpe: 'cpe:/o:linux:linux_kernel',
+        }),
+        { jobId: 'svc_1:cpe:/o:linux:linux_kernel' },
+      );
+    });
+
+    it('includes product and version in the enqueued payload when present', async () => {
+      (prisma.service as unknown as { findMany: jest.Mock }).findMany.mockResolvedValueOnce([
+        {
+          id: 'svc_2',
+          cpe: ['cpe:/a:postgresql:postgresql:15'],
+          product: 'PostgreSQL',
+          version: '15',
+          port: {
+            assetId: 'asset_10.0.0.5',
+            number: 5432,
+            protocol: 'TCP',
+            asset: { value: '10.0.0.5', canonicalValue: '10.0.0.5' },
+          },
+        },
+      ]);
+
+      await processor.process(job(payload));
+
+      expect(cveDiscoveryQueueMock.add).toHaveBeenCalledWith(
+        'discover',
+        expect.objectContaining({
+          product: 'PostgreSQL',
+          version: '15',
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('does not enqueue CVE_DISCOVERY for services with empty cpe array', async () => {
+      // Default mock already returns [] from findMany — no CPE services in engagement.
+      await processor.process(job(payload));
+
+      expect(cveDiscoveryQueueMock.add).not.toHaveBeenCalled();
+    });
+
+    it('does not fail the parse job when cveDiscoveryQueue.add throws', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      (prisma.service as unknown as { findMany: jest.Mock }).findMany.mockResolvedValueOnce([
+        {
+          id: 'svc_3',
+          cpe: ['cpe:/a:openbsd:openssh:9.0'],
+          product: 'OpenSSH',
+          version: '9.0',
+          port: {
+            assetId: 'asset_10.0.0.5',
+            number: 22,
+            protocol: 'TCP',
+            asset: { value: '10.0.0.5', canonicalValue: '10.0.0.5' },
+          },
+        },
+      ]);
+      cveDiscoveryQueueMock.add.mockRejectedValueOnce(new Error('Redis gone'));
+
+      const result = await processor.process(job(payload));
+
+      // Job still succeeds — persistence completed before enqueue.
+      expect(result.servicesPersisted).toBeGreaterThanOrEqual(0);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringMatching(/CVE_DISCOVERY enqueue failed.*svc_3.*Redis gone/),
+      );
+      warn.mockRestore();
+    });
+
+    it('queries service.findMany scoped to the engagement via port.asset.engagementId', async () => {
+      await processor.process(job(payload));
+
+      const findManyCalls = (prisma.service as unknown as { findMany: jest.Mock }).findMany.mock
+        .calls as Array<[{ where: unknown }]>;
+      expect(findManyCalls.length).toBeGreaterThanOrEqual(1);
+      // The where clause must scope by engagementId via the nested relation.
+      expect(findManyCalls[0][0].where).toMatchObject({
+        cpe: { isEmpty: false },
+        port: { asset: { engagementId: 'eng_1' } },
+      });
     });
   });
 

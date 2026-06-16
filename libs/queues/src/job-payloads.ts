@@ -26,6 +26,18 @@ export interface CveEnrichmentPayload {
   cveId: string;
 }
 
+export interface CveDiscoveryPayload {
+  scanJobId: string;
+  engagementId: string;
+  assetId: string;
+  assetCanonical: string;
+  serviceId: string;
+  cpe: string;
+  location: string;
+  product?: string;
+  version?: string;
+}
+
 export interface ReportJobPayload {
   reportId: string;
 }
@@ -43,6 +55,7 @@ export interface QueuePayloadMap {
   [QueueName.PARSE_JOBS]: ParseJobPayload;
   [QueueName.TEMPLATE_RUNS]: TemplateRunPayload;
   [QueueName.CVE_ENRICHMENT]: CveEnrichmentPayload;
+  [QueueName.CVE_DISCOVERY]: CveDiscoveryPayload;
   [QueueName.REPORT_JOBS]: ReportJobPayload;
   [QueueName.NOTIFICATION_JOBS]: NotificationJobPayload;
   [QueueName.WEBHOOK_JOBS]: WebhookJobPayload;
