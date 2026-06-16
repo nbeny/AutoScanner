@@ -38,6 +38,10 @@ export interface CveDiscoveryPayload {
   version?: string;
 }
 
+export interface NvdSyncPayload {
+  mode: 'full' | 'incremental';
+}
+
 export interface ReportJobPayload {
   reportId: string;
 }
@@ -56,6 +60,7 @@ export interface QueuePayloadMap {
   [QueueName.TEMPLATE_RUNS]: TemplateRunPayload;
   [QueueName.CVE_ENRICHMENT]: CveEnrichmentPayload;
   [QueueName.CVE_DISCOVERY]: CveDiscoveryPayload;
+  [QueueName.NVD_SYNC]: NvdSyncPayload;
   [QueueName.REPORT_JOBS]: ReportJobPayload;
   [QueueName.NOTIFICATION_JOBS]: NotificationJobPayload;
   [QueueName.WEBHOOK_JOBS]: WebhookJobPayload;

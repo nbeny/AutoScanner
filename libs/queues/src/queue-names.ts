@@ -4,6 +4,7 @@ export const QueueName = {
   TEMPLATE_RUNS: 'template-runs',
   CVE_ENRICHMENT: 'cve-enrichment',
   CVE_DISCOVERY: 'cve-discovery',
+  NVD_SYNC: 'nvd-sync',
   REPORT_JOBS: 'report-jobs',
   NOTIFICATION_JOBS: 'notification-jobs',
   WEBHOOK_JOBS: 'webhook-jobs',
