@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import {
   BUILTIN_TEMPLATES,
+  NetworkVuln,
   OsintPassive,
   OsintPassiveDeep,
   ReconActive,
@@ -127,8 +128,8 @@ describe('builtin templates', () => {
   });
 
   describe('BUILTIN_TEMPLATES', () => {
-    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich + service-recon + vuln-active', () => {
-      expect(BUILTIN_TEMPLATES).toHaveLength(12);
+    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich + service-recon + vuln-active + network-vuln', () => {
+      expect(BUILTIN_TEMPLATES).toHaveLength(13);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassive);
       expect(BUILTIN_TEMPLATES).toContain(ReconActive);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassiveDeep);
@@ -141,6 +142,7 @@ describe('builtin templates', () => {
       expect(BUILTIN_TEMPLATES).toContain(WebEnrich);
       expect(BUILTIN_TEMPLATES).toContain(ServiceRecon);
       expect(BUILTIN_TEMPLATES).toContain(VulnActive);
+      expect(BUILTIN_TEMPLATES).toContain(NetworkVuln);
     });
 
     it('exposes unique template names', () => {
@@ -160,6 +162,7 @@ describe('builtin templates', () => {
       expect(registry.get('web-deep')).toBe(WebDeep);
       expect(registry.get('service-recon')).toBe(ServiceRecon);
       expect(registry.get('vuln-active')).toBe(VulnActive);
+      expect(registry.get('network-vuln')).toBe(NetworkVuln);
 
       expect(registry.list()).toHaveLength(BUILTIN_TEMPLATES.length);
     });
@@ -183,7 +186,8 @@ describe('builtin templates', () => {
       expect(registry.get('web-enrich')).toBe(WebEnrich);
       expect(registry.get('service-recon')).toBe(ServiceRecon);
       expect(registry.get('vuln-active')).toBe(VulnActive);
-      expect(registry.list()).toHaveLength(12);
+      expect(registry.get('network-vuln')).toBe(NetworkVuln);
+      expect(registry.list()).toHaveLength(13);
 
       // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
       const moduleInstance = ref.get(TemplatesModule);

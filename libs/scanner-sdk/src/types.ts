@@ -76,7 +76,7 @@ export interface ScannerOutput {
 export interface ScannerDockerSpec {
   image: string;
   fallbackImage?: string;
-  network: 'bridge' | 'host' | 'none';
+  network: 'bridge' | 'host' | 'none' | { name: string };
   capabilities: string[];
   readonlyRootfs: boolean;
   memoryLimitMb: number;
@@ -96,7 +96,7 @@ export interface ScannerDefinition<TInput = unknown, _TRawOutput = unknown> {
   outputs: ScannerOutput[];
   produces: ProducedEntity[];
   /** If set, scan-worker resolves the operator's encrypted API key for this provider and injects it. */
-  requiresCredential?: 'SHODAN' | 'CENSYS' | 'GITHUB' | 'SECURITYTRAILS';
+  requiresCredential?: 'SHODAN' | 'CENSYS' | 'GITHUB' | 'SECURITYTRAILS' | 'OPENVAS';
   /** Env var name to inject the decrypted credential into (e.g. 'SHODAN_API_KEY'). */
   credentialEnvVar?: string;
 }

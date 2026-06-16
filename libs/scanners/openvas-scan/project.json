@@ -1,0 +1,22 @@
+{
+  "name": "scanners-openvas-scan",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/openvas-scan/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/openvas-scan"],
+      "options": {
+        "jestConfig": "libs/scanners/openvas-scan/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/openvas-scan/tsconfig.lib.json"
+      }
+    }
+  }
+}

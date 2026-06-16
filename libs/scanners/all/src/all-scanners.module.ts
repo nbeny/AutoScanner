@@ -40,6 +40,7 @@ import { ApiDiscoveryScannerModule } from '@autoscanner/scanners-api-discovery';
 import { XssScanScannerModule } from '@autoscanner/scanners-xss-scan';
 import { SqliScanScannerModule } from '@autoscanner/scanners-sqli-scan';
 import { CmdiScanScannerModule } from '@autoscanner/scanners-cmdi-scan';
+import { OpenvasScanScannerModule } from '@autoscanner/scanners-openvas-scan';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -90,6 +91,7 @@ const SCANNER_MODULES = [
   XssScanScannerModule,
   SqliScanScannerModule,
   CmdiScanScannerModule,
+  OpenvasScanScannerModule,
 ];
 
 @Module({

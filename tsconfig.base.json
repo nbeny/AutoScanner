@@ -67,6 +67,7 @@
       "@autoscanner/scanners-gobuster": ["libs/scanners/gobuster/src/index.ts"],
       "@autoscanner/scanners-puredns": ["libs/scanners/puredns/src/index.ts"],
       "@autoscanner/scanners-shodan": ["libs/scanners/shodan/src/index.ts"],
+      "@autoscanner/scanners-openvas-scan": ["libs/scanners/openvas-scan/src/index.ts"],
       "@autoscanner/scanners-censys": ["libs/scanners/censys/src/index.ts"],
       "@autoscanner/scanners-github-subdomains": ["libs/scanners/github-subdomains/src/index.ts"],
       "@autoscanner/scanners-trufflehog": ["libs/scanners/trufflehog/src/index.ts"],
