@@ -28,6 +28,7 @@ export interface CveEnrichmentPayload {
 
 export interface CveDiscoveryPayload {
   scanJobId: string;
+  engagementId: string;
   assetId: string;
   assetCanonical: string;
   serviceId: string;
