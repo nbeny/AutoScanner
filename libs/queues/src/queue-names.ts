@@ -3,6 +3,7 @@ export const QueueName = {
   PARSE_JOBS: 'parse-jobs',
   TEMPLATE_RUNS: 'template-runs',
   CVE_ENRICHMENT: 'cve-enrichment',
+  CVE_DISCOVERY: 'cve-discovery',
   REPORT_JOBS: 'report-jobs',
   NOTIFICATION_JOBS: 'notification-jobs',
   WEBHOOK_JOBS: 'webhook-jobs',
