@@ -66,29 +66,97 @@ export interface NvdClientOptions {
 }
 
 interface NvdResponse {
-  vulnerabilities: Array<{
-    cve: {
-      id: string;
-      published: string;
-      lastModified: string;
-      descriptions: Array<{ lang: string; value: string }>;
-      metrics?: {
-        cvssMetricV31?: Array<{
-          cvssData: { baseScore: number; vectorString: string };
-        }>;
-        cvssMetricV30?: Array<{
-          cvssData: { baseScore: number; vectorString: string };
-        }>;
-      };
+  vulnerabilities: NvdVulnerability[];
+}
+
+// --- New exported types for paged NVD responses (phase-8.7a) ---
+
+export interface NvdCpeMatchData {
+  vulnerable: boolean;
+  criteria: string;
+  versionStartIncluding?: string;
+  versionStartExcluding?: string;
+  versionEndIncluding?: string;
+  versionEndExcluding?: string;
+}
+
+export interface NvdConfigNodeData {
+  operator: 'AND' | 'OR';
+  negate: boolean;
+  cpeMatch: NvdCpeMatchData[];
+}
+
+export interface NvdFullCve {
+  cveId: string;
+  cvssV3Score: number | null;
+  cvssV3Vector: string | null;
+  summary: string | null;
+  publishedAt: Date | null;
+  lastModified: Date | null;
+  nodes: NvdConfigNodeData[];
+}
+
+export interface FetchCvePageParams {
+  startIndex: number;
+  resultsPerPage: number;
+  lastModStartDate?: string;
+  lastModEndDate?: string;
+}
+
+export interface NvdCvePage {
+  totalResults: number;
+  cves: NvdFullCve[];
+}
+
+// Internal shape for a single CPE-match entry in configurations
+interface RawCpeMatch {
+  vulnerable?: boolean;
+  criteria?: string;
+  matchCriteriaId?: string;
+  versionStartIncluding?: string;
+  versionStartExcluding?: string;
+  versionEndIncluding?: string;
+  versionEndExcluding?: string;
+}
+
+// Internal shape for a configuration node
+interface RawConfigNode {
+  operator?: string;
+  negate?: boolean;
+  cpeMatch?: RawCpeMatch[];
+}
+
+// Internal shape for a configurations entry
+interface RawConfiguration {
+  operator?: string;
+  negate?: boolean;
+  nodes?: RawConfigNode[];
+}
+
+// Widened vulnerability shape used by both NvdResponse and NvdListResponse
+interface NvdVulnerability {
+  cve: {
+    id: string;
+    published: string;
+    lastModified: string;
+    descriptions: Array<{ lang: string; value: string }>;
+    metrics?: {
+      cvssMetricV31?: Array<{
+        cvssData: { baseScore: number; vectorString: string };
+      }>;
+      cvssMetricV30?: Array<{
+        cvssData: { baseScore: number; vectorString: string };
+      }>;
     };
-  }>;
+    configurations?: RawConfiguration[];
+  };
 }
 
 interface NvdListResponse {
   totalResults: number;
   resultsPerPage: number;
   startIndex: number;
-  vulnerabilities: NvdResponse['vulnerabilities'];
+  vulnerabilities: NvdVulnerability[];
 }
 
 export class NvdClient {
@@ -244,6 +312,98 @@ export class NvdClient {
     metrics: NvdResponse['vulnerabilities'][number]['cve']['metrics'],
   ): number | null {
     return this.extractCvssMetric(metrics)?.baseScore ?? null;
+  }
+
+  async fetchCvePage(params: FetchCvePageParams): Promise<NvdCvePage> {
+    const sp = new URLSearchParams({
+      resultsPerPage: String(params.resultsPerPage),
+      startIndex: String(params.startIndex),
+    });
+    if (params.lastModStartDate) sp.set('lastModStartDate', params.lastModStartDate);
+    if (params.lastModEndDate) sp.set('lastModEndDate', params.lastModEndDate);
+    const url = `${NVD_URL}?${sp.toString()}`;
+
+    const body = await this.getCveListPage(url);
+    if (body === null) return { totalResults: 0, cves: [] };
+
+    const cves: NvdFullCve[] = (body.vulnerabilities ?? []).map((entry) => {
+      const cve = entry.cve;
+      const metric = this.extractCvssMetric(cve.metrics);
+      const desc =
+        (cve.descriptions ?? []).find((d) => d.lang === 'en') ?? (cve.descriptions ?? [])[0];
+      return {
+        cveId: cve.id,
+        cvssV3Score: metric?.baseScore ?? null,
+        cvssV3Vector: metric?.vectorString ?? null,
+        summary: desc?.value ?? null,
+        publishedAt: cve.published ? new Date(cve.published) : null,
+        lastModified: cve.lastModified ? new Date(cve.lastModified) : null,
+        nodes: this.parseConfigurations(cve.configurations),
+      };
+    });
+
+    return { totalResults: body.totalResults ?? cves.length, cves };
+  }
+
+  private async getCveListPage(url: string): Promise<NvdListResponse | null> {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < this.maxRetries; attempt += 1) {
+      await this.rateLimiter.acquire();
+      try {
+        const response = await this.fetchImpl(url, {
+          method: 'GET',
+          headers: this.apiKey ? { apiKey: this.apiKey } : {},
+        });
+
+        if (response.status === 404) return null;
+        if (response.status === 429) {
+          const retryAfter = parseRetryAfter(
+            response.headers?.get?.('retry-after') ?? null,
+            Date.now(),
+          );
+          throw new NvdRateLimitedError(retryAfter);
+        }
+        if (response.status >= 500) {
+          lastErr = new Error(`NVD HTTP ${response.status}`);
+          await this.sleep(this.backoffMs(attempt));
+          continue;
+        }
+        if (!response.ok) {
+          throw new Error(`NVD HTTP ${response.status}: ${await response.text()}`);
+        }
+
+        return (await response.json()) as NvdListResponse;
+      } catch (err) {
+        if (err instanceof NvdRateLimitedError) throw err;
+        lastErr = err;
+        if (attempt < this.maxRetries - 1) {
+          await this.sleep(this.backoffMs(attempt));
+        }
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error('NVD fetch failed');
+  }
+
+  private parseConfigurations(configs: RawConfiguration[] | undefined): NvdConfigNodeData[] {
+    if (!configs) return [];
+    const result: NvdConfigNodeData[] = [];
+    for (const config of configs) {
+      for (const node of config.nodes ?? []) {
+        result.push({
+          operator: node.operator === 'AND' ? 'AND' : 'OR',
+          negate: Boolean(node.negate),
+          cpeMatch: (node.cpeMatch ?? []).map((m) => ({
+            vulnerable: Boolean(m.vulnerable),
+            criteria: m.criteria ?? '',
+            versionStartIncluding: m.versionStartIncluding,
+            versionStartExcluding: m.versionStartExcluding,
+            versionEndIncluding: m.versionEndIncluding,
+            versionEndExcluding: m.versionEndExcluding,
+          })),
+        });
+      }
+    }
+    return result;
   }
 
   private backoffMs(attempt: number): number {
