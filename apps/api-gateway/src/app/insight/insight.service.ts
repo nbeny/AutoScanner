@@ -2,11 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { NotFoundError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import {
+  type ActivityItem,
   type EngagementOverview,
+  type EngagementSummary,
+  type GlobalOverview,
   type RecentTemplateRun,
   type TopAsset,
   type TopFinding,
   getEngagementOverview,
+  getEngagementSummaries,
+  getGlobalOverview,
+  getRecentActivity,
   getRecentTemplateRuns,
   getTopAssets,
   getTopFindings,
@@ -51,5 +57,21 @@ export class InsightService {
   ): Promise<RecentTemplateRun[]> {
     await this.assertOwnership(userId, engagementId);
     return getRecentTemplateRuns(this.prisma, engagementId, clamp(limit, 1, 20, 5));
+  }
+
+  // Cross-engagement queries. These are inherently owner-scoped by the lib
+  // functions (they filter on ownerId), so no per-engagement ownership check
+  // is needed.
+
+  globalOverview(userId: string): Promise<GlobalOverview> {
+    return getGlobalOverview(this.prisma, userId);
+  }
+
+  recentActivity(userId: string, limit: number): Promise<ActivityItem[]> {
+    return getRecentActivity(this.prisma, userId, clamp(limit, 1, 50, 15));
+  }
+
+  engagementSummaries(userId: string): Promise<EngagementSummary[]> {
+    return getEngagementSummaries(this.prisma, userId);
   }
 }

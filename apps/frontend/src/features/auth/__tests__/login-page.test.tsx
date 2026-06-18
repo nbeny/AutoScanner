@@ -27,7 +27,7 @@ function renderLogin(storage: AuthStorage) {
       <AuthProvider storage={storage}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/engagements" element={<div>engagements screen</div>} />
+          <Route path="/dashboard" element={<div>dashboard screen</div>} />
         </Routes>
       </AuthProvider>
     </MemoryRouter>,
@@ -44,7 +44,7 @@ describe('<LoginPage />', () => {
     vi.unstubAllGlobals();
   });
 
-  it('saves session and navigates to /engagements on successful login', async () => {
+  it('saves session and navigates to /dashboard on successful login', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ accessToken: 'a', refreshToken: 'r', expiresIn: 900 }), {
         status: 200,
@@ -59,7 +59,7 @@ describe('<LoginPage />', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret' } });
     fireEvent.submit(screen.getByRole('form', { name: 'login' }));
 
-    await waitFor(() => expect(screen.getByText('engagements screen')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('dashboard screen')).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith(
       'http://api.example/auth/login',
       expect.objectContaining({
@@ -85,7 +85,7 @@ describe('<LoginPage />', () => {
     fireEvent.submit(screen.getByRole('form', { name: 'login' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid credentials');
-    expect(screen.queryByText('engagements screen')).not.toBeInTheDocument();
+    expect(screen.queryByText('dashboard screen')).not.toBeInTheDocument();
     expect(storage.current).toBeNull();
   });
 });

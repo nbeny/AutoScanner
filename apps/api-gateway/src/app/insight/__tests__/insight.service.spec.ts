@@ -115,4 +115,33 @@ describe('InsightService', () => {
       expect(insightLib.getRecentTemplateRuns).toHaveBeenLastCalledWith(prisma, engagementId, 20);
     });
   });
+
+  describe('cross-engagement queries', () => {
+    it('globalOverview delegates with prisma + userId, no ownership check', async () => {
+      const fake = { engagementsByStatus: { total: 0 } };
+      (insightLib.getGlobalOverview as jest.Mock).mockResolvedValueOnce(fake);
+
+      const result = await svc.globalOverview(userId);
+
+      expect(insightLib.getGlobalOverview).toHaveBeenCalledWith(prisma, userId);
+      expect(prisma.engagement.findFirst).not.toHaveBeenCalled();
+      expect(result).toBe(fake);
+    });
+
+    it('recentActivity delegates with clamped limit (max 50, default 15)', async () => {
+      (insightLib.getRecentActivity as jest.Mock).mockResolvedValue([]);
+
+      await svc.recentActivity(userId, 999);
+      expect(insightLib.getRecentActivity).toHaveBeenLastCalledWith(prisma, userId, 50);
+
+      await svc.recentActivity(userId, 0);
+      expect(insightLib.getRecentActivity).toHaveBeenLastCalledWith(prisma, userId, 1);
+    });
+
+    it('engagementSummaries delegates with prisma + userId', async () => {
+      (insightLib.getEngagementSummaries as jest.Mock).mockResolvedValue([]);
+      await svc.engagementSummaries(userId);
+      expect(insightLib.getEngagementSummaries).toHaveBeenCalledWith(prisma, userId);
+    });
+  });
 });
