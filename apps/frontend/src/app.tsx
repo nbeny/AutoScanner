@@ -4,6 +4,7 @@ import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth-context';
 import { createApolloClient } from './lib/apollo';
 import { LoginPage } from './features/auth/login-page';
+import { DashboardPage } from './features/dashboard/dashboard-page';
 import { EngagementPage } from './features/engagements/engagement-page';
 import { EngagementsListPage } from './features/engagements/engagements-list-page';
 import { ScanRunPage } from './features/scans/scan-run-page';
@@ -24,6 +25,9 @@ function TopBar() {
     <nav className="bg-slate-900 px-6 py-3 flex items-center justify-between border-b border-slate-800">
       <div className="flex items-center gap-6">
         <span className="font-semibold">AutoScanner</span>
+        <Link to="/dashboard" className="text-sm text-slate-300 hover:text-white">
+          Dashboard
+        </Link>
         <Link to="/engagements" className="text-sm text-slate-300 hover:text-white">
           Engagements
         </Link>
@@ -50,6 +54,14 @@ function AppShell() {
       <TopBar />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <RequireAuth>
+              <DashboardPage />
+            </RequireAuth>
+          }
+        />
         <Route
           path="/engagements"
           element={
@@ -98,7 +110,7 @@ function AppShell() {
             </RequireAuth>
           }
         />
-        <Route path="*" element={<Navigate to={session ? '/engagements' : '/login'} replace />} />
+        <Route path="*" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />
       </Routes>
     </ApolloProvider>
   );

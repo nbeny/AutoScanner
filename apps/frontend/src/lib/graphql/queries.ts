@@ -236,6 +236,70 @@ export const ENGAGEMENT_OVERVIEW_QUERY = gql`
   }
 `;
 
+export const GLOBAL_OVERVIEW_QUERY = gql`
+  query GlobalOverview {
+    globalOverview {
+      engagementsByStatus {
+        draft
+        active
+        paused
+        completed
+        archived
+        total
+      }
+      domains
+      subdomains
+      ipAddresses
+      openPorts
+      uniqueTechs
+      findingsBySeverity {
+        critical
+        high
+        medium
+        low
+        info
+      }
+      activeSchedules
+      runningScans
+    }
+  }
+`;
+
+export const RECENT_ACTIVITY_QUERY = gql`
+  query RecentActivity($limit: Int) {
+    recentActivity(limit: $limit) {
+      id
+      kind
+      engagementId
+      engagementName
+      label
+      status
+      ts
+    }
+  }
+`;
+
+export const ENGAGEMENT_SUMMARIES_QUERY = gql`
+  query EngagementSummaries {
+    engagementSummaries {
+      id
+      name
+      clientName
+      status
+      createdAt
+      assetCount
+      lastActivityAt
+      findingsBySeverity {
+        critical
+        high
+        medium
+        low
+        info
+      }
+    }
+  }
+`;
+
 export const TOP_FINDINGS_QUERY = gql`
   query TopFindings($engagementId: ID!, $limit: Int) {
     topFindings(engagementId: $engagementId, limit: $limit) {
