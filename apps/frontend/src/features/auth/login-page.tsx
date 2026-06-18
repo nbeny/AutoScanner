@@ -27,7 +27,7 @@ export function LoginPage() {
         refreshToken: auth.refreshToken,
         email,
       });
-      navigate('/engagements', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       if (err instanceof RestApiError && err.status === 401) {
         setError('Invalid credentials');
