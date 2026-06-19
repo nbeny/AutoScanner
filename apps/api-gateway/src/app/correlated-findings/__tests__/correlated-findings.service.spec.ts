@@ -152,6 +152,38 @@ describe('CorrelatedFindingsService', () => {
     });
   });
 
+  describe('setNote / setRemediation', () => {
+    beforeEach(() => {
+      (prisma.correlatedFinding.findUnique as jest.Mock).mockResolvedValue({ engagementId });
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValue({ id: engagementId });
+    });
+
+    it('setNote updates the note and returns the mapped DTO', async () => {
+      (prisma.correlatedFinding.update as jest.Mock).mockResolvedValueOnce(
+        makeRow({ note: 'confirmed via curl' }),
+      );
+      const result = await svc.setNote(userId, correlatedId, 'confirmed via curl');
+      expect(prisma.correlatedFinding.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: correlatedId },
+          data: { note: 'confirmed via curl' },
+        }),
+      );
+      expect(result.id).toBe(correlatedId);
+    });
+
+    it('setRemediation updates the remediation field', async () => {
+      (prisma.correlatedFinding.update as jest.Mock).mockResolvedValueOnce(
+        makeRow({ remediation: 'Upgrade to 2.5.13' }),
+      );
+      const result = await svc.setRemediation(userId, correlatedId, 'Upgrade to 2.5.13');
+      expect(prisma.correlatedFinding.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { remediation: 'Upgrade to 2.5.13' } }),
+      );
+      expect(result.id).toBe(correlatedId);
+    });
+  });
+
   describe('setStatus', () => {
     it('throws NotFoundError when the correlated finding does not exist', async () => {
       (prisma.correlatedFinding.findUnique as jest.Mock).mockResolvedValueOnce(null);

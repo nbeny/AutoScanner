@@ -148,6 +148,39 @@ export class CorrelatedFindingsService {
     return this.mapRow(updated, this.scoreForRow(updated));
   }
 
+  private async updateOwnedCluster(
+    userId: string,
+    id: string,
+    data: { note?: string | null; remediation?: string | null },
+  ): Promise<CorrelatedFindingObject> {
+    const cluster = await this.prisma.correlatedFinding.findUnique({
+      where: { id },
+      select: { engagementId: true },
+    });
+    if (!cluster) throw new NotFoundError('CorrelatedFinding', id);
+    await this.assertEngagementOwned(userId, cluster.engagementId);
+
+    const updated = (await this.prisma.correlatedFinding.update({
+      where: { id },
+      data,
+      include: { findings: { select: { scanJob: { select: { scannerName: true } } } } },
+    })) as CorrelatedFindingRow;
+
+    return this.mapRow(updated, this.scoreForRow(updated));
+  }
+
+  setNote(userId: string, id: string, note: string): Promise<CorrelatedFindingObject> {
+    return this.updateOwnedCluster(userId, id, { note });
+  }
+
+  setRemediation(
+    userId: string,
+    id: string,
+    remediation: string,
+  ): Promise<CorrelatedFindingObject> {
+    return this.updateOwnedCluster(userId, id, { remediation });
+  }
+
   private scoreForRow(row: CorrelatedFindingRow): number {
     // setStatus returns a single row; the CVSS-aware score is delivered by the
     // list/detail queries. Here we fall back to the severity bucket (cvss: null).

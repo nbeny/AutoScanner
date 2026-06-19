@@ -35,4 +35,22 @@ export class CorrelatedFindingsResolver {
   ): Promise<CorrelatedFindingObject> {
     return this.svc.setStatus(user.id, id, status, note);
   }
+
+  @Mutation(() => CorrelatedFindingObject)
+  setFindingNote(
+    @CurrentUser() user: User,
+    @Args('id', { type: () => ID }) id: string,
+    @Args('note', { type: () => String }) note: string,
+  ): Promise<CorrelatedFindingObject> {
+    return this.svc.setNote(user.id, id, note);
+  }
+
+  @Mutation(() => CorrelatedFindingObject)
+  setFindingRemediation(
+    @CurrentUser() user: User,
+    @Args('id', { type: () => ID }) id: string,
+    @Args('remediation', { type: () => String }) remediation: string,
+  ): Promise<CorrelatedFindingObject> {
+    return this.svc.setRemediation(user.id, id, remediation);
+  }
 }
