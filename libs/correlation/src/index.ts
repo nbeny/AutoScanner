@@ -5,7 +5,7 @@ export type { FindingDedupHashInput } from './finding-dedup';
 export { AssetMergeService } from './asset-merge.service';
 export { CorrelateFindingsService } from './correlate-findings.service';
 export { CorrelationModule } from './correlation.module';
-export { computeRiskScore, SENSITIVE_PORTS, ADMIN_TOKENS } from './risk-score';
+export { clusterWeight, computeRiskScore, SENSITIVE_PORTS, ADMIN_TOKENS } from './risk-score';
 export type { RiskScoreInput } from './risk-score';
 export { recomputeRiskScoreForAsset } from './recompute-risk-score';
 export type { PrismaLike } from './recompute-risk-score';
