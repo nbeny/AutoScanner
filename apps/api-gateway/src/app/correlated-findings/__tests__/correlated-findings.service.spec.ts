@@ -39,7 +39,7 @@ describe('CorrelatedFindingsService', () => {
         findUnique: jest.fn(),
         update: jest.fn(),
       },
-      nvdCve: { findMany: jest.fn().mockResolvedValue([]) },
+      nvdCve: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
       $transaction: jest.fn(),
     } as unknown as jest.Mocked<PrismaService>;
     svc = new CorrelatedFindingsService(prisma);
@@ -239,6 +239,59 @@ describe('CorrelatedFindingsService', () => {
         },
       });
       expect(result.status).toBe(FindingStatus.CONFIRMED);
+    });
+  });
+
+  describe('getDetail', () => {
+    it('returns full detail with cvss, evidence, sources, and status history', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (prisma.correlatedFinding.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: correlatedId,
+        engagementId,
+        assetId: 'asset_1',
+        title: 'RCE',
+        severity: Severity.CRITICAL,
+        status: FindingStatus.OPEN,
+        cveId: 'CVE-2017-5638',
+        note: 'check me',
+        remediation: null,
+        asset: { value: '10.0.0.4' },
+        findings: [
+          {
+            location: '/struts.action',
+            evidence: { payload: 'x' },
+            scanJob: { scannerName: 'nuclei' },
+          },
+        ],
+        statusEvents: [
+          {
+            id: 'ev_1',
+            fromStatus: FindingStatus.OPEN,
+            toStatus: FindingStatus.TRIAGED,
+            note: null,
+            createdAt: new Date('2026-06-10'),
+            actor: { displayName: 'Op', email: 'op@x.io' },
+          },
+        ],
+      });
+      (prisma.nvdCve.findUnique as jest.Mock).mockResolvedValueOnce({
+        cvssV3Score: 9.8,
+        cvssV3Vector: 'AV:N/...',
+      });
+
+      const d = await svc.getDetail(userId, correlatedId);
+
+      expect(d.cvssScore).toBe(9.8);
+      expect(d.assetValue).toBe('10.0.0.4');
+      expect(d.sources).toEqual(['nuclei']);
+      expect(d.evidence[0].evidenceJson).toBe(JSON.stringify({ payload: 'x' }));
+      expect(d.statusHistory[0].actor).toBe('Op');
+      expect(d.riskScore).toBe(9.8);
+    });
+
+    it('throws NotFoundError when the cluster does not exist', async () => {
+      (prisma.correlatedFinding.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      await expect(svc.getDetail(userId, correlatedId)).rejects.toBeInstanceOf(NotFoundError);
     });
   });
 });

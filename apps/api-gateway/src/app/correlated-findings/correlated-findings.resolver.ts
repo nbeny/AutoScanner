@@ -1,5 +1,6 @@
 import { UseGuards } from '@nestjs/common';
 import { Args, ID, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { CorrelatedFindingDetailObject } from './dto/correlated-finding-detail.object';
 import type { User } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -24,6 +25,14 @@ export class CorrelatedFindingsResolver {
     @Args('offset', { type: () => Int, defaultValue: 0 }) offset?: number,
   ): Promise<CorrelatedFindingObject[]> {
     return this.svc.list(user.id, engagementId, { severity, status, search, limit, offset });
+  }
+
+  @Query(() => CorrelatedFindingDetailObject)
+  correlatedFinding(
+    @CurrentUser() user: User,
+    @Args('id', { type: () => ID }) id: string,
+  ): Promise<CorrelatedFindingDetailObject> {
+    return this.svc.getDetail(user.id, id);
   }
 
   @Mutation(() => CorrelatedFindingObject)
