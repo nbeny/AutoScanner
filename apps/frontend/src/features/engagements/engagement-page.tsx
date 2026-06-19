@@ -5,7 +5,7 @@ import { EngagementEndpointsTab } from './engagement-endpoints-tab';
 import { EngagementOsintTab } from './engagement-osint-tab';
 import { EngagementTlsTab } from './engagement-tls-tab';
 import { FindingsTable } from '../findings/findings-table';
-import { CorrelatedFindingsView } from '../findings/correlated-findings-view';
+import { TriageWorkspace } from '../findings/triage/triage-workspace';
 import { EngagementSynthesisPage } from './synthesis/engagement-synthesis-page';
 import { SchedulesTab } from '../schedules/schedules-tab';
 import { useEngagementUpdates } from './use-engagement-updates';
@@ -21,7 +21,7 @@ type TabKey =
   | 'osint'
   | 'tls'
   | 'findings'
-  | 'correlated'
+  | 'triage'
   | 'schedules';
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -35,7 +35,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'osint', label: 'OSINT' },
   { key: 'tls', label: 'TLS' },
   { key: 'findings', label: 'Findings' },
-  { key: 'correlated', label: 'Correlated' },
+  { key: 'triage', label: 'Triage' },
   { key: 'schedules', label: 'Schedules' },
 ];
 
@@ -93,7 +93,7 @@ export function EngagementPage() {
         {tab === 'osint' ? <EngagementOsintTab engagementId={engagementId} /> : null}
         {tab === 'tls' ? <EngagementTlsTab engagementId={engagementId} /> : null}
         {tab === 'findings' ? <FindingsTable engagementId={engagementId} /> : null}
-        {tab === 'correlated' ? <CorrelatedFindingsView engagementId={engagementId} /> : null}
+        {tab === 'triage' ? <TriageWorkspace engagementId={engagementId} /> : null}
         {tab === 'schedules' ? <SchedulesTab engagementId={engagementId} /> : null}
       </section>
     </div>

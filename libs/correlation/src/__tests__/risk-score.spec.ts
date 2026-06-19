@@ -1,4 +1,4 @@
-import { computeRiskScore, type RiskScoreInput } from '../risk-score';
+import { clusterWeight, computeRiskScore, type RiskScoreInput } from '../risk-score';
 
 const empty: RiskScoreInput = { correlatedFindings: [], ports: [] };
 
@@ -248,5 +248,15 @@ describe('computeRiskScore', () => {
       ports: [{ number: 22, state: 'OPEN', services: [] }],
     };
     expect(computeRiskScore(input)).toBe(computeRiskScore(input));
+  });
+});
+
+describe('clusterWeight (exported for triage ordering)', () => {
+  it('uses CVSS score when present', () => {
+    expect(clusterWeight({ severity: 'LOW', cveId: 'CVE-1', status: 'OPEN', cvss: 9.8 })).toBe(9.8);
+  });
+
+  it('falls back to the severity bucket when cvss is null', () => {
+    expect(clusterWeight({ severity: 'HIGH', cveId: null, status: 'OPEN', cvss: null })).toBe(5);
   });
 });

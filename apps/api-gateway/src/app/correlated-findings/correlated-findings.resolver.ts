@@ -1,5 +1,6 @@
 import { UseGuards } from '@nestjs/common';
 import { Args, ID, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { CorrelatedFindingDetailObject } from './dto/correlated-finding-detail.object';
 import type { User } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -26,12 +27,39 @@ export class CorrelatedFindingsResolver {
     return this.svc.list(user.id, engagementId, { severity, status, search, limit, offset });
   }
 
+  @Query(() => CorrelatedFindingDetailObject)
+  correlatedFinding(
+    @CurrentUser() user: User,
+    @Args('id', { type: () => ID }) id: string,
+  ): Promise<CorrelatedFindingDetailObject> {
+    return this.svc.getDetail(user.id, id);
+  }
+
   @Mutation(() => CorrelatedFindingObject)
   setFindingStatus(
     @CurrentUser() user: User,
     @Args('id', { type: () => ID }) id: string,
     @Args('status', { type: () => FindingStatus }) status: FindingStatus,
+    @Args('note', { type: () => String, nullable: true }) note?: string,
   ): Promise<CorrelatedFindingObject> {
-    return this.svc.setStatus(user.id, id, status);
+    return this.svc.setStatus(user.id, id, status, note);
+  }
+
+  @Mutation(() => CorrelatedFindingObject)
+  setFindingNote(
+    @CurrentUser() user: User,
+    @Args('id', { type: () => ID }) id: string,
+    @Args('note', { type: () => String }) note: string,
+  ): Promise<CorrelatedFindingObject> {
+    return this.svc.setNote(user.id, id, note);
+  }
+
+  @Mutation(() => CorrelatedFindingObject)
+  setFindingRemediation(
+    @CurrentUser() user: User,
+    @Args('id', { type: () => ID }) id: string,
+    @Args('remediation', { type: () => String }) remediation: string,
+  ): Promise<CorrelatedFindingObject> {
+    return this.svc.setRemediation(user.id, id, remediation);
   }
 }

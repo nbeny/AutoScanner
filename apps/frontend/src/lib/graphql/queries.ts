@@ -572,6 +572,8 @@ export const CORRELATED_FINDINGS_QUERY = gql`
       status
       sourceCount
       sources
+      riskScore
+      assetId
       lastSeenAt
     }
   }
@@ -639,10 +641,11 @@ export const TLS_CERTIFICATES_QUERY = gql`
 `;
 
 export const SET_FINDING_STATUS = gql`
-  mutation SetFindingStatus($id: ID!, $status: FindingStatus!) {
-    setFindingStatus(id: $id, status: $status) {
+  mutation SetFindingStatus($id: ID!, $status: FindingStatus!, $note: String) {
+    setFindingStatus(id: $id, status: $status, note: $note) {
       id
       status
+      riskScore
     }
   }
 `;
@@ -800,5 +803,54 @@ export const CREATE_AGENT_REGISTRATION_MUTATION = gql`
 export const REVOKE_AGENT_MUTATION = gql`
   mutation RevokeAgent($id: ID!) {
     revokeAgent(id: $id)
+  }
+`;
+
+export const CORRELATED_FINDING_DETAIL_QUERY = gql`
+  query CorrelatedFindingDetail($id: ID!) {
+    correlatedFinding(id: $id) {
+      id
+      title
+      severity
+      status
+      riskScore
+      assetId
+      assetValue
+      cveId
+      cvssScore
+      cvssVector
+      sources
+      evidence {
+        scannerName
+        location
+        evidenceJson
+      }
+      note
+      remediation
+      statusHistory {
+        id
+        fromStatus
+        toStatus
+        actor
+        note
+        createdAt
+      }
+    }
+  }
+`;
+
+export const SET_FINDING_NOTE = gql`
+  mutation SetFindingNote($id: ID!, $note: String!) {
+    setFindingNote(id: $id, note: $note) {
+      id
+    }
+  }
+`;
+
+export const SET_FINDING_REMEDIATION = gql`
+  mutation SetFindingRemediation($id: ID!, $remediation: String!) {
+    setFindingRemediation(id: $id, remediation: $remediation) {
+      id
+    }
   }
 `;

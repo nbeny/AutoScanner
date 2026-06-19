@@ -36,6 +36,7 @@ model User {
   apiCredentials       ApiCredential[]
   notificationChannels NotificationChannel[]
   agentsCreated        Agent[]
+  findingStatusEvents  FindingStatusEvent[]
 
   @@index([deletedAt])
 }
@@ -349,16 +350,34 @@ model CorrelatedFinding {
   sourceCount    Int           @default(0)
   firstSeenAt    DateTime      @default(now())
   lastSeenAt     DateTime      @default(now())
+  note           String?
+  remediation    String?
 
-  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
-  asset      Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  findings   Finding[]
+  engagement   Engagement           @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  asset        Asset                @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  findings     Finding[]
+  statusEvents FindingStatusEvent[]
 
   @@unique([assetId, structuralHash])
   @@index([engagementId])
   @@index([assetId])
   @@index([severity])
   @@index([status])
+}
+
+model FindingStatusEvent {
+  id                  String        @id @default(cuid())
+  correlatedFindingId String
+  fromStatus          FindingStatus
+  toStatus            FindingStatus
+  actorId             String
+  note                String?
+  createdAt           DateTime      @default(now())
+
+  correlatedFinding CorrelatedFinding @relation(fields: [correlatedFindingId], references: [id], onDelete: Cascade)
+  actor             User              @relation(fields: [actorId], references: [id])
+
+  @@index([correlatedFindingId])
 }
 
 // =====================================================================
