@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
+import { Link } from 'react-router-dom';
 import {
   CORRELATED_FINDING_DETAIL_QUERY,
   SET_FINDING_NOTE,
@@ -54,10 +55,14 @@ const STATUS_ACTIONS: { label: string; status: string }[] = [
 
 export function TriageDetail({
   id,
+  engagementId,
   onStatusChange,
+  noteRef,
 }: {
   id: string | null;
+  engagementId: string;
   onStatusChange: (id: string, status: string) => void;
+  noteRef?: RefObject<HTMLTextAreaElement>;
 }) {
   const { data, loading, error } = useQuery<{ correlatedFinding: Detail }>(
     CORRELATED_FINDING_DETAIL_QUERY,
@@ -101,7 +106,15 @@ export function TriageDetail({
         <h2 className="text-lg font-semibold">{d.title}</h2>
         {d.cveId ? (
           <p className="text-xs text-slate-400">
-            <span className="font-mono">{d.cveId}</span>
+            <a
+              href={`https://nvd.nist.gov/vuln/detail/${d.cveId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono underline hover:text-slate-200"
+            >
+              {d.cveId}
+            </a>
+            {d.cvssScore != null ? ` · CVSS ${d.cvssScore}` : ''}
             {d.cvssVector ? ` · ${d.cvssVector}` : ''}
           </p>
         ) : null}
@@ -109,7 +122,12 @@ export function TriageDetail({
 
       <section className="text-sm">
         <h3 className="text-slate-400 text-xs uppercase mb-1">Affected asset</h3>
-        <p className="font-mono">{d.assetValue}</p>
+        <Link
+          to={`/engagements/${engagementId}/assets/${d.assetId}`}
+          className="font-mono underline hover:text-slate-200"
+        >
+          {d.assetValue}
+        </Link>
       </section>
 
       <section className="text-sm">
@@ -135,7 +153,12 @@ export function TriageDetail({
           aria-label="remediation"
           value={remDraft}
           onChange={(e) => setRemDraft(e.target.value)}
-          onBlur={() => void setRemediation({ variables: { id: d.id, remediation: remDraft } })}
+          onBlur={() =>
+            void setRemediation({
+              variables: { id: d.id, remediation: remDraft },
+              refetchQueries: [{ query: CORRELATED_FINDING_DETAIL_QUERY, variables: { id: d.id } }],
+            })
+          }
           className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs"
           rows={3}
         />
@@ -144,10 +167,16 @@ export function TriageDetail({
       <section className="text-sm">
         <h3 className="text-slate-400 text-xs uppercase mb-1">Triage note</h3>
         <textarea
+          ref={noteRef}
           aria-label="triage-note"
           value={noteDraft}
           onChange={(e) => setNoteDraft(e.target.value)}
-          onBlur={() => void setNote({ variables: { id: d.id, note: noteDraft } })}
+          onBlur={() =>
+            void setNote({
+              variables: { id: d.id, note: noteDraft },
+              refetchQueries: [{ query: CORRELATED_FINDING_DETAIL_QUERY, variables: { id: d.id } }],
+            })
+          }
           className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs"
           rows={2}
         />

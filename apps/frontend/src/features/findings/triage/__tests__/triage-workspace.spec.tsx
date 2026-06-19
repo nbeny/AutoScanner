@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MockedProvider } from '@apollo/client/testing';
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
 import {
   CORRELATED_FINDINGS_QUERY,
@@ -56,13 +57,19 @@ const detailMock = {
   },
 };
 
+function renderWorkspace(mocks: unknown[]) {
+  return render(
+    <MemoryRouter>
+      <MockedProvider mocks={mocks as never}>
+        <TriageWorkspace engagementId={engagementId} />
+      </MockedProvider>
+    </MemoryRouter>,
+  );
+}
+
 describe('<TriageWorkspace />', () => {
   it('auto-selects the first finding and shows its detail', async () => {
-    render(
-      <MockedProvider mocks={[listMock, detailMock]}>
-        <TriageWorkspace engagementId={engagementId} />
-      </MockedProvider>,
-    );
+    renderWorkspace([listMock, detailMock]);
     expect(await screen.findByText('10.0.0.4')).toBeInTheDocument();
   });
 
@@ -71,11 +78,7 @@ describe('<TriageWorkspace />', () => {
       request: { query: CORRELATED_FINDINGS_QUERY, variables: { engagementId } },
       result: { data: { correlatedFindings: [] } },
     };
-    render(
-      <MockedProvider mocks={[emptyMock]}>
-        <TriageWorkspace engagementId={engagementId} />
-      </MockedProvider>,
-    );
+    renderWorkspace([emptyMock]);
     expect(await screen.findByText(/no findings to triage/i)).toBeInTheDocument();
   });
 
@@ -102,14 +105,17 @@ describe('<TriageWorkspace />', () => {
         },
       },
     };
-    render(
-      <MockedProvider mocks={[mixedList, detailMock]}>
-        <TriageWorkspace engagementId={engagementId} />
-      </MockedProvider>,
-    );
+    renderWorkspace([mixedList, detailMock]);
     await screen.findByText('RCE Apache Struts');
     expect(screen.queryByText('Old resolved issue')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /show all statuses/i }));
     expect(screen.getByText('Old resolved issue')).toBeInTheDocument();
+  });
+
+  it('filters the queue by severity', async () => {
+    renderWorkspace([listMock, detailMock]);
+    await screen.findByText('RCE Apache Struts');
+    fireEvent.change(screen.getByLabelText('severity-filter'), { target: { value: 'HIGH' } });
+    expect(screen.queryByText('RCE Apache Struts')).not.toBeInTheDocument();
   });
 });

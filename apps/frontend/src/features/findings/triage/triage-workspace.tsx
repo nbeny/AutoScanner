@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
   CORRELATED_FINDINGS_QUERY,
@@ -10,6 +10,7 @@ import { TriageDetail } from './triage-detail';
 import { useTriageKeyboard } from './use-triage-keyboard';
 
 const ACTIVE_STATUSES = new Set(['OPEN', 'TRIAGED']);
+const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
 
 export function TriageWorkspace({ engagementId }: { engagementId: string }) {
   const { data, loading, error } = useQuery<{ correlatedFindings: QueueItem[] }>(
@@ -18,13 +19,17 @@ export function TriageWorkspace({ engagementId }: { engagementId: string }) {
   );
   const allItems = useMemo(() => data?.correlatedFindings ?? [], [data]);
 
-  // Default filter (spec §2): show only the remaining work (OPEN + TRIAGED).
-  // A toggle reveals every status. Filtering is client-side — at single-operator
-  // scale the queue is already fully loaded.
+  // Default filter (spec §2): show only the remaining work (OPEN + TRIAGED), with a
+  // severity filter and a toggle to reveal every status. Filtering is client-side —
+  // at single-operator scale the queue is already fully loaded.
   const [showAll, setShowAll] = useState(false);
+  const [severity, setSeverity] = useState('ALL');
   const items = useMemo(
-    () => (showAll ? allItems : allItems.filter((i) => ACTIVE_STATUSES.has(i.status))),
-    [allItems, showAll],
+    () =>
+      allItems
+        .filter((i) => (showAll ? true : ACTIVE_STATUSES.has(i.status)))
+        .filter((i) => severity === 'ALL' || i.severity === severity),
+    [allItems, showAll, severity],
   );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -37,6 +42,7 @@ export function TriageWorkspace({ engagementId }: { engagementId: string }) {
   }, [items, selectedId]);
 
   const [setStatus] = useMutation(SET_FINDING_STATUS);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
 
   const selectedIndex = items.findIndex((i) => i.id === selectedId);
   const move = (delta: number) => {
@@ -61,6 +67,7 @@ export function TriageWorkspace({ engagementId }: { engagementId: string }) {
     onStatus: (status) => {
       if (selectedId) handleStatus(selectedId, status);
     },
+    onEditNote: () => noteRef.current?.focus(),
   });
 
   if (loading) return <p className="text-slate-400 text-sm">Loading triage queue…</p>;
@@ -75,9 +82,23 @@ export function TriageWorkspace({ engagementId }: { engagementId: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between">
+        <select
+          aria-label="severity-filter"
+          value={severity}
+          onChange={(e) => setSeverity(e.target.value)}
+          className="bg-slate-800 border border-slate-700 rounded text-xs text-slate-200 px-2 py-1"
+        >
+          <option value="ALL">All severities</option>
+          {SEVERITIES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
+          aria-pressed={showAll}
           onClick={() => setShowAll((v) => !v)}
           className="text-xs text-slate-300 px-2 py-1 rounded border border-slate-700 hover:border-slate-500 transition-colors"
         >
@@ -89,7 +110,12 @@ export function TriageWorkspace({ engagementId }: { engagementId: string }) {
       ) : (
         <div className="grid grid-cols-[minmax(260px,360px)_1fr] h-[70vh] border border-slate-800 rounded overflow-hidden">
           <TriageQueue items={items} selectedId={selectedId} onSelect={setSelectedId} />
-          <TriageDetail id={selectedId} onStatusChange={handleStatus} />
+          <TriageDetail
+            id={selectedId}
+            engagementId={engagementId}
+            onStatusChange={handleStatus}
+            noteRef={noteRef}
+          />
         </div>
       )}
     </div>

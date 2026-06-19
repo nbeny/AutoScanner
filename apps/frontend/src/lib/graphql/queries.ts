@@ -843,7 +843,6 @@ export const SET_FINDING_NOTE = gql`
   mutation SetFindingNote($id: ID!, $note: String!) {
     setFindingNote(id: $id, note: $note) {
       id
-      note
     }
   }
 `;
@@ -852,7 +851,6 @@ export const SET_FINDING_REMEDIATION = gql`
   mutation SetFindingRemediation($id: ID!, $remediation: String!) {
     setFindingRemediation(id: $id, remediation: $remediation) {
       id
-      remediation
     }
   }
 `;

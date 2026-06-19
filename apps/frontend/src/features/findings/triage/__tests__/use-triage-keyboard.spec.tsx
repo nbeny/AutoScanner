@@ -36,4 +36,24 @@ describe('useTriageKeyboard', () => {
     expect(onStatus).not.toHaveBeenCalled();
     ta.remove();
   });
+
+  it('calls onEditNote on Enter when not in a field', () => {
+    const onEditNote = vi.fn();
+    renderHook(() =>
+      useTriageKeyboard({ onNext: vi.fn(), onPrev: vi.fn(), onStatus: vi.fn(), onEditNote }),
+    );
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onEditNote).toHaveBeenCalledTimes(1);
+  });
+
+  it('blurs the focused textarea on Escape', () => {
+    renderHook(() => useTriageKeyboard({ onNext: vi.fn(), onPrev: vi.fn(), onStatus: vi.fn() }));
+    const ta = document.createElement('textarea');
+    document.body.appendChild(ta);
+    ta.focus();
+    expect(document.activeElement).toBe(ta);
+    fireEvent.keyDown(ta, { key: 'Escape' });
+    expect(document.activeElement).not.toBe(ta);
+    ta.remove();
+  });
 });
