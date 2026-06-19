@@ -31,7 +31,8 @@ export class CorrelatedFindingsResolver {
     @CurrentUser() user: User,
     @Args('id', { type: () => ID }) id: string,
     @Args('status', { type: () => FindingStatus }) status: FindingStatus,
+    @Args('note', { type: () => String, nullable: true }) note?: string,
   ): Promise<CorrelatedFindingObject> {
-    return this.svc.setStatus(user.id, id, status);
+    return this.svc.setStatus(user.id, id, status, note);
   }
 }

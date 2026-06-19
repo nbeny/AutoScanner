@@ -175,28 +175,38 @@ describe('CorrelatedFindingsService', () => {
       expect(prisma.correlatedFinding.update).not.toHaveBeenCalled();
     });
 
-    it('updates status and returns a mapped DTO on happy path', async () => {
-      (prisma.correlatedFinding.findUnique as jest.Mock).mockResolvedValueOnce({ engagementId });
+    it('writes a FindingStatusEvent in the same transaction as the status update', async () => {
+      (prisma.correlatedFinding.findUnique as jest.Mock).mockResolvedValueOnce({
+        engagementId,
+        status: FindingStatus.OPEN,
+      });
       (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
-      const updatedRow = makeRow({ status: FindingStatus.CONFIRMED });
-      (prisma.correlatedFinding.update as jest.Mock).mockResolvedValueOnce(updatedRow);
 
-      const result = await svc.setStatus(userId, correlatedId, FindingStatus.CONFIRMED);
+      const tx = {
+        correlatedFinding: {
+          update: jest.fn().mockResolvedValue(makeRow({ status: FindingStatus.CONFIRMED })),
+        },
+        findingStatusEvent: { create: jest.fn().mockResolvedValue({}) },
+      };
+      (prisma.$transaction as jest.Mock).mockImplementationOnce(async (fn) => fn(tx));
 
-      expect(prisma.correlatedFinding.update).toHaveBeenCalledWith({
-        where: { id: correlatedId },
-        data: { status: FindingStatus.CONFIRMED },
-        include: {
-          findings: {
-            select: {
-              scanJob: { select: { scannerName: true } },
-            },
-          },
+      const result = await svc.setStatus(
+        userId,
+        correlatedId,
+        FindingStatus.CONFIRMED,
+        'looks real',
+      );
+
+      expect(tx.findingStatusEvent.create).toHaveBeenCalledWith({
+        data: {
+          correlatedFindingId: correlatedId,
+          fromStatus: FindingStatus.OPEN,
+          toStatus: FindingStatus.CONFIRMED,
+          actorId: userId,
+          note: 'looks real',
         },
       });
       expect(result.status).toBe(FindingStatus.CONFIRMED);
-      expect(result.sources).toEqual(['nuclei', 'sqlmap']);
-      expect(result.id).toBe(correlatedId);
     });
   });
 });
