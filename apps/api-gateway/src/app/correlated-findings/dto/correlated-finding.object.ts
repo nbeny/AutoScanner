@@ -1,4 +1,4 @@
-import { Field, ID, Int, ObjectType } from '@nestjs/graphql';
+import { Field, Float, ID, Int, ObjectType } from '@nestjs/graphql';
 import { Severity } from '../../findings/dto/severity.enum';
 import { FindingStatus } from './finding-status.enum';
 
@@ -39,4 +39,7 @@ export class CorrelatedFindingObject {
 
   @Field()
   lastSeenAt!: Date;
+
+  @Field(() => Float)
+  riskScore!: number;
 }

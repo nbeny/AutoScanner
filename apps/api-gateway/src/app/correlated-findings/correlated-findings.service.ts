@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Severity } from '@prisma/client';
 import { NotFoundError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
+import { clusterWeight } from '@autoscanner/correlation';
 import { CorrelatedFindingObject } from './dto/correlated-finding.object';
 import { FindingStatus } from './dto/finding-status.enum';
 
@@ -32,7 +33,7 @@ export class CorrelatedFindingsService {
     if (!engagement) throw new NotFoundError('Engagement', engagementId);
   }
 
-  private mapRow(row: CorrelatedFindingRow): CorrelatedFindingObject {
+  private mapRow(row: CorrelatedFindingRow, riskScore: number): CorrelatedFindingObject {
     const sources = [...new Set(row.findings.map((f) => f.scanJob.scannerName))];
     return {
       id: row.id,
@@ -47,6 +48,7 @@ export class CorrelatedFindingsService {
       sources,
       firstSeenAt: row.firstSeenAt,
       lastSeenAt: row.lastSeenAt,
+      riskScore,
     };
   }
 
@@ -84,7 +86,31 @@ export class CorrelatedFindingsService {
       },
     })) as CorrelatedFindingRow[];
 
-    return rows.map((row) => this.mapRow(row));
+    const cveIds = [...new Set(rows.map((r) => r.cveId).filter((c): c is string => !!c))];
+    const cves = cveIds.length
+      ? await this.prisma.nvdCve.findMany({
+          where: { cveId: { in: cveIds } },
+          select: { cveId: true, cvssV3Score: true },
+        })
+      : [];
+    const cvssByCve = new Map(cves.map((c) => [c.cveId, c.cvssV3Score]));
+
+    const scored = rows.map((row) => ({
+      row,
+      riskScore: clusterWeight({
+        severity: row.severity,
+        cveId: row.cveId,
+        status: row.status,
+        cvss: row.cveId ? (cvssByCve.get(row.cveId) ?? null) : null,
+      }),
+    }));
+
+    scored.sort(
+      (a, b) =>
+        b.riskScore - a.riskScore || b.row.lastSeenAt.getTime() - a.row.lastSeenAt.getTime(),
+    );
+
+    return scored.map(({ row, riskScore }) => this.mapRow(row, riskScore));
   }
 
   async setStatus(
@@ -112,6 +138,6 @@ export class CorrelatedFindingsService {
       },
     })) as CorrelatedFindingRow;
 
-    return this.mapRow(updated);
+    return this.mapRow(updated, 0);
   }
 }

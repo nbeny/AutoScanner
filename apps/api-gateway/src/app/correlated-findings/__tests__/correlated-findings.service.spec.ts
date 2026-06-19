@@ -39,6 +39,8 @@ describe('CorrelatedFindingsService', () => {
         findUnique: jest.fn(),
         update: jest.fn(),
       },
+      nvdCve: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn(),
     } as unknown as jest.Mocked<PrismaService>;
     svc = new CorrelatedFindingsService(prisma);
   });
@@ -130,6 +132,23 @@ describe('CorrelatedFindingsService', () => {
       expect(prisma.correlatedFinding.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ take: 10, skip: 20 }),
       );
+    });
+
+    it('computes riskScore and orders the page by it (desc)', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (prisma.nvdCve.findMany as jest.Mock).mockResolvedValueOnce([
+        { cveId: 'CVE-2024-1', cvssV3Score: 9.8 },
+      ]);
+      (prisma.correlatedFinding.findMany as jest.Mock).mockResolvedValueOnce([
+        makeRow({ id: 'low', severity: Severity.HIGH, cveId: null }), // weight 5
+        makeRow({ id: 'high', severity: Severity.LOW, cveId: 'CVE-2024-1' }), // weight 9.8
+      ]);
+
+      const result = await svc.list(userId, engagementId);
+
+      expect(result.map((r) => r.id)).toEqual(['high', 'low']);
+      expect(result[0].riskScore).toBe(9.8);
+      expect(result[1].riskScore).toBe(5);
     });
   });
 
