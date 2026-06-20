@@ -77,6 +77,7 @@
       "@autoscanner/scanners-tlsx": ["libs/scanners/tlsx/src/index.ts"],
       "@autoscanner/scanners-whatweb": ["libs/scanners/whatweb/src/index.ts"],
       "@autoscanner/scanners-kerbrute": ["libs/scanners/kerbrute/src/index.ts"],
+      "@autoscanner/scanners-ldap-enum": ["libs/scanners/ldap-enum/src/index.ts"],
       "@autoscanner/scanners-wpscan": ["libs/scanners/wpscan/src/index.ts"],
       "@autoscanner/scanners-sslscan": ["libs/scanners/sslscan/src/index.ts"],
       "@autoscanner/scanners-favicon": ["libs/scanners/favicon/src/index.ts"],
