@@ -36,6 +36,7 @@ import { SqlmapJsonParser } from './sqlmap-json';
 import { CommixTextParser } from './commix-text';
 import { OpenvasdJsonParser } from './openvasd-json';
 import { WpscanJsonParser } from './wpscan-json';
+import { NiktoJsonParser } from './nikto-json';
 
 @Global()
 @Module({
@@ -77,6 +78,7 @@ import { WpscanJsonParser } from './wpscan-json';
     CommixTextParser,
     OpenvasdJsonParser,
     WpscanJsonParser,
+    NiktoJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -116,6 +118,7 @@ import { WpscanJsonParser } from './wpscan-json';
     CommixTextParser,
     OpenvasdJsonParser,
     WpscanJsonParser,
+    NiktoJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -157,6 +160,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly commixText: CommixTextParser,
     private readonly openvasdJson: OpenvasdJsonParser,
     private readonly wpscanJson: WpscanJsonParser,
+    private readonly niktoJson: NiktoJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -196,5 +200,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.commixText);
     this.registry.register(this.openvasdJson);
     this.registry.register(this.wpscanJson);
+    this.registry.register(this.niktoJson);
   }
 }

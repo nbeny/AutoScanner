@@ -1,0 +1,21 @@
+{
+  "host": "example.com",
+  "ip": "93.184.216.34",
+  "port": "80",
+  "vulnerabilities": [
+    {
+      "id": "999986",
+      "method": "GET",
+      "url": "/",
+      "msg": "The anti-clickjacking X-Frame-Options header is not present.",
+      "OSVDB": "0"
+    },
+    {
+      "id": "000577",
+      "method": "GET",
+      "url": "/.git/HEAD",
+      "msg": "Git repository found.",
+      "OSVDB": "0"
+    }
+  ]
+}
