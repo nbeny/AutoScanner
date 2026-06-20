@@ -20,6 +20,7 @@ import { CrtshScannerModule } from '@autoscanner/scanners-crtsh';
 import { ShodanScannerModule } from '@autoscanner/scanners-shodan';
 import { TlsxScannerModule } from '@autoscanner/scanners-tlsx';
 import { WhatwebScannerModule } from '@autoscanner/scanners-whatweb';
+import { WpscanScannerModule } from '@autoscanner/scanners-wpscan';
 import { TheHarvesterScannerModule } from '@autoscanner/scanners-theharvester';
 import { SslscanScannerModule } from '@autoscanner/scanners-sslscan';
 import { CensysScannerModule } from '@autoscanner/scanners-censys';
@@ -71,6 +72,7 @@ const SCANNER_MODULES = [
   ShodanScannerModule,
   TlsxScannerModule,
   WhatwebScannerModule,
+  WpscanScannerModule,
   TheHarvesterScannerModule,
   SslscanScannerModule,
   CensysScannerModule,
