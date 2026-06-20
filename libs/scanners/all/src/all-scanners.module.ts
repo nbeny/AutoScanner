@@ -44,6 +44,8 @@ import { CmdiScanScannerModule } from '@autoscanner/scanners-cmdi-scan';
 import { OpenvasScanScannerModule } from '@autoscanner/scanners-openvas-scan';
 import { NiktoScannerModule } from '@autoscanner/scanners-nikto';
 import { ArjunScannerModule } from '@autoscanner/scanners-arjun';
+import { KerbruteScannerModule } from '@autoscanner/scanners-kerbrute';
+import { LdapEnumScannerModule } from '@autoscanner/scanners-ldap-enum';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -98,6 +100,8 @@ const SCANNER_MODULES = [
   OpenvasScanScannerModule,
   NiktoScannerModule,
   ArjunScannerModule,
+  KerbruteScannerModule,
+  LdapEnumScannerModule,
 ];
 
 @Module({

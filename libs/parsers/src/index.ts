@@ -38,4 +38,6 @@ export * from './openvasd-json';
 export * from './wpscan-json';
 export * from './nikto-json';
 export * from './arjun-json';
+export * from './kerbrute-text';
+export * from './ldap-text';
 export * from './parsers.module';

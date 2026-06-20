@@ -1,0 +1,12 @@
+# extended LDIF
+#
+dn:
+namingContexts: DC=corp,DC=local
+namingContexts: CN=Configuration,DC=corp,DC=local
+defaultNamingContext: DC=corp,DC=local
+dnsHostName: dc01.corp.local
+supportedSASLMechanisms: GSSAPI
+
+# search result
+search: 2
+result: 0 Success
