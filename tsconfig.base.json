@@ -84,6 +84,7 @@
       "@autoscanner/scanners-js-recon": ["libs/scanners/js-recon/src/index.ts"],
       "@autoscanner/scanners-gowitness": ["libs/scanners/gowitness/src/index.ts"],
       "@autoscanner/scanners-nikto": ["libs/scanners/nikto/src/index.ts"],
+      "@autoscanner/scanners-arjun": ["libs/scanners/arjun/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }

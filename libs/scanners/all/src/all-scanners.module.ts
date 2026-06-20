@@ -43,6 +43,7 @@ import { SqliScanScannerModule } from '@autoscanner/scanners-sqli-scan';
 import { CmdiScanScannerModule } from '@autoscanner/scanners-cmdi-scan';
 import { OpenvasScanScannerModule } from '@autoscanner/scanners-openvas-scan';
 import { NiktoScannerModule } from '@autoscanner/scanners-nikto';
+import { ArjunScannerModule } from '@autoscanner/scanners-arjun';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -96,6 +97,7 @@ const SCANNER_MODULES = [
   CmdiScanScannerModule,
   OpenvasScanScannerModule,
   NiktoScannerModule,
+  ArjunScannerModule,
 ];
 
 @Module({
