@@ -42,6 +42,8 @@ import { KerbruteTextParser } from './kerbrute-text';
 import { LdapTextParser } from './ldap-text';
 import { KubeHunterJsonParser } from './kube-hunter-json';
 import { KubeletctlJsonParser } from './kubeletctl-json';
+import { S3scannerJsonParser } from './s3scanner-json';
+import { CloudbruteTextParser } from './cloudbrute-text';
 
 @Global()
 @Module({
@@ -89,6 +91,8 @@ import { KubeletctlJsonParser } from './kubeletctl-json';
     LdapTextParser,
     KubeHunterJsonParser,
     KubeletctlJsonParser,
+    S3scannerJsonParser,
+    CloudbruteTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -134,6 +138,8 @@ import { KubeletctlJsonParser } from './kubeletctl-json';
     LdapTextParser,
     KubeHunterJsonParser,
     KubeletctlJsonParser,
+    S3scannerJsonParser,
+    CloudbruteTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -181,6 +187,8 @@ export class ParsersModule implements OnModuleInit {
     private readonly ldapText: LdapTextParser,
     private readonly kubeHunterJson: KubeHunterJsonParser,
     private readonly kubeletctlJson: KubeletctlJsonParser,
+    private readonly s3scannerJson: S3scannerJsonParser,
+    private readonly cloudbruteText: CloudbruteTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -226,5 +234,7 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.ldapText);
     this.registry.register(this.kubeHunterJson);
     this.registry.register(this.kubeletctlJson);
+    this.registry.register(this.s3scannerJson);
+    this.registry.register(this.cloudbruteText);
   }
 }

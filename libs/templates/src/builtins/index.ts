@@ -15,9 +15,11 @@ import { WebQuick } from './web-quick';
 import { WebAppAudit } from './web-app-audit';
 import { ActiveDirectoryRecon } from './active-directory-recon';
 import { K8sRecon } from './k8s-recon';
+import { CloudExposure } from './cloud-exposure';
 
 export {
   ActiveDirectoryRecon,
+  CloudExposure,
   K8sRecon,
   NetworkVuln,
   OsintPassive,
@@ -57,4 +59,5 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   WebAppAudit,
   ActiveDirectoryRecon,
   K8sRecon,
+  CloudExposure,
 ];

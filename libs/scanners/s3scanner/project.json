@@ -1,0 +1,22 @@
+{
+  "name": "scanners-s3scanner",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/s3scanner/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/s3scanner"],
+      "options": {
+        "jestConfig": "libs/scanners/s3scanner/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/s3scanner/tsconfig.lib.json"
+      }
+    }
+  }
+}

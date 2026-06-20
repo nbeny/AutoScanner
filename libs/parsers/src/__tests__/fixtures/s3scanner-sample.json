@@ -1,0 +1,23 @@
+[
+  {
+    "name": "acme-public",
+    "exists": true,
+    "provider": "aws",
+    "region": "us-east-1",
+    "permissions": { "all_users": { "read": true, "write": false } }
+  },
+  {
+    "name": "acme-writable",
+    "exists": true,
+    "provider": "aws",
+    "region": "us-east-1",
+    "permissions": { "all_users": { "read": true, "write": true } }
+  },
+  {
+    "name": "acme-private",
+    "exists": true,
+    "provider": "aws",
+    "permissions": { "all_users": { "read": false, "write": false } }
+  },
+  { "name": "acme-missing", "exists": false }
+]
