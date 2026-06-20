@@ -1,0 +1,26 @@
+{
+  "nodes": [{ "type": "Node/Master", "location": "10.0.0.5" }],
+  "services": [{ "service": "Kubelet API", "location": "10.0.0.5:10250" }],
+  "vulnerabilities": [
+    {
+      "location": "10.0.0.5:10250",
+      "vid": "KHV005",
+      "category": "Access Risk",
+      "severity": "high",
+      "vulnerability": "Anonymous Authentication",
+      "description": "The kubelet is misconfigured to allow anonymous requests.",
+      "evidence": "",
+      "hunter": "Kubelet Discovery"
+    },
+    {
+      "location": "10.0.0.5:6443",
+      "vid": "KHV002",
+      "category": "Information Disclosure",
+      "severity": "medium",
+      "vulnerability": "K8s Version Disclosure",
+      "description": "The kubernetes version is exposed.",
+      "evidence": "v1.25.0",
+      "hunter": "API Version Hunter"
+    }
+  ]
+}

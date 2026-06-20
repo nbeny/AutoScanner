@@ -46,6 +46,8 @@ import { NiktoScannerModule } from '@autoscanner/scanners-nikto';
 import { ArjunScannerModule } from '@autoscanner/scanners-arjun';
 import { KerbruteScannerModule } from '@autoscanner/scanners-kerbrute';
 import { LdapEnumScannerModule } from '@autoscanner/scanners-ldap-enum';
+import { KubeHunterScannerModule } from '@autoscanner/scanners-kube-hunter';
+import { KubeletctlScannerModule } from '@autoscanner/scanners-kubeletctl';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -102,6 +104,8 @@ const SCANNER_MODULES = [
   ArjunScannerModule,
   KerbruteScannerModule,
   LdapEnumScannerModule,
+  KubeHunterScannerModule,
+  KubeletctlScannerModule,
 ];
 
 @Module({

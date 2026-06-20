@@ -21,5 +21,6 @@ docker build -t autoscanner/nikto:1.0 "$ROOT/docker/scanners/nikto"
 docker build -t autoscanner/arjun:1.0 "$ROOT/docker/scanners/arjun"
 docker build -t autoscanner/kerbrute:1.0 "$ROOT/docker/scanners/kerbrute"
 docker build -t autoscanner/ldap-enum:1.0 "$ROOT/docker/scanners/ldap-enum"
+docker build -t autoscanner/kubeletctl:1.0 "$ROOT/docker/scanners/kubeletctl"
 
-echo "Built: autoscanner/assetfinder:1.0, autoscanner/puredns:1.0, autoscanner/gau:1.0, autoscanner/ffuf:1.0, autoscanner/whois:1.0, autoscanner/crtsh:1.0, autoscanner/shodan:1.0, autoscanner/whatweb:1.0, autoscanner/theharvester:1.0, autoscanner/sslscan:1.0, autoscanner/gobuster:1.0, autoscanner/censys:1.0, autoscanner/wpscan:1.0, autoscanner/nikto:1.0, autoscanner/arjun:1.0, autoscanner/kerbrute:1.0, autoscanner/ldap-enum:1.0"
+echo "Built: autoscanner/assetfinder:1.0, autoscanner/puredns:1.0, autoscanner/gau:1.0, autoscanner/ffuf:1.0, autoscanner/whois:1.0, autoscanner/crtsh:1.0, autoscanner/shodan:1.0, autoscanner/whatweb:1.0, autoscanner/theharvester:1.0, autoscanner/sslscan:1.0, autoscanner/gobuster:1.0, autoscanner/censys:1.0, autoscanner/wpscan:1.0, autoscanner/nikto:1.0, autoscanner/arjun:1.0, autoscanner/kerbrute:1.0, autoscanner/ldap-enum:1.0, autoscanner/kubeletctl:1.0"
