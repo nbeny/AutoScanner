@@ -39,6 +39,7 @@ import { WpscanJsonParser } from './wpscan-json';
 import { NiktoJsonParser } from './nikto-json';
 import { ArjunJsonParser } from './arjun-json';
 import { KerbruteTextParser } from './kerbrute-text';
+import { LdapTextParser } from './ldap-text';
 
 @Global()
 @Module({
@@ -83,6 +84,7 @@ import { KerbruteTextParser } from './kerbrute-text';
     NiktoJsonParser,
     ArjunJsonParser,
     KerbruteTextParser,
+    LdapTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -125,6 +127,7 @@ import { KerbruteTextParser } from './kerbrute-text';
     NiktoJsonParser,
     ArjunJsonParser,
     KerbruteTextParser,
+    LdapTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -169,6 +172,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly niktoJson: NiktoJsonParser,
     private readonly arjunJson: ArjunJsonParser,
     private readonly kerbruteText: KerbruteTextParser,
+    private readonly ldapText: LdapTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -211,5 +215,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.niktoJson);
     this.registry.register(this.arjunJson);
     this.registry.register(this.kerbruteText);
+    this.registry.register(this.ldapText);
   }
 }
