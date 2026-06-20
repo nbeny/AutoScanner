@@ -13,8 +13,10 @@ import { WebEnrich } from './web-enrich';
 import { WebFingerprint } from './web-fingerprint';
 import { WebQuick } from './web-quick';
 import { WebAppAudit } from './web-app-audit';
+import { ActiveDirectoryRecon } from './active-directory-recon';
 
 export {
+  ActiveDirectoryRecon,
   NetworkVuln,
   OsintPassive,
   OsintPassiveDeep,
@@ -51,4 +53,5 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   VulnActive,
   NetworkVuln,
   WebAppAudit,
+  ActiveDirectoryRecon,
 ];
