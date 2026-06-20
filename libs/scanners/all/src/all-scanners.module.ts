@@ -20,6 +20,7 @@ import { CrtshScannerModule } from '@autoscanner/scanners-crtsh';
 import { ShodanScannerModule } from '@autoscanner/scanners-shodan';
 import { TlsxScannerModule } from '@autoscanner/scanners-tlsx';
 import { WhatwebScannerModule } from '@autoscanner/scanners-whatweb';
+import { WpscanScannerModule } from '@autoscanner/scanners-wpscan';
 import { TheHarvesterScannerModule } from '@autoscanner/scanners-theharvester';
 import { SslscanScannerModule } from '@autoscanner/scanners-sslscan';
 import { CensysScannerModule } from '@autoscanner/scanners-censys';
@@ -41,6 +42,8 @@ import { XssScanScannerModule } from '@autoscanner/scanners-xss-scan';
 import { SqliScanScannerModule } from '@autoscanner/scanners-sqli-scan';
 import { CmdiScanScannerModule } from '@autoscanner/scanners-cmdi-scan';
 import { OpenvasScanScannerModule } from '@autoscanner/scanners-openvas-scan';
+import { NiktoScannerModule } from '@autoscanner/scanners-nikto';
+import { ArjunScannerModule } from '@autoscanner/scanners-arjun';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -71,6 +74,7 @@ const SCANNER_MODULES = [
   ShodanScannerModule,
   TlsxScannerModule,
   WhatwebScannerModule,
+  WpscanScannerModule,
   TheHarvesterScannerModule,
   SslscanScannerModule,
   CensysScannerModule,
@@ -92,6 +96,8 @@ const SCANNER_MODULES = [
   SqliScanScannerModule,
   CmdiScanScannerModule,
   OpenvasScanScannerModule,
+  NiktoScannerModule,
+  ArjunScannerModule,
 ];
 
 @Module({

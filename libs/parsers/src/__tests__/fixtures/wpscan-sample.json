@@ -1,0 +1,17 @@
+{
+  "target_url": "http://blog.example.com/",
+  "version": { "number": "5.8.1", "status": "insecure" },
+  "main_theme": { "slug": "twentytwentyone", "version": { "number": "1.4" } },
+  "plugins": {
+    "contact-form-7": { "slug": "contact-form-7", "version": { "number": "5.4.2" } },
+    "akismet": { "slug": "akismet", "version": { "number": null } }
+  },
+  "interesting_findings": [
+    {
+      "url": "http://blog.example.com/wp-content/debug.log",
+      "type": "debug_log",
+      "to_s": "Debug Log found: http://blog.example.com/wp-content/debug.log"
+    }
+  ],
+  "users": { "admin": { "id": 1 }, "editor": { "id": 2 } }
+}

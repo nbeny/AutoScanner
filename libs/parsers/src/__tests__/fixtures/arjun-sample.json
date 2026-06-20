@@ -1,0 +1,4 @@
+{
+  "http://example.com/search.php": ["q", "category", "debug"],
+  "http://example.com/empty.php": []
+}

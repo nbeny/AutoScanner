@@ -35,6 +35,9 @@ import { DalfoxJsonParser } from './dalfox-json';
 import { SqlmapJsonParser } from './sqlmap-json';
 import { CommixTextParser } from './commix-text';
 import { OpenvasdJsonParser } from './openvasd-json';
+import { WpscanJsonParser } from './wpscan-json';
+import { NiktoJsonParser } from './nikto-json';
+import { ArjunJsonParser } from './arjun-json';
 
 @Global()
 @Module({
@@ -75,6 +78,9 @@ import { OpenvasdJsonParser } from './openvasd-json';
     SqlmapJsonParser,
     CommixTextParser,
     OpenvasdJsonParser,
+    WpscanJsonParser,
+    NiktoJsonParser,
+    ArjunJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -113,6 +119,9 @@ import { OpenvasdJsonParser } from './openvasd-json';
     SqlmapJsonParser,
     CommixTextParser,
     OpenvasdJsonParser,
+    WpscanJsonParser,
+    NiktoJsonParser,
+    ArjunJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -153,6 +162,9 @@ export class ParsersModule implements OnModuleInit {
     private readonly sqlmapJson: SqlmapJsonParser,
     private readonly commixText: CommixTextParser,
     private readonly openvasdJson: OpenvasdJsonParser,
+    private readonly wpscanJson: WpscanJsonParser,
+    private readonly niktoJson: NiktoJsonParser,
+    private readonly arjunJson: ArjunJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -191,5 +203,8 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.sqlmapJson);
     this.registry.register(this.commixText);
     this.registry.register(this.openvasdJson);
+    this.registry.register(this.wpscanJson);
+    this.registry.register(this.niktoJson);
+    this.registry.register(this.arjunJson);
   }
 }

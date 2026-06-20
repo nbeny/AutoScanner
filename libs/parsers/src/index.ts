@@ -35,4 +35,7 @@ export * from './dalfox-json';
 export * from './sqlmap-json';
 export * from './commix-text';
 export * from './openvasd-json';
+export * from './wpscan-json';
+export * from './nikto-json';
+export * from './arjun-json';
 export * from './parsers.module';
