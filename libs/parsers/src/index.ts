@@ -41,4 +41,5 @@ export * from './arjun-json';
 export * from './kerbrute-text';
 export * from './ldap-text';
 export * from './kube-hunter-json';
+export * from './kubeletctl-json';
 export * from './parsers.module';

@@ -1,0 +1,7 @@
+{
+  "kind": "PodList",
+  "items": [
+    { "metadata": { "name": "nginx", "namespace": "default" } },
+    { "metadata": { "name": "redis", "namespace": "prod" } }
+  ]
+}
