@@ -1,0 +1,5 @@
+CloudBrute v1.0.7
+[i] Testing keyword: acme
+https://acme.s3.amazonaws.com
+https://acme-dev.storage.googleapis.com
+[i] scan finished
