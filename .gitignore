@@ -42,3 +42,6 @@ coverage/
 
 # MinIO local data (if mounted)
 docker/data/
+
+# Claude Code local session/runtime state (locks, settings) — not project content
+.claude/
