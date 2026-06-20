@@ -18,5 +18,6 @@ docker build -t autoscanner/gobuster:1.0 "$ROOT/docker/scanners/gobuster"
 docker build -t autoscanner/censys:1.0 "$ROOT/docker/scanners/censys"
 docker build -t autoscanner/wpscan:1.0 "$ROOT/docker/scanners/wpscan"
 docker build -t autoscanner/nikto:1.0 "$ROOT/docker/scanners/nikto"
+docker build -t autoscanner/arjun:1.0 "$ROOT/docker/scanners/arjun"
 
-echo "Built: autoscanner/assetfinder:1.0, autoscanner/puredns:1.0, autoscanner/gau:1.0, autoscanner/ffuf:1.0, autoscanner/whois:1.0, autoscanner/crtsh:1.0, autoscanner/shodan:1.0, autoscanner/whatweb:1.0, autoscanner/theharvester:1.0, autoscanner/sslscan:1.0, autoscanner/gobuster:1.0, autoscanner/censys:1.0, autoscanner/wpscan:1.0, autoscanner/nikto:1.0"
+echo "Built: autoscanner/assetfinder:1.0, autoscanner/puredns:1.0, autoscanner/gau:1.0, autoscanner/ffuf:1.0, autoscanner/whois:1.0, autoscanner/crtsh:1.0, autoscanner/shodan:1.0, autoscanner/whatweb:1.0, autoscanner/theharvester:1.0, autoscanner/sslscan:1.0, autoscanner/gobuster:1.0, autoscanner/censys:1.0, autoscanner/wpscan:1.0, autoscanner/nikto:1.0, autoscanner/arjun:1.0"
