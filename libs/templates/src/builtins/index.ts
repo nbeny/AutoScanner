@@ -12,6 +12,7 @@ import { WebDeep } from './web-deep';
 import { WebEnrich } from './web-enrich';
 import { WebFingerprint } from './web-fingerprint';
 import { WebQuick } from './web-quick';
+import { WebAppAudit } from './web-app-audit';
 
 export {
   NetworkVuln,
@@ -22,6 +23,7 @@ export {
   ReconPassiveDeep,
   ServiceRecon,
   VulnActive,
+  WebAppAudit,
   WebContent,
   WebDeep,
   WebEnrich,
@@ -48,4 +50,5 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   ServiceRecon,
   VulnActive,
   NetworkVuln,
+  WebAppAudit,
 ];
