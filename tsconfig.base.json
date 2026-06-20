@@ -90,6 +90,7 @@
       "@autoscanner/scanners-nikto": ["libs/scanners/nikto/src/index.ts"],
       "@autoscanner/scanners-arjun": ["libs/scanners/arjun/src/index.ts"],
       "@autoscanner/scanners-s3scanner": ["libs/scanners/s3scanner/src/index.ts"],
+      "@autoscanner/scanners-cloudbrute": ["libs/scanners/cloudbrute/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }

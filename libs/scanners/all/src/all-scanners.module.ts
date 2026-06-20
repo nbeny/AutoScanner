@@ -49,6 +49,7 @@ import { LdapEnumScannerModule } from '@autoscanner/scanners-ldap-enum';
 import { KubeHunterScannerModule } from '@autoscanner/scanners-kube-hunter';
 import { KubeletctlScannerModule } from '@autoscanner/scanners-kubeletctl';
 import { S3scannerScannerModule } from '@autoscanner/scanners-s3scanner';
+import { CloudbruteScannerModule } from '@autoscanner/scanners-cloudbrute';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -108,6 +109,7 @@ const SCANNER_MODULES = [
   KubeHunterScannerModule,
   KubeletctlScannerModule,
   S3scannerScannerModule,
+  CloudbruteScannerModule,
 ];
 
 @Module({
