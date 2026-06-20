@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import {
   ActiveDirectoryRecon,
   BUILTIN_TEMPLATES,
+  K8sRecon,
   NetworkVuln,
   OsintPassive,
   OsintPassiveDeep,
@@ -130,8 +131,8 @@ describe('builtin templates', () => {
   });
 
   describe('BUILTIN_TEMPLATES', () => {
-    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich + service-recon + vuln-active + network-vuln + web-app-audit + active-directory-recon', () => {
-      expect(BUILTIN_TEMPLATES).toHaveLength(15);
+    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich + service-recon + vuln-active + network-vuln + web-app-audit + active-directory-recon + k8s-recon', () => {
+      expect(BUILTIN_TEMPLATES).toHaveLength(16);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassive);
       expect(BUILTIN_TEMPLATES).toContain(ReconActive);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassiveDeep);
@@ -147,6 +148,7 @@ describe('builtin templates', () => {
       expect(BUILTIN_TEMPLATES).toContain(NetworkVuln);
       expect(BUILTIN_TEMPLATES).toContain(WebAppAudit);
       expect(BUILTIN_TEMPLATES).toContain(ActiveDirectoryRecon);
+      expect(BUILTIN_TEMPLATES).toContain(K8sRecon);
     });
 
     it('exposes unique template names', () => {
@@ -192,7 +194,8 @@ describe('builtin templates', () => {
       expect(registry.get('vuln-active')).toBe(VulnActive);
       expect(registry.get('network-vuln')).toBe(NetworkVuln);
       expect(registry.get('active-directory-recon')).toBe(ActiveDirectoryRecon);
-      expect(registry.list()).toHaveLength(15);
+      expect(registry.get('k8s-recon')).toBe(K8sRecon);
+      expect(registry.list()).toHaveLength(16);
 
       // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
       const moduleInstance = ref.get(TemplatesModule);
