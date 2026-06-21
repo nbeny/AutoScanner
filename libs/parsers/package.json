@@ -2,8 +2,7 @@
   "name": "parsers",
   "version": "0.0.1",
   "dependencies": {
-    "tslib": "^2.3.0",
-    "@autoscanner/cve": "*"
+    "tslib": "^2.3.0"
   },
   "type": "commonjs",
   "main": "./src/index.js",
