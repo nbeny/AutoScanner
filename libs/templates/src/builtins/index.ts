@@ -16,10 +16,16 @@ import { WebAppAudit } from './web-app-audit';
 import { ActiveDirectoryRecon } from './active-directory-recon';
 import { K8sRecon } from './k8s-recon';
 import { CloudExposure } from './cloud-exposure';
+import { IpActiveAudit } from './ip-active-audit';
+import { IpPassiveIntel } from './ip-passive-intel';
+import { IpReconFull } from './ip-recon-full';
 
 export {
   ActiveDirectoryRecon,
   CloudExposure,
+  IpActiveAudit,
+  IpPassiveIntel,
+  IpReconFull,
   K8sRecon,
   NetworkVuln,
   OsintPassive,
@@ -60,4 +66,7 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   ActiveDirectoryRecon,
   K8sRecon,
   CloudExposure,
+  IpPassiveIntel,
+  IpActiveAudit,
+  IpReconFull,
 ];

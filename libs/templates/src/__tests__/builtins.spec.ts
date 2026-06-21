@@ -132,8 +132,8 @@ describe('builtin templates', () => {
   });
 
   describe('BUILTIN_TEMPLATES', () => {
-    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich + service-recon + vuln-active + network-vuln + web-app-audit + active-directory-recon + k8s-recon + cloud-exposure', () => {
-      expect(BUILTIN_TEMPLATES).toHaveLength(17);
+    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich + service-recon + vuln-active + network-vuln + web-app-audit + active-directory-recon + k8s-recon + cloud-exposure + ip-passive-intel + ip-active-audit + ip-recon-full', () => {
+      expect(BUILTIN_TEMPLATES).toHaveLength(20);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassive);
       expect(BUILTIN_TEMPLATES).toContain(ReconActive);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassiveDeep);
@@ -198,7 +198,7 @@ describe('builtin templates', () => {
       expect(registry.get('active-directory-recon')).toBe(ActiveDirectoryRecon);
       expect(registry.get('k8s-recon')).toBe(K8sRecon);
       expect(registry.get('cloud-exposure')).toBe(CloudExposure);
-      expect(registry.list()).toHaveLength(17);
+      expect(registry.list()).toHaveLength(20);
 
       // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
       const moduleInstance = ref.get(TemplatesModule);
