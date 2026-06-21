@@ -542,6 +542,7 @@ enum ApiProvider {
   GITHUB
   SECURITYTRAILS
   OPENVAS
+  ABUSEIPDB
 }
 
 model Email {
