@@ -350,6 +350,24 @@ describe('ScansService.runScan', () => {
     });
   });
 
+  it('retryScanJob re-runs with the original job params', async () => {
+    const job = {
+      id: 'job_1',
+      scannerName: 'nmap',
+      target: '127.0.0.1',
+      input: { ports: '1-1024' },
+      scan: { engagementId: 'e1', engagement: { ownerId: userId } },
+    };
+    (prisma as any).scanJob = { findFirst: jest.fn().mockResolvedValue(job) };
+    const spy = jest.spyOn(svc, 'runScan').mockResolvedValue({ id: 's2' } as any);
+    const res = await svc.retryScanJob(userId, 'job_1');
+    expect(spy).toHaveBeenCalledWith(
+      userId,
+      expect.objectContaining({ engagementId: 'e1', scannerName: 'nmap', target: '127.0.0.1' }),
+    );
+    expect(res).toEqual({ id: 's2' });
+  });
+
   describe('cancelScanJob', () => {
     it('cancelScanJob removes a queued job, sets CANCELLED and emits event', async () => {
       const job = {

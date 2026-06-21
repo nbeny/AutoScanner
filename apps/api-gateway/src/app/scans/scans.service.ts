@@ -247,6 +247,33 @@ export class ScansService {
     return updated as ScanJob;
   }
 
+  async retryScanJob(userId: string, jobId: string): Promise<Scan> {
+    const job = await this.prisma.scanJob.findFirst({
+      where: { id: jobId, scan: { engagement: { ownerId: userId, deletedAt: null } } },
+      include: { scan: true },
+    });
+    if (!job) throw new NotFoundError('ScanJob', jobId);
+    return this.runScan(userId, {
+      engagementId: (job as any).scan.engagementId,
+      scannerName: job.scannerName,
+      target: job.target,
+      optionsJson: JSON.stringify((job as any).input ?? {}),
+    });
+  }
+
+  async retryScan(userId: string, scanId: string): Promise<Scan> {
+    const scan = await this.prisma.scan.findFirst({
+      where: { id: scanId, engagement: { ownerId: userId, deletedAt: null } },
+      include: { jobs: true },
+    });
+    if (!scan) throw new NotFoundError('Scan', scanId);
+    const jobs = (scan as any).jobs as Array<{ id: string }>;
+    if (jobs.length === 0) throw new NotFoundError('ScanJob', scanId);
+    // Re-run each original job; return the first new scan (multi-job → multiple new scans).
+    const results = await Promise.all(jobs.map((j) => this.retryScanJob(userId, j.id)));
+    return results[0];
+  }
+
   async cancelScan(userId: string, scanId: string): Promise<Scan> {
     const scan = await this.prisma.scan.findFirst({
       where: { id: scanId, engagement: { ownerId: userId, deletedAt: null } },
