@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ApolloProvider } from '@apollo/client';
-import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth-context';
 import { createApolloClient } from './lib/apollo';
 import { LoginPage } from './features/auth/login-page';
@@ -11,6 +11,10 @@ import { ScanRunPage } from './features/scans/scan-run-page';
 import { TemplateRunPage } from './features/template-runs/template-run-page';
 import { AssetDetailPage } from './features/assets/asset-detail-page';
 import { SettingsPage } from './features/settings/settings-page';
+import { MainNav } from './components/main-nav';
+import { ScansSectionPage } from './features/scans/scans-section-page';
+import { VulnerabilitiesSectionPage } from './features/findings/vulnerabilities-section-page';
+import { ToolsSectionPage } from './features/tools/tools-section-page';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session } = useAuth();
@@ -18,40 +22,13 @@ function RequireAuth({ children }: { children: JSX.Element }) {
   return children;
 }
 
-function TopBar() {
-  const { session, logout } = useAuth();
-  if (!session) return null;
-  return (
-    <nav className="bg-slate-900 px-6 py-3 flex items-center justify-between border-b border-slate-800">
-      <div className="flex items-center gap-6">
-        <span className="font-semibold">AutoScanner</span>
-        <Link to="/dashboard" className="text-sm text-slate-300 hover:text-white">
-          Dashboard
-        </Link>
-        <Link to="/engagements" className="text-sm text-slate-300 hover:text-white">
-          Engagements
-        </Link>
-        <Link to="/settings" className="text-sm text-slate-300 hover:text-white">
-          Settings
-        </Link>
-      </div>
-      <div className="text-sm text-slate-400 flex items-center gap-3">
-        <span>{session.email}</span>
-        <button onClick={logout} className="hover:underline">
-          Logout
-        </button>
-      </div>
-    </nav>
-  );
-}
-
 function AppShell() {
-  const { session } = useAuth();
+  const { session, logout } = useAuth();
   const client = useMemo(() => createApolloClient(session), [session]);
 
   return (
     <ApolloProvider client={client}>
-      <TopBar />
+      {session ? <MainNav email={session.email} onLogout={logout} /> : null}
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route
@@ -87,6 +64,22 @@ function AppShell() {
           }
         />
         <Route
+          path="/engagements/:engagementId/vulnerabilities"
+          element={
+            <RequireAuth>
+              <VulnerabilitiesSectionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/engagements/:engagementId/tools"
+          element={
+            <RequireAuth>
+              <ToolsSectionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/engagements/:engagementId/template-runs/:templateRunId"
           element={
             <RequireAuth>
@@ -107,6 +100,30 @@ function AppShell() {
           element={
             <RequireAuth>
               <SettingsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/scans"
+          element={
+            <RequireAuth>
+              <ScansSectionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/vulnerabilities"
+          element={
+            <RequireAuth>
+              <VulnerabilitiesSectionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/tools"
+          element={
+            <RequireAuth>
+              <ToolsSectionPage />
             </RequireAuth>
           }
         />

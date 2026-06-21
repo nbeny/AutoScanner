@@ -36,6 +36,30 @@ function renderAt(path: string, storage: AuthStorage) {
               </RequireAuth>
             }
           />
+          <Route
+            path="/scans"
+            element={
+              <RequireAuth>
+                <div>scans screen</div>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/vulnerabilities"
+            element={
+              <RequireAuth>
+                <div>vulns screen</div>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/tools"
+            element={
+              <RequireAuth>
+                <div>tools screen</div>
+              </RequireAuth>
+            }
+          />
         </Routes>
       </AuthProvider>
     </MemoryRouter>,
@@ -59,5 +83,23 @@ describe('app routing', () => {
       }),
     );
     expect(screen.getByText('engagements screen')).toBeInTheDocument();
+  });
+
+  it('renders the scans section for an authenticated user', () => {
+    renderAt(
+      '/scans',
+      makeMemoryStorage({
+        apiUrl: 'http://api',
+        accessToken: 'a',
+        refreshToken: 'r',
+        email: 'op@example.com',
+      }),
+    );
+    expect(screen.getByText('scans screen')).toBeInTheDocument();
+  });
+
+  it('redirects unauthenticated users from /vulnerabilities to /login', () => {
+    renderAt('/vulnerabilities', makeMemoryStorage(null));
+    expect(screen.getByText('login screen')).toBeInTheDocument();
   });
 });
