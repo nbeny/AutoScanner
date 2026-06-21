@@ -17,6 +17,7 @@ import { QueueName, type ParseJobPayload, type ScanJobPayload } from '@autoscann
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, rawOutputKey, type ObjectStorage } from '@autoscanner/storage';
 import { SECRET_BOX } from './secret-box.provider';
+import { ScanControlSubscriber } from './scan-control.subscriber';
 
 // Per-scan capture cap. The docker sandbox limits container memory to ~2 GiB
 // (DEFAULT_MEMORY_MB in dockerode-runner) but a scanner can SHIP up to that
@@ -39,6 +40,7 @@ export class ScanJobProcessor extends WorkerHost {
     @InjectQueue(QueueName.PARSE_JOBS) private readonly parseQueue: Queue<ParseJobPayload>,
     @Inject(LOG_STREAM_PUBLISHER) private readonly logStream: LogStreamPublisher,
     @Inject(SECRET_BOX) private readonly secretBox: SecretBox,
+    private readonly scanControlSubscriber: ScanControlSubscriber,
   ) {
     super();
   }
@@ -178,6 +180,7 @@ export class ScanJobProcessor extends WorkerHost {
         capturedBytes += bytes;
       };
 
+      this.scanControlSubscriber.register(payload.scanJobId, oversizeAbort);
       try {
         result = await this.docker.run({
           ...runSpec,
@@ -202,6 +205,8 @@ export class ScanJobProcessor extends WorkerHost {
           },
         });
         throw err;
+      } finally {
+        this.scanControlSubscriber.unregister(payload.scanJobId);
       }
 
       // The abort-on-oversize path tripped `killedByUser` inside docker-runner,

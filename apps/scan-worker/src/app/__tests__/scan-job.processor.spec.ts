@@ -11,6 +11,7 @@ import { NmapScanner } from '@autoscanner/scanners-nmap';
 import type { ObjectStorage } from '@autoscanner/storage';
 
 import { MAX_RAW_OUTPUT_BYTES, ScanJobProcessor } from '../scan-job.processor';
+import type { ScanControlSubscriber } from '../scan-control.subscriber';
 
 const NMAP_XML =
   '<?xml version="1.0"?><nmaprun><host><address addr="127.0.0.1" addrtype="ipv4"/></host></nmaprun>';
@@ -23,6 +24,7 @@ describe('ScanJobProcessor', () => {
   let logStream: jest.Mocked<LogStreamPublisher>;
   let registry: ScannerRegistry;
   let secretBox: jest.Mocked<SecretBox>;
+  let scanControlSubscriber: jest.Mocked<ScanControlSubscriber>;
   let processor: ScanJobProcessor;
 
   beforeEach(() => {
@@ -88,6 +90,13 @@ describe('ScanJobProcessor', () => {
       openRaw: jest.fn(),
     } as unknown as jest.Mocked<SecretBox>;
 
+    scanControlSubscriber = {
+      register: jest.fn(),
+      unregister: jest.fn(),
+      handleMessage: jest.fn(),
+      onModuleInit: jest.fn(),
+    } as unknown as jest.Mocked<ScanControlSubscriber>;
+
     processor = new ScanJobProcessor(
       prisma,
       registry,
@@ -96,6 +105,7 @@ describe('ScanJobProcessor', () => {
       parseQueue,
       logStream,
       secretBox,
+      scanControlSubscriber,
     );
   });
 
