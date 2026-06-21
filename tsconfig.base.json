@@ -91,6 +91,12 @@
       "@autoscanner/scanners-arjun": ["libs/scanners/arjun/src/index.ts"],
       "@autoscanner/scanners-s3scanner": ["libs/scanners/s3scanner/src/index.ts"],
       "@autoscanner/scanners-cloudbrute": ["libs/scanners/cloudbrute/src/index.ts"],
+      "@autoscanner/scanners-masscan": ["libs/scanners/masscan/src/index.ts"],
+      "@autoscanner/scanners-ssh-audit": ["libs/scanners/ssh-audit/src/index.ts"],
+      "@autoscanner/scanners-nbtscan": ["libs/scanners/nbtscan/src/index.ts"],
+      "@autoscanner/scanners-rdp-sec-check": ["libs/scanners/rdp-sec-check/src/index.ts"],
+      "@autoscanner/scanners-abuseipdb": ["libs/scanners/abuseipdb/src/index.ts"],
+      "@autoscanner/scanners-greynoise": ["libs/scanners/greynoise/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
