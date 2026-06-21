@@ -257,6 +257,31 @@ describe('ScansService.runScan', () => {
     });
   });
 
+  it('listAllForOwner filters by owner and status across engagements', async () => {
+    (prisma as any).scan = {
+      ...(prisma as any).scan,
+      findMany: jest.fn().mockResolvedValue([{ id: 's1' }]),
+    };
+    const res = await svc.listAllForOwner(userId, {
+      status: 'RUNNING' as any,
+      limit: 10,
+      offset: 0,
+    });
+    expect((prisma as any).scan.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: 'RUNNING',
+          engagement: { ownerId: userId, deletedAt: null },
+        }),
+        include: { jobs: true },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        skip: 0,
+      }),
+    );
+    expect(res).toEqual([{ id: 's1' }]);
+  });
+
   it('countFindingsForJob returns the prisma finding count', async () => {
     (prisma as any).finding = { count: jest.fn().mockResolvedValue(3) };
     const n = await svc.countFindingsForJob('job_1');

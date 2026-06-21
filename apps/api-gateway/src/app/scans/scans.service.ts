@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ZodError } from 'zod';
+import { Prisma } from '@prisma/client';
 import type { Scan } from '@prisma/client';
 import { NotFoundError, ValidationError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
@@ -10,6 +11,7 @@ import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 
 import { RunScanInput } from './dto/run-scan.input';
+import { ScansFilterInput } from './dto/scans-filter.input';
 
 const RAW_OUTPUT_PRESIGN_TTL_SECONDS = 3600;
 
@@ -143,6 +145,22 @@ export class ScansService {
       orderBy: { createdAt: 'desc' },
       include: { jobs: true },
     }) as Promise<Scan[]>;
+  }
+
+  async listAllForOwner(userId: string, filter?: ScansFilterInput) {
+    const where: Prisma.ScanWhereInput = {
+      engagement: { ownerId: userId, deletedAt: null },
+    };
+    if (filter?.status) where.status = filter.status;
+    if (filter?.engagementId) where.engagementId = filter.engagementId;
+    if (filter?.scannerName) where.jobs = { some: { scannerName: filter.scannerName } };
+    return this.prisma.scan.findMany({
+      where,
+      include: { jobs: true },
+      orderBy: { createdAt: 'desc' },
+      take: filter?.limit ?? 50,
+      skip: filter?.offset ?? 0,
+    });
   }
 
   async getForOwner(userId: string, id: string): Promise<Scan> {

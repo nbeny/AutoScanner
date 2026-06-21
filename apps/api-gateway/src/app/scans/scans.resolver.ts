@@ -21,6 +21,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RunScanInput } from './dto/run-scan.input';
+import { ScansFilterInput } from './dto/scans-filter.input';
 import { LogStreamKind, ScanLogChunkObject } from './dto/scan-log-chunk.object';
 import { ScanJobObject } from './dto/scan-job.object';
 import { ScanObject } from './dto/scan.object';
@@ -50,6 +51,14 @@ export class ScansResolver {
   @Query(() => ScanObject)
   scan(@CurrentUser() user: User, @Args('id', { type: () => ID }) id: string): Promise<ScanObject> {
     return this.svc.getForOwner(user.id, id) as Promise<ScanObject>;
+  }
+
+  @Query(() => [ScanObject], { name: 'allScans' })
+  async allScans(
+    @CurrentUser() user: User,
+    @Args('filter', { type: () => ScansFilterInput, nullable: true }) filter?: ScansFilterInput,
+  ): Promise<ScanObject[]> {
+    return this.svc.listAllForOwner(user.id, filter) as unknown as Promise<ScanObject[]>;
   }
 
   @Subscription(() => ScanLogChunkObject, {
