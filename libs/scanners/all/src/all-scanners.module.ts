@@ -50,6 +50,12 @@ import { KubeHunterScannerModule } from '@autoscanner/scanners-kube-hunter';
 import { KubeletctlScannerModule } from '@autoscanner/scanners-kubeletctl';
 import { S3scannerScannerModule } from '@autoscanner/scanners-s3scanner';
 import { CloudbruteScannerModule } from '@autoscanner/scanners-cloudbrute';
+import { MasscanScannerModule } from '@autoscanner/scanners-masscan';
+import { SshAuditScannerModule } from '@autoscanner/scanners-ssh-audit';
+import { NbtscanScannerModule } from '@autoscanner/scanners-nbtscan';
+import { RdpSecCheckScannerModule } from '@autoscanner/scanners-rdp-sec-check';
+import { AbuseipdbScannerModule } from '@autoscanner/scanners-abuseipdb';
+import { GreynoiseScannerModule } from '@autoscanner/scanners-greynoise';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -110,6 +116,12 @@ const SCANNER_MODULES = [
   KubeletctlScannerModule,
   S3scannerScannerModule,
   CloudbruteScannerModule,
+  MasscanScannerModule,
+  SshAuditScannerModule,
+  NbtscanScannerModule,
+  RdpSecCheckScannerModule,
+  AbuseipdbScannerModule,
+  GreynoiseScannerModule,
 ];
 
 @Module({

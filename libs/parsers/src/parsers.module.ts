@@ -46,6 +46,10 @@ import { S3scannerJsonParser } from './s3scanner-json';
 import { CloudbruteTextParser } from './cloudbrute-text';
 import { MasscanJsonParser } from './masscan-json/masscan-json.parser';
 import { SshAuditJsonParser } from './ssh-audit-json';
+import { NbtscanTextParser } from './nbtscan-text/nbtscan-text.parser';
+import { RdpSecCheckTextParser } from './rdp-sec-check-text/rdp-sec-check-text.parser';
+import { AbuseipdbJsonParser } from './abuseipdb-json/abuseipdb-json.parser';
+import { GreynoiseJsonParser } from './greynoise-json/greynoise-json.parser';
 
 @Global()
 @Module({
@@ -97,6 +101,10 @@ import { SshAuditJsonParser } from './ssh-audit-json';
     CloudbruteTextParser,
     MasscanJsonParser,
     SshAuditJsonParser,
+    NbtscanTextParser,
+    RdpSecCheckTextParser,
+    AbuseipdbJsonParser,
+    GreynoiseJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -146,6 +154,10 @@ import { SshAuditJsonParser } from './ssh-audit-json';
     CloudbruteTextParser,
     MasscanJsonParser,
     SshAuditJsonParser,
+    NbtscanTextParser,
+    RdpSecCheckTextParser,
+    AbuseipdbJsonParser,
+    GreynoiseJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -197,6 +209,10 @@ export class ParsersModule implements OnModuleInit {
     private readonly cloudbruteText: CloudbruteTextParser,
     private readonly masscanJson: MasscanJsonParser,
     private readonly sshAuditJson: SshAuditJsonParser,
+    private readonly nbtscanText: NbtscanTextParser,
+    private readonly rdpSecCheckText: RdpSecCheckTextParser,
+    private readonly abuseipdbJson: AbuseipdbJsonParser,
+    private readonly greynoise: GreynoiseJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -246,5 +262,9 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.cloudbruteText);
     this.registry.register(this.masscanJson);
     this.registry.register(this.sshAuditJson);
+    this.registry.register(this.nbtscanText);
+    this.registry.register(this.rdpSecCheckText);
+    this.registry.register(this.abuseipdbJson);
+    this.registry.register(this.greynoise);
   }
 }

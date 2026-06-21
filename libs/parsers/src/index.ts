@@ -46,4 +46,8 @@ export * from './s3scanner-json';
 export * from './cloudbrute-text';
 export * from './masscan-json/masscan-json.parser';
 export * from './ssh-audit-json';
+export * from './nbtscan-text/nbtscan-text.parser';
+export * from './rdp-sec-check-text/rdp-sec-check-text.parser';
+export * from './abuseipdb-json/abuseipdb-json.parser';
+export * from './greynoise-json/greynoise-json.parser';
 export * from './parsers.module';
