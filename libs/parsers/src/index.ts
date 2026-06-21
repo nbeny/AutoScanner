@@ -44,4 +44,6 @@ export * from './kube-hunter-json';
 export * from './kubeletctl-json';
 export * from './s3scanner-json';
 export * from './cloudbrute-text';
+export * from './masscan-json/masscan-json.parser';
+export * from './ssh-audit-json';
 export * from './parsers.module';

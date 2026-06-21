@@ -1,0 +1,18 @@
+{
+  "banner": { "protocol": "2.0", "software": "OpenSSH_7.4", "raw": "SSH-2.0-OpenSSH_7.4" },
+  "kex": [
+    { "algorithm": "diffie-hellman-group1-sha1", "notes": { "fail": ["using broken SHA-1 hash algorithm", "small modulus"] } },
+    { "algorithm": "curve25519-sha256@libssh.org", "notes": {} }
+  ],
+  "key": [
+    { "algorithm": "ssh-rsa", "keysize": 1024, "notes": { "fail": ["RSA key size is 1024 bits (< 2048 bits)"] } }
+  ],
+  "enc": [
+    { "algorithm": "3des-cbc", "notes": { "fail": ["using broken 3DES cipher"] } },
+    { "algorithm": "aes128-ctr", "notes": {} }
+  ],
+  "mac": [
+    { "algorithm": "hmac-md5", "notes": { "fail": ["using broken MD5 hash algorithm"] } },
+    { "algorithm": "hmac-sha2-256", "notes": {} }
+  ]
+}

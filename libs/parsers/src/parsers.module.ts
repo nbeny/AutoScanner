@@ -44,6 +44,8 @@ import { KubeHunterJsonParser } from './kube-hunter-json';
 import { KubeletctlJsonParser } from './kubeletctl-json';
 import { S3scannerJsonParser } from './s3scanner-json';
 import { CloudbruteTextParser } from './cloudbrute-text';
+import { MasscanJsonParser } from './masscan-json/masscan-json.parser';
+import { SshAuditJsonParser } from './ssh-audit-json';
 
 @Global()
 @Module({
@@ -93,6 +95,8 @@ import { CloudbruteTextParser } from './cloudbrute-text';
     KubeletctlJsonParser,
     S3scannerJsonParser,
     CloudbruteTextParser,
+    MasscanJsonParser,
+    SshAuditJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -140,6 +144,8 @@ import { CloudbruteTextParser } from './cloudbrute-text';
     KubeletctlJsonParser,
     S3scannerJsonParser,
     CloudbruteTextParser,
+    MasscanJsonParser,
+    SshAuditJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -189,6 +195,8 @@ export class ParsersModule implements OnModuleInit {
     private readonly kubeletctlJson: KubeletctlJsonParser,
     private readonly s3scannerJson: S3scannerJsonParser,
     private readonly cloudbruteText: CloudbruteTextParser,
+    private readonly masscanJson: MasscanJsonParser,
+    private readonly sshAuditJson: SshAuditJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -236,5 +244,7 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.kubeletctlJson);
     this.registry.register(this.s3scannerJson);
     this.registry.register(this.cloudbruteText);
+    this.registry.register(this.masscanJson);
+    this.registry.register(this.sshAuditJson);
   }
 }
