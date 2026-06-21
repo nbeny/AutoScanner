@@ -5,6 +5,7 @@ export enum EngagementUpdateKind {
   OBSERVATION_ADDED = 'OBSERVATION_ADDED',
   TEMPLATE_RUN_STATUS_CHANGED = 'TEMPLATE_RUN_STATUS_CHANGED',
   CVE_ENRICHED = 'CVE_ENRICHED',
+  SCAN_JOB_STATUS_CHANGED = 'SCAN_JOB_STATUS_CHANGED',
 }
 
 export interface EngagementUpdateEvent {
@@ -12,6 +13,7 @@ export interface EngagementUpdateEvent {
   engagementId: string;
   assetId?: string;
   templateRunId?: string;
+  scanJobId?: string;
   ts: string;
 }
 
