@@ -1,5 +1,15 @@
 import { Inject, UseGuards } from '@nestjs/common';
-import { Args, ID, Mutation, Query, Resolver, Subscription } from '@nestjs/graphql';
+import {
+  Args,
+  ID,
+  Int,
+  Mutation,
+  Parent,
+  Query,
+  ResolveField,
+  Resolver,
+  Subscription,
+} from '@nestjs/graphql';
 import type { User } from '@prisma/client';
 
 import {
@@ -12,6 +22,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RunScanInput } from './dto/run-scan.input';
 import { LogStreamKind, ScanLogChunkObject } from './dto/scan-log-chunk.object';
+import { ScanJobObject } from './dto/scan-job.object';
 import { ScanObject } from './dto/scan.object';
 import { ScansService } from './scans.service';
 
@@ -52,5 +63,15 @@ export class ScansResolver {
   })
   scanJobLogs(@Args('scanJobId', { type: () => ID }) scanJobId: string): AsyncIterable<LogChunk> {
     return this.logSubscriber.subscribe(scanJobId);
+  }
+}
+
+@Resolver(() => ScanJobObject)
+export class ScanJobFieldResolver {
+  constructor(private readonly scansService: ScansService) {}
+
+  @ResolveField(() => Int, { name: 'findingCount' })
+  async findingCount(@Parent() job: ScanJobObject): Promise<number> {
+    return this.scansService.countFindingsForJob(job.id);
   }
 }

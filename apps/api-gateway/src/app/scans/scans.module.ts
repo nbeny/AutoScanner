@@ -8,7 +8,7 @@ import { AllScannersModule } from '@autoscanner/scanners-all';
 
 import { AuthModule } from '../auth/auth.module';
 import { ScansController } from './scans.controller';
-import { ScansResolver } from './scans.resolver';
+import { ScanJobFieldResolver, ScansResolver } from './scans.resolver';
 import { ScansService } from './scans.service';
 
 import './dto/scan-status.enum';
@@ -24,6 +24,6 @@ import './dto/scan-log-chunk.object';
     BullModule.registerQueue({ name: QueueName.SCAN_JOBS }),
   ],
   controllers: [ScansController],
-  providers: [ScansService, ScansResolver],
+  providers: [ScansService, ScansResolver, ScanJobFieldResolver],
 })
 export class ScansModule {}

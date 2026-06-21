@@ -257,6 +257,13 @@ describe('ScansService.runScan', () => {
     });
   });
 
+  it('countFindingsForJob returns the prisma finding count', async () => {
+    (prisma as any).finding = { count: jest.fn().mockResolvedValue(3) };
+    const n = await svc.countFindingsForJob('job_1');
+    expect((prisma as any).finding.count).toHaveBeenCalledWith({ where: { scanJobId: 'job_1' } });
+    expect(n).toBe(3);
+  });
+
   describe('getRawOutputPresignedUrl', () => {
     const scanJobId = 'job_1';
     const rawKey = 'eng_1/scan_1/job_1/nmap-xml.xml';

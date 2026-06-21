@@ -41,4 +41,7 @@ export class ScanJobObject {
 
   @Field()
   createdAt!: Date;
+
+  @Field(() => Int)
+  findingCount!: number;
 }
