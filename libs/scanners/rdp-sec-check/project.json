@@ -1,0 +1,18 @@
+{
+  "name": "scanners-rdp-sec-check",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/rdp-sec-check/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/rdp-sec-check"],
+      "options": { "jestConfig": "libs/scanners/rdp-sec-check/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/rdp-sec-check/tsconfig.lib.json" }
+    }
+  }
+}

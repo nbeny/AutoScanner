@@ -1,0 +1,14 @@
+Starting rdp-sec-check v0.9-beta at Sat Jun 21 12:00:00 2026
+
+[+] Checking RDP Security Layer on 10.0.0.5:3389
+
+[*] Classic RDP encryption supported
+[!] NLA is NOT enforced
+[+] CredSSP supported (pre-auth NLA not mandatory)
+[*] Encryption level: MEDIUM
+
+[+] Summary of security settings:
+    ClassicRDP (no NLA): YES
+    NLA: NO
+    CredSSP: YES
+    Encryption Level: MEDIUM
