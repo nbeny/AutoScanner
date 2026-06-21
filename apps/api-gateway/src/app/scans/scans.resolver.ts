@@ -61,6 +61,22 @@ export class ScansResolver {
     return this.svc.listAllForOwner(user.id, filter) as unknown as Promise<ScanObject[]>;
   }
 
+  @Mutation(() => ScanJobObject)
+  async cancelScanJob(
+    @CurrentUser() user: User,
+    @Args('id', { type: () => ID }) id: string,
+  ): Promise<ScanJobObject> {
+    return this.svc.cancelScanJob(user.id, id) as unknown as Promise<ScanJobObject>;
+  }
+
+  @Mutation(() => ScanObject)
+  async cancelScan(
+    @CurrentUser() user: User,
+    @Args('id', { type: () => ID }) id: string,
+  ): Promise<ScanObject> {
+    return this.svc.cancelScan(user.id, id) as Promise<ScanObject>;
+  }
+
   @Subscription(() => ScanLogChunkObject, {
     name: 'scanJobLogs',
     resolve: (chunk: LogChunk): ScanLogChunkObject => ({

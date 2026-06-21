@@ -14,6 +14,8 @@ describe('ScansService.runScan', () => {
   let storage: jest.Mocked<ObjectStorage>;
   let registry: ScannerRegistry;
   let svc: ScansService;
+  let scanControl: { publishCancel: jest.Mock };
+  let events: { publish: jest.Mock };
 
   const userId = 'user_1';
   const engagementId = 'eng_1';
@@ -78,7 +80,10 @@ describe('ScansService.runScan', () => {
     registry = new ScannerRegistry();
     registry.register(NmapScanner);
 
-    svc = new ScansService(prisma, registry, scanQueue, storage);
+    scanControl = { publishCancel: jest.fn() };
+    events = { publish: jest.fn() };
+
+    svc = new ScansService(prisma, registry, scanQueue, storage, scanControl as any, events as any);
   });
 
   it('creates Scan + ScanJob, enqueues payload, returns Scan', async () => {
@@ -342,6 +347,52 @@ describe('ScansService.runScan', () => {
         NotFoundError,
       );
       expect(storage.presignGetUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cancelScanJob', () => {
+    it('cancelScanJob removes a queued job, sets CANCELLED and emits event', async () => {
+      const job = {
+        id: 'job_1',
+        scanId: 's1',
+        status: 'QUEUED',
+        scan: { engagementId: 'e1', engagement: { ownerId: userId } },
+      };
+      (prisma as any).scanJob = {
+        findFirst: jest.fn().mockResolvedValue(job),
+        update: jest.fn().mockResolvedValue({ ...job, status: 'CANCELLED' }),
+      };
+      const remove = jest.fn();
+      (scanQueue as any).getJob = jest.fn().mockResolvedValue({ remove });
+      await svc.cancelScanJob(userId, 'job_1');
+      expect((scanQueue as any).getJob).toHaveBeenCalledWith('job_1');
+      expect(remove).toHaveBeenCalled();
+      expect((prisma as any).scanJob.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'job_1' },
+          data: expect.objectContaining({ status: 'CANCELLED' }),
+        }),
+      );
+      expect(scanControl.publishCancel).toHaveBeenCalledWith('job_1');
+      expect(events.publish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'SCAN_JOB_STATUS_CHANGED',
+          engagementId: 'e1',
+          scanJobId: 'job_1',
+        }),
+      );
+    });
+
+    it('cancelScanJob is a no-op for an already terminal job', async () => {
+      const job = {
+        id: 'job_x',
+        scanId: 's1',
+        status: 'COMPLETED',
+        scan: { engagementId: 'e1', engagement: { ownerId: userId } },
+      };
+      (prisma as any).scanJob = { findFirst: jest.fn().mockResolvedValue(job), update: jest.fn() };
+      await svc.cancelScanJob(userId, 'job_x');
+      expect((prisma as any).scanJob.update).not.toHaveBeenCalled();
     });
   });
 });

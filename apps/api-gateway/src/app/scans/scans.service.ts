@@ -3,15 +3,21 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
-import type { Scan } from '@prisma/client';
+import type { Scan, ScanJob } from '@prisma/client';
 import { NotFoundError, ValidationError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import { QueueName, type ScanJobPayload } from '@autoscanner/queues';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
+import {
+  ENGAGEMENT_EVENTS_PUBLISHER,
+  EngagementUpdateKind,
+  type EngagementEventsPublisher,
+} from '@autoscanner/engagement-events';
 
 import { RunScanInput } from './dto/run-scan.input';
 import { ScansFilterInput } from './dto/scans-filter.input';
+import { ScanControlPublisher } from './scan-control.publisher';
 
 const RAW_OUTPUT_PRESIGN_TTL_SECONDS = 3600;
 
@@ -30,6 +36,8 @@ export class ScansService {
     @Inject(ScannerRegistry) private readonly registry: ScannerRegistry,
     @InjectQueue(QueueName.SCAN_JOBS) private readonly scanQueue: Queue<ScanJobPayload>,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly scanControl: ScanControlPublisher,
+    @Inject(ENGAGEMENT_EVENTS_PUBLISHER) private readonly events: EngagementEventsPublisher,
   ) {}
 
   async runScan(userId: string, input: RunScanInput): Promise<Scan> {
@@ -196,6 +204,73 @@ export class ScansService {
       expiresInSeconds: RAW_OUTPUT_PRESIGN_TTL_SECONDS,
     });
     return { url, key: job.rawOutputKey, expiresInSeconds: RAW_OUTPUT_PRESIGN_TTL_SECONDS };
+  }
+
+  async cancelScanJob(userId: string, jobId: string): Promise<ScanJob> {
+    const job = await this.prisma.scanJob.findFirst({
+      where: {
+        id: jobId,
+        scan: { engagement: { ownerId: userId, deletedAt: null } },
+      },
+      include: { scan: { include: { engagement: true } } },
+    });
+    if (!job) throw new NotFoundError('ScanJob', jobId);
+
+    if (this.isTerminal(job.status)) {
+      return job as ScanJob;
+    }
+
+    if (job.status === 'QUEUED') {
+      try {
+        const bullJob = await this.scanQueue.getJob(jobId);
+        if (bullJob) await bullJob.remove();
+      } catch {
+        // safe to ignore — job may not exist in the queue
+      }
+    }
+
+    const updated = await this.prisma.scanJob.update({
+      where: { id: jobId },
+      data: { status: 'CANCELLED', completedAt: new Date() },
+    });
+
+    await this.scanControl.publishCancel(jobId);
+
+    const engagementId = (job as any).scan.engagementId;
+    await this.events.publish({
+      kind: EngagementUpdateKind.SCAN_JOB_STATUS_CHANGED,
+      engagementId,
+      scanJobId: jobId,
+      ts: new Date().toISOString(),
+    });
+
+    return updated as ScanJob;
+  }
+
+  async cancelScan(userId: string, scanId: string): Promise<Scan> {
+    const scan = await this.prisma.scan.findFirst({
+      where: { id: scanId, engagement: { ownerId: userId, deletedAt: null } },
+      include: { jobs: true },
+    });
+    if (!scan) throw new NotFoundError('Scan', scanId);
+
+    const nonTerminalJobs = ((scan as any).jobs as Array<{ id: string; status: string }>).filter(
+      (j) => !this.isTerminal(j.status),
+    );
+
+    await Promise.all(nonTerminalJobs.map((j) => this.cancelScanJob(userId, j.id)));
+
+    const updated = await this.prisma.scan.update({
+      where: { id: scanId },
+      data: { status: 'CANCELLED' },
+      include: { jobs: true },
+    });
+
+    return updated as Scan;
+  }
+
+  private isTerminal(status: string): boolean {
+    return ['COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT'].includes(status);
   }
 
   private parseOptions(optionsJson: string | undefined): unknown {
