@@ -1,0 +1,4 @@
+10.0.0.5	DC01            	<00> -         	B <ACTIVE>
+10.0.0.5	CORP            	<00> - <GROUP> 	B <ACTIVE>
+10.0.0.5	DC01            	<20> -         	B <ACTIVE>
+10.0.0.5	00:50:56:ab:cd:ef
