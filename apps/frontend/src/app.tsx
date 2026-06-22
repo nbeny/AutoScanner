@@ -8,6 +8,7 @@ import { DashboardPage } from './features/dashboard/dashboard-page';
 import { EngagementPage } from './features/engagements/engagement-page';
 import { EngagementsListPage } from './features/engagements/engagements-list-page';
 import { ScanRunPage } from './features/scans/scan-run-page';
+import { ScanDetailPage } from './features/scans/scan-detail-page';
 import { TemplateRunPage } from './features/template-runs/template-run-page';
 import { AssetDetailPage } from './features/assets/asset-detail-page';
 import { SettingsPage } from './features/settings/settings-page';
@@ -60,6 +61,22 @@ function AppShell() {
           element={
             <RequireAuth>
               <ScanRunPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/scans/:scanId"
+          element={
+            <RequireAuth>
+              <ScanDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/engagements/:engagementId/scans/:scanId"
+          element={
+            <RequireAuth>
+              <ScanDetailPage />
             </RequireAuth>
           }
         />
