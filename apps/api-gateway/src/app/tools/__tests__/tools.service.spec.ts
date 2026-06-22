@@ -70,16 +70,14 @@ describe('ToolsService', () => {
   it('returns null medianDurationMs when no durationMs values exist', async () => {
     (prisma as any).engagement = { findFirst: jest.fn().mockResolvedValue(null) };
     (prisma as any).scanJob = {
-      findMany: jest
-        .fn()
-        .mockResolvedValue([
-          {
-            scannerName: 'masscan',
-            status: 'COMPLETED',
-            durationMs: null,
-            completedAt: new Date('2026-01-01'),
-          },
-        ]),
+      findMany: jest.fn().mockResolvedValue([
+        {
+          scannerName: 'masscan',
+          status: 'COMPLETED',
+          durationMs: null,
+          completedAt: new Date('2026-01-01'),
+        },
+      ]),
     };
     (prisma as any).finding = { findMany: jest.fn().mockResolvedValue([]) };
     // no engagementId → no ownership check
@@ -124,5 +122,52 @@ describe('ToolsService', () => {
     (prisma as any).finding = { findMany: jest.fn().mockResolvedValue([]) };
     await svc.toolActivity(userId, {});
     expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it('coverageMatrix aggregates observations by asset type and scanner', async () => {
+    (prisma as any).engagement = { findFirst: jest.fn().mockResolvedValue({ id: 'e1' }) };
+    (prisma as any).assetObservation = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          scannerName: 'nmap',
+          observedAt: new Date('2026-01-02'),
+          assetId: 'a1',
+          asset: { type: 'IP_ADDRESS' },
+        },
+        {
+          scannerName: 'nmap',
+          observedAt: new Date('2026-01-03'),
+          assetId: 'a2',
+          asset: { type: 'IP_ADDRESS' },
+        },
+      ]),
+    };
+    const res = await svc.coverageMatrix(userId, { engagementId: 'e1' });
+    const cell = res.find((c) => c.assetType === 'IP_ADDRESS' && c.scannerName === 'nmap');
+    expect(cell).toMatchObject({ observationCount: 2, assetCount: 2 });
+  });
+
+  it('assetCoverage returns per-asset tool rows filtered by type', async () => {
+    (prisma as any).engagement = { findFirst: jest.fn().mockResolvedValue({ id: 'e1' }) };
+    (prisma as any).assetObservation = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          scannerName: 'nmap',
+          observedAt: new Date('2026-01-02'),
+          assetId: 'a1',
+          asset: { type: 'IP_ADDRESS', value: '1.1.1.1' },
+        },
+      ]),
+    };
+    const res = await svc.assetCoverage(userId, { engagementId: 'e1' }, 'IP_ADDRESS');
+    expect(res).toEqual([
+      expect.objectContaining({
+        assetId: 'a1',
+        assetValue: '1.1.1.1',
+        assetType: 'IP_ADDRESS',
+        scannerName: 'nmap',
+        observationCount: 1,
+      }),
+    ]);
   });
 });
