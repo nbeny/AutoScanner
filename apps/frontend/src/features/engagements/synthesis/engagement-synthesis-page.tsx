@@ -6,6 +6,7 @@ import { TopAssetsList } from './top-assets-list';
 import { TopFindingsList } from './top-findings-list';
 import { GenerateReportButton } from '../../reports/generate-report-button';
 import { RecentReportsPanel } from '../../reports/recent-reports-panel';
+import { EngagementTrendPanel } from './engagement-trend-panel';
 
 export function EngagementSynthesisPage({ engagementId }: { engagementId: string }) {
   return (
@@ -46,6 +47,10 @@ export function EngagementSynthesisPage({ engagementId }: { engagementId: string
 
       <div aria-label="recent-reports-container">
         <RecentReportsPanel engagementId={engagementId} />
+      </div>
+
+      <div aria-label="engagement-trend-panel-container">
+        <EngagementTrendPanel engagementId={engagementId} />
       </div>
     </div>
   );

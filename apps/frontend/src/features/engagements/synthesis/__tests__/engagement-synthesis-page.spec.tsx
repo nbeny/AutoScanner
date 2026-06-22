@@ -3,10 +3,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { MockedProvider } from '@apollo/client/testing';
 import { render, screen, waitFor } from '@testing-library/react';
 import {
+  COVERAGE_SUMMARY_QUERY,
   ENGAGEMENT_OVERVIEW_QUERY,
   RECENT_TEMPLATE_RUNS_QUERY,
   REPORTS_QUERY,
   REPORT_TEMPLATES_QUERY,
+  SEVERITY_TREND_QUERY,
   TOP_ASSETS_QUERY,
   TOP_FINDINGS_QUERY,
 } from '../../../../lib/graphql/queries';
@@ -57,6 +59,26 @@ const mocks = [
   {
     request: { query: REPORTS_QUERY, variables: { engagementId } },
     result: { data: { reports: [] } },
+  },
+  {
+    request: {
+      query: SEVERITY_TREND_QUERY,
+      variables: { engagementId, range: { days: 30 } },
+    },
+    result: { data: { severityTrend: [] } },
+  },
+  {
+    request: { query: COVERAGE_SUMMARY_QUERY, variables: { engagementId } },
+    result: {
+      data: {
+        coverageSummary: {
+          __typename: 'CoverageSummaryObject',
+          totalAssets: 10,
+          scannedAssets: 5,
+          percent: 50,
+        },
+      },
+    },
   },
 ];
 
