@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ToolsGrid } from './tools-grid';
 import { CoverageHeatmap } from './coverage-heatmap';
+import { ToolDetailDrawer } from './tool-detail-drawer';
 
 function ScopeBadge({ engagementId }: { engagementId?: string }) {
   return (
@@ -16,8 +17,6 @@ export function ToolsSectionPage({ engagementId: propId }: { engagementId?: stri
   const engagementId = propId ?? params.engagementId;
 
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
-  // Suppress unused-variable warning until drawer (FT4) is wired in
-  void selectedTool;
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-4" aria-label="tools-section">
@@ -30,6 +29,11 @@ export function ToolsSectionPage({ engagementId: propId }: { engagementId?: stri
         <h2 className="text-lg font-semibold text-slate-200">Couverture</h2>
         <CoverageHeatmap engagementId={engagementId} />
       </section>
+      <ToolDetailDrawer
+        scannerName={selectedTool}
+        engagementId={engagementId}
+        onClose={() => setSelectedTool(null)}
+      />
     </div>
   );
 }
