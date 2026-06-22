@@ -11,6 +11,7 @@ import type { CorrelatedFindingsFilterInput } from './dto/correlated-findings-fi
 type CorrelatedFindingRow = {
   id: string;
   assetId: string;
+  engagementId: string;
   structuralHash: string;
   category: string | null;
   title: string;
@@ -40,6 +41,7 @@ export class CorrelatedFindingsService {
     return {
       id: row.id,
       assetId: row.assetId,
+      engagementId: row.engagementId,
       structuralHash: row.structuralHash,
       category: row.category,
       title: row.title,
@@ -313,5 +315,13 @@ export class CorrelatedFindingsService {
       status: row.status,
       cvss: null,
     });
+  }
+
+  async getAssetValue(assetId: string): Promise<string | null> {
+    const a = await this.prisma.asset.findUnique({
+      where: { id: assetId },
+      select: { value: true },
+    });
+    return a?.value ?? null;
   }
 }

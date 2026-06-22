@@ -10,6 +10,12 @@ export class CorrelatedFindingObject {
   @Field(() => ID)
   assetId!: string;
 
+  @Field(() => ID)
+  engagementId!: string;
+
+  @Field(() => String, { nullable: true })
+  assetValue?: string | null;
+
   @Field()
   structuralHash!: string;
 

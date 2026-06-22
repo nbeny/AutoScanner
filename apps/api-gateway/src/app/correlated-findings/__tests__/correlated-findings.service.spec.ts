@@ -14,6 +14,7 @@ describe('CorrelatedFindingsService', () => {
   const makeRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: correlatedId,
     assetId: 'asset_1',
+    engagementId,
     structuralHash: 'hash_abc',
     category: 'SQLI',
     title: 'SQL Injection',
@@ -320,6 +321,18 @@ describe('CorrelatedFindingsService', () => {
       expect(prisma.correlatedFinding.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ take: 100, skip: 0 }),
       );
+    });
+  });
+
+  describe('getAssetValue', () => {
+    it('getAssetValue returns the asset value', async () => {
+      (prisma as any).asset = { findUnique: jest.fn().mockResolvedValue({ value: 'example.com' }) };
+      const v = await svc.getAssetValue('a1');
+      expect((prisma as any).asset.findUnique).toHaveBeenCalledWith({
+        where: { id: 'a1' },
+        select: { value: true },
+      });
+      expect(v).toBe('example.com');
     });
   });
 

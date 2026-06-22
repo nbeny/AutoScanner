@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { Args, ID, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, ID, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
 import { CorrelatedFindingDetailObject } from './dto/correlated-finding-detail.object';
 import type { User } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -71,5 +71,15 @@ export class CorrelatedFindingsResolver {
     @Args('remediation', { type: () => String }) remediation: string,
   ): Promise<CorrelatedFindingObject> {
     return this.svc.setRemediation(user.id, id, remediation);
+  }
+}
+
+@Resolver(() => CorrelatedFindingObject)
+export class CorrelatedFindingFieldResolver {
+  constructor(private readonly svc: CorrelatedFindingsService) {}
+
+  @ResolveField(() => String, { name: 'assetValue', nullable: true })
+  assetValue(@Parent() cf: CorrelatedFindingObject): Promise<string | null> {
+    return this.svc.getAssetValue(cf.assetId);
   }
 }
