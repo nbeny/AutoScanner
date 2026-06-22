@@ -937,3 +937,75 @@ export const ALL_CORRELATED_FINDINGS_QUERY = gql`
     }
   }
 `;
+
+export const TOOL_ACTIVITY_QUERY = gql`
+  query ToolActivity($engagementId: ID) {
+    toolActivity(engagementId: $engagementId) {
+      scannerName
+      totalExecutions
+      successCount
+      failureCount
+      medianDurationMs
+      totalFindings
+      lastRunAt
+      findingsBySeverity {
+        critical
+        high
+        medium
+        low
+        info
+      }
+    }
+  }
+`;
+
+export const COVERAGE_MATRIX_QUERY = gql`
+  query CoverageMatrix($engagementId: ID) {
+    coverageMatrix(engagementId: $engagementId) {
+      assetType
+      scannerName
+      observationCount
+      assetCount
+      lastObservedAt
+    }
+  }
+`;
+
+export const ASSET_COVERAGE_QUERY = gql`
+  query AssetCoverage($engagementId: ID, $assetType: String) {
+    assetCoverage(engagementId: $engagementId, assetType: $assetType) {
+      assetId
+      assetValue
+      assetType
+      scannerName
+      observationCount
+      lastObservedAt
+    }
+  }
+`;
+
+export const TOOL_DETAIL_QUERY = gql`
+  query ToolDetail($engagementId: ID, $scannerName: String!) {
+    toolDetail(engagementId: $engagementId, scannerName: $scannerName) {
+      scannerName
+      runs {
+        scanJobId
+        status
+        durationMs
+        exitCode
+        errorMessage
+        completedAt
+        agentId
+      }
+      recurringErrors {
+        message
+        count
+      }
+      agents {
+        agentId
+        executions
+        successCount
+      }
+    }
+  }
+`;
