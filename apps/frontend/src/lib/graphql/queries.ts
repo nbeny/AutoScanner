@@ -567,6 +567,7 @@ export const CORRELATED_FINDINGS_QUERY = gql`
   query EngagementCorrelatedFindings($engagementId: ID!) {
     correlatedFindings(engagementId: $engagementId) {
       id
+      engagementId
       title
       severity
       cveId
@@ -575,6 +576,7 @@ export const CORRELATED_FINDINGS_QUERY = gql`
       sources
       riskScore
       assetId
+      assetValue
       lastSeenAt
     }
   }
@@ -913,6 +915,25 @@ export const RETRY_SCAN_JOB_MUTATION = gql`
     retryScanJob(id: $id) {
       id
       status
+    }
+  }
+`;
+
+export const ALL_CORRELATED_FINDINGS_QUERY = gql`
+  query AllCorrelatedFindings($filter: CorrelatedFindingsFilterInput) {
+    allCorrelatedFindings(filter: $filter) {
+      id
+      engagementId
+      title
+      severity
+      cveId
+      status
+      sourceCount
+      sources
+      riskScore
+      assetId
+      assetValue
+      lastSeenAt
     }
   }
 `;
