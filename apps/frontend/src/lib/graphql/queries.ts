@@ -55,6 +55,7 @@ export const SCAN_QUERY = gql`
         target
         status
         rawOutputKey
+        findingCount
       }
     }
   }
@@ -851,6 +852,67 @@ export const SET_FINDING_REMEDIATION = gql`
   mutation SetFindingRemediation($id: ID!, $remediation: String!) {
     setFindingRemediation(id: $id, remediation: $remediation) {
       id
+    }
+  }
+`;
+
+export const ALL_SCANS_QUERY = gql`
+  query AllScans($filter: ScansFilterInput) {
+    allScans(filter: $filter) {
+      id
+      engagementId
+      name
+      status
+      createdAt
+      completedAt
+      jobs {
+        id
+        scannerName
+        target
+        status
+        durationMs
+        exitCode
+        errorMessage
+        startedAt
+        completedAt
+        findingCount
+      }
+    }
+  }
+`;
+
+export const CANCEL_SCAN_MUTATION = gql`
+  mutation CancelScan($id: ID!) {
+    cancelScan(id: $id) {
+      id
+      status
+    }
+  }
+`;
+
+export const CANCEL_SCAN_JOB_MUTATION = gql`
+  mutation CancelScanJob($id: ID!) {
+    cancelScanJob(id: $id) {
+      id
+      status
+    }
+  }
+`;
+
+export const RETRY_SCAN_MUTATION = gql`
+  mutation RetryScan($id: ID!) {
+    retryScan(id: $id) {
+      id
+      status
+    }
+  }
+`;
+
+export const RETRY_SCAN_JOB_MUTATION = gql`
+  mutation RetryScanJob($id: ID!) {
+    retryScanJob(id: $id) {
+      id
+      status
     }
   }
 `;
