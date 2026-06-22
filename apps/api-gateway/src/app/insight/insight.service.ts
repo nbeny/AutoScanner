@@ -3,6 +3,7 @@ import { NotFoundError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import {
   type ActivityItem,
+  type CoverageSummary,
   type EngagementOverview,
   type EngagementSummary,
   type GlobalOverview,
@@ -10,6 +11,7 @@ import {
   type SeverityTrendBucket,
   type TopAsset,
   type TopFinding,
+  getCoverageSummary,
   getEngagementOverview,
   getEngagementSummaries,
   getGlobalOverview,
@@ -85,5 +87,10 @@ export class InsightService {
   ): Promise<SeverityTrendBucket[]> {
     if (engagementId) await this.assertOwnership(userId, engagementId);
     return getSeverityTrend(this.prisma, userId, engagementId, range?.days ?? 30);
+  }
+
+  async coverageSummary(userId: string, engagementId?: string): Promise<CoverageSummary> {
+    if (engagementId) await this.assertOwnership(userId, engagementId);
+    return getCoverageSummary(this.prisma, userId, engagementId);
   }
 }

@@ -5,6 +5,7 @@ import type { User } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ActivityItemObject } from './dto/activity-item.object';
+import { CoverageSummaryObject } from './dto/coverage-summary.object';
 import { EngagementOverviewObject } from './dto/engagement-overview.object';
 import { EngagementSummaryObject } from './dto/engagement-summary.object';
 import { GlobalOverviewObject } from './dto/global-overview.object';
@@ -84,5 +85,13 @@ export class InsightResolver {
     return this.svc.severityTrend(user.id, engagementId, range) as Promise<
       SeverityTrendBucketObject[]
     >;
+  }
+
+  @Query(() => CoverageSummaryObject)
+  coverageSummary(
+    @CurrentUser() user: User,
+    @Args('engagementId', { type: () => ID, nullable: true }) engagementId?: string,
+  ): Promise<CoverageSummaryObject> {
+    return this.svc.coverageSummary(user.id, engagementId) as Promise<CoverageSummaryObject>;
   }
 }

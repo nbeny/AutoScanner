@@ -159,6 +159,47 @@ describe('InsightService', () => {
     });
   });
 
+  describe('coverageSummary', () => {
+    const fakeSummary = { totalAssets: 4, scannedAssets: 2, percent: 50 };
+
+    it('delegates to getCoverageSummary with prisma + userId + engagementId', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (insightLib.getCoverageSummary as jest.Mock).mockResolvedValueOnce(fakeSummary);
+
+      const result = await svc.coverageSummary(userId, engagementId);
+
+      expect(insightLib.getCoverageSummary).toHaveBeenCalledWith(prisma, userId, engagementId);
+      expect(result).toBe(fakeSummary);
+    });
+
+    it('checks ownership when engagementId is provided', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (insightLib.getCoverageSummary as jest.Mock).mockResolvedValueOnce(fakeSummary);
+
+      await svc.coverageSummary(userId, engagementId);
+
+      expect(prisma.engagement.findFirst).toHaveBeenCalledWith({
+        where: { id: engagementId, ownerId: userId, deletedAt: null },
+        select: { id: true },
+      });
+    });
+
+    it('throws NotFoundError when engagement not owned', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      await expect(svc.coverageSummary(userId, engagementId)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it('skips ownership check when engagementId is omitted', async () => {
+      (insightLib.getCoverageSummary as jest.Mock).mockResolvedValueOnce(fakeSummary);
+
+      const result = await svc.coverageSummary(userId);
+
+      expect(prisma.engagement.findFirst).not.toHaveBeenCalled();
+      expect(insightLib.getCoverageSummary).toHaveBeenCalledWith(prisma, userId, undefined);
+      expect(result).toBe(fakeSummary);
+    });
+  });
+
   describe('cross-engagement queries', () => {
     it('globalOverview delegates with prisma + userId, no ownership check', async () => {
       const fake = { engagementsByStatus: { total: 0 } };

@@ -14,3 +14,5 @@ export { getEngagementSummaries } from './get-engagement-summaries';
 export type { EngagementSummary } from './get-engagement-summaries';
 export { getSeverityTrend } from './get-severity-trend';
 export type { SeverityTrendBucket } from './get-severity-trend';
+export { getCoverageSummary } from './get-coverage-summary';
+export type { CoverageSummary } from './get-coverage-summary';
