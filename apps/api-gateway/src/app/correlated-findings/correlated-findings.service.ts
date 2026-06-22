@@ -6,6 +6,7 @@ import { clusterWeight } from '@autoscanner/correlation';
 import { CorrelatedFindingObject } from './dto/correlated-finding.object';
 import { CorrelatedFindingDetailObject } from './dto/correlated-finding-detail.object';
 import { FindingStatus } from './dto/finding-status.enum';
+import type { CorrelatedFindingsFilterInput } from './dto/correlated-findings-filter.input';
 
 type CorrelatedFindingRow = {
   id: string;
@@ -53,31 +54,16 @@ export class CorrelatedFindingsService {
     };
   }
 
-  async list(
-    userId: string,
-    engagementId: string,
-    opts: {
-      severity?: Severity | null;
-      status?: FindingStatus | null;
-      search?: string | null;
-      limit?: number;
-      offset?: number;
-    } = {},
+  private async fetchScoredRows(
+    where: Record<string, unknown>,
+    limit: number,
+    offset: number,
   ): Promise<CorrelatedFindingObject[]> {
-    await this.assertEngagementOwned(userId, engagementId);
-
-    const { severity, status, search, limit, offset } = opts;
-
     const rows = (await this.prisma.correlatedFinding.findMany({
-      where: {
-        engagementId,
-        ...(severity ? { severity } : {}),
-        ...(status ? { status } : {}),
-        ...(search ? { title: { contains: search, mode: 'insensitive' } } : {}),
-      },
+      where,
       orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }],
-      take: limit ?? 100,
-      skip: offset ?? 0,
+      take: limit,
+      skip: offset,
       include: {
         findings: {
           select: {
@@ -112,6 +98,48 @@ export class CorrelatedFindingsService {
     );
 
     return scored.map(({ row, riskScore }) => this.mapRow(row, riskScore));
+  }
+
+  async list(
+    userId: string,
+    engagementId: string,
+    opts: {
+      severity?: Severity | null;
+      status?: FindingStatus | null;
+      search?: string | null;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<CorrelatedFindingObject[]> {
+    await this.assertEngagementOwned(userId, engagementId);
+
+    const { severity, status, search, limit, offset } = opts;
+
+    const where = {
+      engagementId,
+      ...(severity ? { severity } : {}),
+      ...(status ? { status } : {}),
+      ...(search ? { title: { contains: search, mode: 'insensitive' } } : {}),
+    };
+
+    return this.fetchScoredRows(where, limit ?? 100, offset ?? 0);
+  }
+
+  async listAllForOwner(
+    userId: string,
+    filter?: CorrelatedFindingsFilterInput,
+  ): Promise<CorrelatedFindingObject[]> {
+    const { engagementId, severity, status, search, limit, offset } = filter ?? {};
+
+    const where = {
+      engagement: { ownerId: userId, deletedAt: null },
+      ...(engagementId ? { engagementId } : {}),
+      ...(severity ? { severity } : {}),
+      ...(status ? { status } : {}),
+      ...(search ? { title: { contains: search, mode: 'insensitive' } } : {}),
+    };
+
+    return this.fetchScoredRows(where, limit ?? 100, offset ?? 0);
   }
 
   async setStatus(

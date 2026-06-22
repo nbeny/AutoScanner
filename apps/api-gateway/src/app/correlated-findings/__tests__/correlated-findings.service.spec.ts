@@ -242,6 +242,87 @@ describe('CorrelatedFindingsService', () => {
     });
   });
 
+  describe('listAllForOwner', () => {
+    it('listAllForOwner scopes by owner and applies status filter across engagements', async () => {
+      const row = makeRow({ id: 'cf1', status: FindingStatus.OPEN });
+      (prisma.correlatedFinding.findMany as jest.Mock).mockResolvedValueOnce([row]);
+
+      const res = await svc.listAllForOwner(userId, {
+        status: FindingStatus.OPEN,
+        limit: 50,
+        offset: 0,
+      });
+
+      expect(prisma.correlatedFinding.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: FindingStatus.OPEN,
+            engagement: { ownerId: userId, deletedAt: null },
+          }),
+          take: 50,
+          skip: 0,
+        }),
+      );
+      expect(res).toHaveLength(1);
+      expect(res[0].id).toBe('cf1');
+    });
+
+    it('applies engagementId filter when provided', async () => {
+      (prisma.correlatedFinding.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.listAllForOwner(userId, { engagementId: 'eng_42' });
+
+      expect(prisma.correlatedFinding.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            engagementId: 'eng_42',
+            engagement: { ownerId: userId, deletedAt: null },
+          }),
+        }),
+      );
+    });
+
+    it('applies severity filter when provided', async () => {
+      (prisma.correlatedFinding.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.listAllForOwner(userId, { severity: Severity.CRITICAL });
+
+      expect(prisma.correlatedFinding.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            severity: Severity.CRITICAL,
+            engagement: { ownerId: userId, deletedAt: null },
+          }),
+        }),
+      );
+    });
+
+    it('applies title search filter when search is provided', async () => {
+      (prisma.correlatedFinding.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.listAllForOwner(userId, { search: 'xss' });
+
+      expect(prisma.correlatedFinding.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            title: { contains: 'xss', mode: 'insensitive' },
+            engagement: { ownerId: userId, deletedAt: null },
+          }),
+        }),
+      );
+    });
+
+    it('uses default limit 100 and offset 0 when not provided', async () => {
+      (prisma.correlatedFinding.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.listAllForOwner(userId);
+
+      expect(prisma.correlatedFinding.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 100, skip: 0 }),
+      );
+    });
+  });
+
   describe('getDetail', () => {
     it('returns full detail with cvss, evidence, sources, and status history', async () => {
       (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });

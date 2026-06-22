@@ -8,6 +8,7 @@ import { Severity } from '../findings/dto/severity.enum';
 import { CorrelatedFindingsService } from './correlated-findings.service';
 import { CorrelatedFindingObject } from './dto/correlated-finding.object';
 import { FindingStatus } from './dto/finding-status.enum';
+import { CorrelatedFindingsFilterInput } from './dto/correlated-findings-filter.input';
 
 @Resolver(() => CorrelatedFindingObject)
 @UseGuards(JwtAuthGuard)
@@ -25,6 +26,15 @@ export class CorrelatedFindingsResolver {
     @Args('offset', { type: () => Int, defaultValue: 0 }) offset?: number,
   ): Promise<CorrelatedFindingObject[]> {
     return this.svc.list(user.id, engagementId, { severity, status, search, limit, offset });
+  }
+
+  @Query(() => [CorrelatedFindingObject], { name: 'allCorrelatedFindings' })
+  allCorrelatedFindings(
+    @CurrentUser() user: User,
+    @Args('filter', { type: () => CorrelatedFindingsFilterInput, nullable: true })
+    filter?: CorrelatedFindingsFilterInput,
+  ): Promise<CorrelatedFindingObject[]> {
+    return this.svc.listAllForOwner(user.id, filter);
   }
 
   @Query(() => CorrelatedFindingDetailObject)
