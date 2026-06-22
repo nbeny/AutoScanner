@@ -7,6 +7,7 @@ import { rawOutputUrl } from '../../lib/api-rest';
 import { LiveLogsPane } from './live-logs-pane';
 import { AssetsTable } from './assets-table';
 import { NewTemplateRunForm } from '../template-runs/new-template-run-form';
+import { ScannerSelect } from './scanner-select';
 
 interface RunScanResult {
   runScan: {
@@ -119,15 +120,10 @@ export function ScanRunPage() {
         className="bg-slate-900 p-4 rounded grid grid-cols-1 md:grid-cols-4 gap-3 items-end"
         aria-label="run-scan"
       >
-        <label>
-          <span className="block text-xs text-slate-300">Scanner</span>
-          <input
-            className="mt-1 w-full bg-slate-800 rounded px-2 py-1"
-            value={scanner}
-            onChange={(e) => setScanner(e.target.value)}
-            required
-          />
-        </label>
+        <div className="md:col-span-4">
+          <span className="block text-xs text-slate-300 mb-1">Scanner</span>
+          <ScannerSelect value={scanner} onChange={setScanner} />
+        </div>
         <label className="md:col-span-2">
           <span className="block text-xs text-slate-300">Target</span>
           <input
