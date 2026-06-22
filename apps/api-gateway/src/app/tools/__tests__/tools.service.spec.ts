@@ -170,4 +170,38 @@ describe('ToolsService', () => {
       }),
     ]);
   });
+
+  it('toolDetail returns run history, recurring errors and agent stats', async () => {
+    (prisma as any).engagement = { findFirst: jest.fn().mockResolvedValue({ id: 'e1' }) };
+    (prisma as any).scanJob = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: 'j1',
+          status: 'FAILED',
+          durationMs: 10,
+          exitCode: 1,
+          errorMessage: 'boom',
+          completedAt: new Date(),
+          agentId: 'ag1',
+        },
+        {
+          id: 'j2',
+          status: 'COMPLETED',
+          durationMs: 20,
+          exitCode: 0,
+          errorMessage: null,
+          completedAt: new Date(),
+          agentId: 'ag1',
+        },
+      ]),
+    };
+    const res = await svc.toolDetail(userId, { engagementId: 'e1' }, 'nmap', 50);
+    expect(res.runs).toHaveLength(2);
+    expect(res.runs[0]).toMatchObject({ scanJobId: 'j1', status: 'FAILED' });
+    expect(res.recurringErrors).toEqual([{ message: 'boom', count: 1 }]);
+    expect(res.agents.find((a) => a.agentId === 'ag1')).toMatchObject({
+      executions: 2,
+      successCount: 1,
+    });
+  });
 });
