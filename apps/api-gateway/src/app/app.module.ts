@@ -31,6 +31,7 @@ import { ReportsModule } from './reports/reports.module';
 import { ScansModule } from './scans/scans.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { TemplatesModule } from './templates/templates.module';
+import { ToolsModule } from './tools/tools.module';
 import { UsersModule } from './users/users.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 
@@ -92,6 +93,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     ScansModule,
     SchedulesModule,
     TemplatesModule,
+    ToolsModule,
     UsersModule,
     WebhooksModule,
   ],
