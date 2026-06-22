@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom';
+import { ScansList } from './scans-list';
 
 function ScopeBadge({ engagementId }: { engagementId?: string }) {
   return (
@@ -17,9 +18,7 @@ export function ScansSectionPage({ engagementId: propId }: { engagementId?: stri
         <h1 className="text-2xl font-semibold">Scans</h1>
         <ScopeBadge engagementId={engagementId} />
       </header>
-      <p className="text-slate-500 text-sm">
-        Centre de contrôle des scans — bientôt disponible (P1).
-      </p>
+      <ScansList engagementId={engagementId} />
     </div>
   );
 }
