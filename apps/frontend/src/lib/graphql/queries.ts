@@ -1009,3 +1009,28 @@ export const TOOL_DETAIL_QUERY = gql`
     }
   }
 `;
+
+export const SEVERITY_TREND_QUERY = gql`
+  query SeverityTrend($engagementId: ID, $range: TrendRangeInput) {
+    severityTrend(engagementId: $engagementId, range: $range) {
+      bucketDate
+      counts {
+        critical
+        high
+        medium
+        low
+        info
+      }
+    }
+  }
+`;
+
+export const COVERAGE_SUMMARY_QUERY = gql`
+  query CoverageSummary($engagementId: ID) {
+    coverageSummary(engagementId: $engagementId) {
+      totalAssets
+      scannedAssets
+      percent
+    }
+  }
+`;
