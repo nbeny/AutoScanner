@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { MockedProvider } from '@apollo/client/testing';
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
-import { GLOBAL_OVERVIEW_QUERY } from '../../../lib/graphql/queries';
+import {
+  GLOBAL_OVERVIEW_QUERY,
+  SEVERITY_TREND_QUERY,
+  COVERAGE_SUMMARY_QUERY,
+  TOOL_ACTIVITY_QUERY,
+} from '../../../lib/graphql/queries';
 import { DashboardOverview } from '../dashboard-overview';
 
-function mock(overview: Record<string, unknown>) {
+function mockOverview(overview: Record<string, unknown>) {
   return {
     request: { query: GLOBAL_OVERVIEW_QUERY },
     result: {
@@ -42,10 +48,65 @@ function mock(overview: Record<string, unknown>) {
   };
 }
 
+const trendMock = {
+  request: {
+    query: SEVERITY_TREND_QUERY,
+    variables: { engagementId: null, range: { days: 30 } },
+  },
+  result: {
+    data: {
+      severityTrend: [],
+    },
+  },
+};
+
+const coverageMock = {
+  request: {
+    query: COVERAGE_SUMMARY_QUERY,
+    variables: { engagementId: null },
+  },
+  result: {
+    data: {
+      coverageSummary: {
+        __typename: 'CoverageSummaryObject',
+        totalAssets: 0,
+        scannedAssets: 0,
+        percent: 0,
+      },
+    },
+  },
+};
+
+const toolActivityMock = {
+  request: {
+    query: TOOL_ACTIVITY_QUERY,
+    variables: { engagementId: null },
+  },
+  result: {
+    data: {
+      toolActivity: [],
+    },
+  },
+};
+
+// TOOL_ACTIVITY_QUERY is used by two cards; Apollo dedupes in-flight requests
+// but MockedProvider needs one mock per response expected.
+const toolActivityMock2 = {
+  request: {
+    query: TOOL_ACTIVITY_QUERY,
+    variables: { engagementId: null },
+  },
+  result: {
+    data: {
+      toolActivity: [],
+    },
+  },
+};
+
 describe('<DashboardOverview />', () => {
   it('renders KPI tiles, attack surface and severity donut from globalOverview', async () => {
     const mocks = [
-      mock({
+      mockOverview({
         engagementsByStatus: {
           __typename: 'EngagementsByStatusObject',
           draft: 1,
@@ -67,11 +128,17 @@ describe('<DashboardOverview />', () => {
           info: 0,
         },
       }),
+      trendMock,
+      coverageMock,
+      toolActivityMock,
+      toolActivityMock2,
     ];
 
     render(
       <MockedProvider mocks={mocks}>
-        <DashboardOverview />
+        <MemoryRouter>
+          <DashboardOverview />
+        </MemoryRouter>
       </MockedProvider>,
     );
 
@@ -84,8 +151,12 @@ describe('<DashboardOverview />', () => {
 
   it('renders the empty severity state when there are no findings', async () => {
     render(
-      <MockedProvider mocks={[mock({})]}>
-        <DashboardOverview />
+      <MockedProvider
+        mocks={[mockOverview({}), trendMock, coverageMock, toolActivityMock, toolActivityMock2]}
+      >
+        <MemoryRouter>
+          <DashboardOverview />
+        </MemoryRouter>
       </MockedProvider>,
     );
     await waitFor(() => expect(screen.getByText(/No findings yet/i)).toBeInTheDocument());

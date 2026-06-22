@@ -1,6 +1,11 @@
 import { useQuery } from '@apollo/client';
+import { Link } from 'react-router-dom';
 import { GLOBAL_OVERVIEW_QUERY } from '../../lib/graphql/queries';
 import { SeverityDonutChart, type SeverityCounts } from '../../components/severity-donut-chart';
+import { SeverityTrendCard } from './severity-trend-card';
+import { TopToolsCard } from './top-tools-card';
+import { CoverageKpiCard } from './coverage-kpi-card';
+import { ToolCategoryBreakdownCard } from './tool-category-breakdown-card';
 
 interface EngagementsByStatus {
   draft: number;
@@ -69,11 +74,19 @@ export function DashboardOverview() {
           value={o.engagementsByStatus.total}
           hint={`${o.engagementsByStatus.active} active`}
         />
-        <Kpi label="Open findings" value={openFindings} />
-        <Kpi label="Critical" value={sev.critical} />
-        <Kpi label="High" value={sev.high} />
+        <Link to="/vulnerabilities" className="flex-1 min-w-[8rem]">
+          <Kpi label="Open findings" value={openFindings} />
+        </Link>
+        <Link to="/vulnerabilities" className="flex-1 min-w-[8rem]">
+          <Kpi label="Critical" value={sev.critical} />
+        </Link>
+        <Link to="/vulnerabilities" className="flex-1 min-w-[8rem]">
+          <Kpi label="High" value={sev.high} />
+        </Link>
         <Kpi label="Active schedules" value={o.activeSchedules} />
-        <Kpi label="Running scans" value={o.runningScans} />
+        <Link to="/scans" className="flex-1 min-w-[8rem]">
+          <Kpi label="Running scans" value={o.runningScans} />
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -92,6 +105,18 @@ export function DashboardOverview() {
           </div>
         </div>
       </div>
+
+      {/* Full-width severity trend */}
+      <SeverityTrendCard />
+
+      {/* 2-col grid: top tools + coverage KPI */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <TopToolsCard />
+        <CoverageKpiCard />
+      </div>
+
+      {/* Full-width category breakdown */}
+      <ToolCategoryBreakdownCard />
     </div>
   );
 }

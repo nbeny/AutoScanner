@@ -6,6 +6,9 @@ import {
   ENGAGEMENT_SUMMARIES_QUERY,
   GLOBAL_OVERVIEW_QUERY,
   RECENT_ACTIVITY_QUERY,
+  SEVERITY_TREND_QUERY,
+  COVERAGE_SUMMARY_QUERY,
+  TOOL_ACTIVITY_QUERY,
 } from '../../../lib/graphql/queries';
 import { DashboardPage } from '../dashboard-page';
 
@@ -54,10 +57,62 @@ const summariesMock = {
   result: { data: { engagementSummaries: [] } },
 };
 
+const trendMock = {
+  request: {
+    query: SEVERITY_TREND_QUERY,
+    variables: { engagementId: null, range: { days: 30 } },
+  },
+  result: { data: { severityTrend: [] } },
+};
+
+const coverageMock = {
+  request: {
+    query: COVERAGE_SUMMARY_QUERY,
+    variables: { engagementId: null },
+  },
+  result: {
+    data: {
+      coverageSummary: {
+        __typename: 'CoverageSummaryObject',
+        totalAssets: 0,
+        scannedAssets: 0,
+        percent: 0,
+      },
+    },
+  },
+};
+
+const toolActivityMock = {
+  request: {
+    query: TOOL_ACTIVITY_QUERY,
+    variables: { engagementId: null },
+  },
+  result: { data: { toolActivity: [] } },
+};
+
+// Two cards use TOOL_ACTIVITY_QUERY with the same variables; provide two mocks
+const toolActivityMock2 = {
+  request: {
+    query: TOOL_ACTIVITY_QUERY,
+    variables: { engagementId: null },
+  },
+  result: { data: { toolActivity: [] } },
+};
+
 describe('<DashboardPage />', () => {
   it('composes overview, activity feed and engagement grid under a Dashboard header', async () => {
     render(
-      <MockedProvider mocks={[overviewMock, activityMock, summariesMock]}>
+      <MockedProvider
+        mocks={[
+          overviewMock,
+          activityMock,
+          summariesMock,
+          trendMock,
+          coverageMock,
+          toolActivityMock,
+          toolActivityMock2,
+        ]}
+      >
         <MemoryRouter>
           <DashboardPage />
         </MemoryRouter>

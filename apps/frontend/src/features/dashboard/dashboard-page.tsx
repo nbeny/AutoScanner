@@ -6,6 +6,9 @@ import {
   ENGAGEMENT_SUMMARIES_QUERY,
   GLOBAL_OVERVIEW_QUERY,
   RECENT_ACTIVITY_QUERY,
+  SEVERITY_TREND_QUERY,
+  COVERAGE_SUMMARY_QUERY,
+  TOOL_ACTIVITY_QUERY,
 } from '../../lib/graphql/queries';
 
 export function DashboardPage() {
@@ -13,7 +16,14 @@ export function DashboardPage() {
 
   function refresh() {
     void client.refetchQueries({
-      include: [GLOBAL_OVERVIEW_QUERY, RECENT_ACTIVITY_QUERY, ENGAGEMENT_SUMMARIES_QUERY],
+      include: [
+        GLOBAL_OVERVIEW_QUERY,
+        RECENT_ACTIVITY_QUERY,
+        ENGAGEMENT_SUMMARIES_QUERY,
+        SEVERITY_TREND_QUERY,
+        COVERAGE_SUMMARY_QUERY,
+        TOOL_ACTIVITY_QUERY,
+      ],
     });
   }
 
