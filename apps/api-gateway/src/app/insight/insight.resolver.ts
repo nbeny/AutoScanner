@@ -9,8 +9,10 @@ import { EngagementOverviewObject } from './dto/engagement-overview.object';
 import { EngagementSummaryObject } from './dto/engagement-summary.object';
 import { GlobalOverviewObject } from './dto/global-overview.object';
 import { RecentTemplateRunObject } from './dto/recent-template-run.object';
+import { SeverityTrendBucketObject } from './dto/severity-trend-bucket.object';
 import { TopAssetObject } from './dto/top-asset.object';
 import { TopFindingObject } from './dto/top-finding.object';
+import { TrendRangeInput } from './dto/trend-range.input';
 import { InsightService } from './insight.service';
 
 @Resolver()
@@ -71,5 +73,16 @@ export class InsightResolver {
   @Query(() => [EngagementSummaryObject])
   engagementSummaries(@CurrentUser() user: User): Promise<EngagementSummaryObject[]> {
     return this.svc.engagementSummaries(user.id) as Promise<EngagementSummaryObject[]>;
+  }
+
+  @Query(() => [SeverityTrendBucketObject])
+  severityTrend(
+    @CurrentUser() user: User,
+    @Args('engagementId', { type: () => ID, nullable: true }) engagementId?: string,
+    @Args('range', { type: () => TrendRangeInput, nullable: true }) range?: TrendRangeInput,
+  ): Promise<SeverityTrendBucketObject[]> {
+    return this.svc.severityTrend(user.id, engagementId, range) as Promise<
+      SeverityTrendBucketObject[]
+    >;
   }
 }

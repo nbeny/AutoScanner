@@ -12,3 +12,5 @@ export { getRecentActivity } from './get-recent-activity';
 export type { ActivityItem, ActivityKind } from './get-recent-activity';
 export { getEngagementSummaries } from './get-engagement-summaries';
 export type { EngagementSummary } from './get-engagement-summaries';
+export { getSeverityTrend } from './get-severity-trend';
+export type { SeverityTrendBucket } from './get-severity-trend';

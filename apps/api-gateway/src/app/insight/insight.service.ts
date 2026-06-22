@@ -7,6 +7,7 @@ import {
   type EngagementSummary,
   type GlobalOverview,
   type RecentTemplateRun,
+  type SeverityTrendBucket,
   type TopAsset,
   type TopFinding,
   getEngagementOverview,
@@ -14,9 +15,11 @@ import {
   getGlobalOverview,
   getRecentActivity,
   getRecentTemplateRuns,
+  getSeverityTrend,
   getTopAssets,
   getTopFindings,
 } from '@autoscanner/insight';
+import type { TrendRangeInput } from './dto/trend-range.input';
 
 function clamp(n: number | null | undefined, min: number, max: number, fallback: number): number {
   const v = Number.isFinite(n) ? Math.trunc(n as number) : fallback;
@@ -73,5 +76,14 @@ export class InsightService {
 
   engagementSummaries(userId: string): Promise<EngagementSummary[]> {
     return getEngagementSummaries(this.prisma, userId);
+  }
+
+  async severityTrend(
+    userId: string,
+    engagementId?: string,
+    range?: TrendRangeInput,
+  ): Promise<SeverityTrendBucket[]> {
+    if (engagementId) await this.assertOwnership(userId, engagementId);
+    return getSeverityTrend(this.prisma, userId, engagementId, range?.days ?? 30);
   }
 }

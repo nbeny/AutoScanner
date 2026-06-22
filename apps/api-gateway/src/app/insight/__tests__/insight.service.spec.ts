@@ -116,6 +116,49 @@ describe('InsightService', () => {
     });
   });
 
+  describe('severityTrend', () => {
+    const fakeBuckets = [
+      { bucketDate: '2026-01-01', counts: { critical: 1, high: 0, medium: 0, low: 0, info: 0 } },
+    ];
+
+    it('delegates to getSeverityTrend with prisma + userId + engagementId + days', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (insightLib.getSeverityTrend as jest.Mock).mockResolvedValueOnce(fakeBuckets);
+
+      const result = await svc.severityTrend(userId, engagementId, { days: 14 });
+
+      expect(insightLib.getSeverityTrend).toHaveBeenCalledWith(prisma, userId, engagementId, 14);
+      expect(result).toBe(fakeBuckets);
+    });
+
+    it('checks ownership when engagementId is provided', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (insightLib.getSeverityTrend as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.severityTrend(userId, engagementId);
+
+      expect(prisma.engagement.findFirst).toHaveBeenCalledWith({
+        where: { id: engagementId, ownerId: userId, deletedAt: null },
+        select: { id: true },
+      });
+    });
+
+    it('throws NotFoundError on severityTrend when engagement not owned', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      await expect(svc.severityTrend(userId, engagementId)).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it('skips ownership check when engagementId is omitted, uses default 30 days', async () => {
+      (insightLib.getSeverityTrend as jest.Mock).mockResolvedValueOnce(fakeBuckets);
+
+      const result = await svc.severityTrend(userId);
+
+      expect(prisma.engagement.findFirst).not.toHaveBeenCalled();
+      expect(insightLib.getSeverityTrend).toHaveBeenCalledWith(prisma, userId, undefined, 30);
+      expect(result).toBe(fakeBuckets);
+    });
+  });
+
   describe('cross-engagement queries', () => {
     it('globalOverview delegates with prisma + userId, no ownership check', async () => {
       const fake = { engagementsByStatus: { total: 0 } };
