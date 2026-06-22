@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ToolsGrid } from './tools-grid';
+import { CoverageHeatmap } from './coverage-heatmap';
 
 function ScopeBadge({ engagementId }: { engagementId?: string }) {
   return (
@@ -25,6 +26,10 @@ export function ToolsSectionPage({ engagementId: propId }: { engagementId?: stri
         <ScopeBadge engagementId={engagementId} />
       </header>
       <ToolsGrid engagementId={engagementId} onSelectTool={setSelectedTool} />
+      <section aria-label="coverage-section" className="space-y-2">
+        <h2 className="text-lg font-semibold text-slate-200">Couverture</h2>
+        <CoverageHeatmap engagementId={engagementId} />
+      </section>
     </div>
   );
 }

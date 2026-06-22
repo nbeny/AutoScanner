@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
 import { MockedProvider } from '@apollo/client/testing';
-import { TOOL_ACTIVITY_QUERY } from '../../../lib/graphql/queries';
+import { TOOL_ACTIVITY_QUERY, COVERAGE_MATRIX_QUERY } from '../../../lib/graphql/queries';
 import { ToolsSectionPage } from '../tools-section-page';
 
 const emptyMock = {
@@ -10,15 +10,25 @@ const emptyMock = {
   result: { data: { toolActivity: [] } },
 };
 
+const coverageEmptyMock = {
+  request: { query: COVERAGE_MATRIX_QUERY, variables: { engagementId: null } },
+  result: { data: { coverageMatrix: [] } },
+};
+
 const engMock = {
   request: { query: TOOL_ACTIVITY_QUERY, variables: { engagementId: 'eng-3' } },
   result: { data: { toolActivity: [] } },
 };
 
+const coverageEngMock = {
+  request: { query: COVERAGE_MATRIX_QUERY, variables: { engagementId: 'eng-3' } },
+  result: { data: { coverageMatrix: [] } },
+};
+
 describe('<ToolsSectionPage />', () => {
   it('renders the global scope heading when no engagementId', () => {
     render(
-      <MockedProvider mocks={[emptyMock]}>
+      <MockedProvider mocks={[emptyMock, coverageEmptyMock]}>
         <MemoryRouter>
           <ToolsSectionPage />
         </MemoryRouter>
@@ -30,7 +40,7 @@ describe('<ToolsSectionPage />', () => {
 
   it('renders the engagement scope when engagementId is provided', () => {
     render(
-      <MockedProvider mocks={[engMock]}>
+      <MockedProvider mocks={[engMock, coverageEngMock]}>
         <MemoryRouter>
           <ToolsSectionPage engagementId="eng-3" />
         </MemoryRouter>
