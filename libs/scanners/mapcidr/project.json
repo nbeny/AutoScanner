@@ -1,0 +1,18 @@
+{
+  "name": "scanners-mapcidr",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/mapcidr/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/mapcidr"],
+      "options": { "jestConfig": "libs/scanners/mapcidr/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/mapcidr/tsconfig.lib.json" }
+    }
+  }
+}
