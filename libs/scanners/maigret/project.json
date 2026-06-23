@@ -1,0 +1,18 @@
+{
+  "name": "scanners-maigret",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/maigret/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/maigret"],
+      "options": { "jestConfig": "libs/scanners/maigret/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/maigret/tsconfig.lib.json" }
+    }
+  }
+}

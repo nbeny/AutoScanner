@@ -108,6 +108,7 @@
       "@autoscanner/scanners-waymore": ["libs/scanners/waymore/src/index.ts"],
       "@autoscanner/scanners-paramspider": ["libs/scanners/paramspider/src/index.ts"],
       "@autoscanner/scanners-spiderfoot": ["libs/scanners/spiderfoot/src/index.ts"],
+      "@autoscanner/scanners-maigret": ["libs/scanners/maigret/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }

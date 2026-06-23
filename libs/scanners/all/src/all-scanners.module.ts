@@ -67,6 +67,7 @@ import { CeroScannerModule } from '@autoscanner/scanners-cero';
 import { WaymoreScannerModule } from '@autoscanner/scanners-waymore';
 import { ParamspiderScannerModule } from '@autoscanner/scanners-paramspider';
 import { SpiderfootScannerModule } from '@autoscanner/scanners-spiderfoot';
+import { MaigretScannerModule } from '@autoscanner/scanners-maigret';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -144,6 +145,7 @@ const SCANNER_MODULES = [
   WaymoreScannerModule,
   ParamspiderScannerModule,
   SpiderfootScannerModule,
+  MaigretScannerModule,
 ];
 
 @Module({
