@@ -9,12 +9,17 @@ describe('SstiScanScanner.build', () => {
     expect(cmd[0]).toBe('sh');
     expect(script).toContain('sstimap');
     expect(script).toContain("'https://t.example/?name=x'");
+    expect(script).toContain('--no-color');
+    // never an interactive shell (would hang the container)
     expect(script).not.toContain('--os-shell');
+    expect(script).not.toContain('--eval-shell');
+    expect(script).not.toContain('--eval-code');
   });
 
-  it('exploit mode enables eval confirmation', () => {
+  it('exploit mode enables non-interactive eval confirmation via --eval-code', () => {
     const { cmd } = SstiScanScanner.build({ level: 'exploit' }, 'https://t.example/', ctx);
-    expect(cmd.join(' ')).toContain('--eval');
+    expect(cmd.join(' ')).toContain('--eval-code');
+    expect(cmd.join(' ')).not.toContain('--eval-shell');
   });
 
   it('shell-quotes a malicious target safely', () => {

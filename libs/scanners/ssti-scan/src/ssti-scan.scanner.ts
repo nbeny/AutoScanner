@@ -30,16 +30,19 @@ export const SstiScanScanner: ScannerDefinition<SstiScanInputType> = {
   },
   build(input, target, ctx) {
     const t = shellQuoteSingle(target);
-    const evalFlag = input.level === 'exploit' ? '--eval' : '';
+    // exploit level adds a non-interactive eval confirmation via --eval-code
+    // (SSTImap has no `--eval`; -x/-s/-t are INTERACTIVE shells that would hang
+    // a container). `str(7*7)` runs only if the engine is injectable.
+    const evalFlag = input.level === 'exploit' ? `--eval-code ${shellQuoteSingle('str(7*7)')}` : '';
     // Authenticated SSTI: SSTImap takes repeatable -H 'Name: Value'. No-op when
     // no auth is configured.
     const headerArgs = authHeaderLines(ctx.auth)
       .map((h) => `-H ${shellQuoteSingle(h)}`)
       .join(' ');
-    // SSTImap runs non-interactively when given -u and no interactive action.
-    // `|| true` keeps a clean exit 0 on "no injection found". Extra spaces from
-    // empty evalFlag/headerArgs are harmless to sh.
-    const script = `python3 /opt/SSTImap/sstimap.py -u ${t} ${evalFlag} ${headerArgs} 2>/dev/null || true`;
+    // `--no-color` keeps ANSI escapes out of the captured output. SSTImap runs
+    // non-interactively with -u and no interactive action; `|| true` keeps a
+    // clean exit 0 on "no injection found". Extra spaces are harmless to sh.
+    const script = `python3 /opt/SSTImap/sstimap.py -u ${t} --no-color ${evalFlag} ${headerArgs} 2>/dev/null || true`;
     return { cmd: ['sh', '-lc', script] };
   },
   outputs: [{ format: 'TEXT', capture: 'stdout', parser: 'sstimap-text' }],

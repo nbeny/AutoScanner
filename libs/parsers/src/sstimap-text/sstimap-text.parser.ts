@@ -14,7 +14,12 @@ export class SstimapTextParser implements Parser {
 
   async parse(input: Buffer | string, ctx: ParserContext): Promise<NormalizedOutput> {
     const out = emptyNormalizedOutput();
-    const text = Buffer.isBuffer(input) ? input.toString('utf8') : input;
+    const raw = Buffer.isBuffer(input) ? input.toString('utf8') : input;
+    // SSTImap hard-codes ANSI color escapes in its output (e.g.
+    // "Code evaluation: \x1b[92mok\x1b[0m, Python code"), which would otherwise
+    // break the capability/engine regexes. Strip them before matching.
+    // eslint-disable-next-line no-control-regex
+    const text = raw.replace(/\x1b\[[0-9;]*m/g, '');
     if (!text.trim() || !INJECTION_MARKER.test(text)) return out;
 
     const engine = text.match(ENGINE_RE)?.[1]?.trim() ?? 'unknown engine';

@@ -1,6 +1,6 @@
 # SSTImap — server-side template injection scanner. Pinned for reproducibility.
 FROM python:3.12-slim
-ARG SSTIMAP_REF=1.2.1
+ARG SSTIMAP_REF=v1.3.3.7
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates \
  && git clone --depth 1 --branch "${SSTIMAP_REF}" https://github.com/vladko312/SSTImap.git /opt/SSTImap \

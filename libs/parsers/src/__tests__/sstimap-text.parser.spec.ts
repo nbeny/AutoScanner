@@ -8,6 +8,8 @@ const ctx: ParserContext = {
   engagementId: 'e',
 };
 
+const ESC = String.fromCharCode(27); // ANSI escape, as SSTImap emits
+
 const SAMPLE = [
   '[+] SSTImap identified the following injection point:',
   '    Query parameter: name',
@@ -33,6 +35,18 @@ describe('SstimapTextParser', () => {
       ctx,
     );
     expect(out.findings[0].severity).toBe('HIGH');
+  });
+
+  it('strips ANSI color codes from real SSTImap output → CRITICAL', async () => {
+    const ansi = [
+      `${ESC}[92m[+]${ESC}[0m SSTImap identified the following injection point:`,
+      '    Engine: Jinja2',
+      `    Code evaluation: ${ESC}[92mok${ESC}[0m, Python code`,
+    ].join('\n');
+    const out = await p.parse(ansi, ctx);
+    expect(out.findings).toHaveLength(1);
+    expect(out.findings[0].severity).toBe('CRITICAL');
+    expect(out.findings[0].title).toContain('Jinja2');
   });
 
   it('returns empty when no injection point is reported', async () => {
