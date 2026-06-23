@@ -1,0 +1,18 @@
+{
+  "name": "scanners-cero",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/cero/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/cero"],
+      "options": { "jestConfig": "libs/scanners/cero/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/cero/tsconfig.lib.json" }
+    }
+  }
+}
