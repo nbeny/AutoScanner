@@ -58,6 +58,7 @@ import { MetabigorJsonParser } from './metabigor-json';
 import { IplinesTextParser } from './iplines-text';
 import { SpiderfootJsonParser } from './spiderfoot-json';
 import { MaigretTextParser } from './maigret-text';
+import { HoleheTextParser } from './holehe-text';
 
 @Global()
 @Module({
@@ -121,6 +122,7 @@ import { MaigretTextParser } from './maigret-text';
     IplinesTextParser,
     SpiderfootJsonParser,
     MaigretTextParser,
+    HoleheTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -182,6 +184,7 @@ import { MaigretTextParser } from './maigret-text';
     IplinesTextParser,
     SpiderfootJsonParser,
     MaigretTextParser,
+    HoleheTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -245,6 +248,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly iplinesText: IplinesTextParser,
     private readonly spiderfootJson: SpiderfootJsonParser,
     private readonly maigretText: MaigretTextParser,
+    private readonly holeheText: HoleheTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -306,5 +310,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.iplinesText);
     this.registry.register(this.spiderfootJson);
     this.registry.register(this.maigretText);
+    this.registry.register(this.holeheText);
   }
 }
