@@ -1,0 +1,22 @@
+{
+  "name": "scanners-web-dast",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/web-dast/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/web-dast"],
+      "options": {
+        "jestConfig": "libs/scanners/web-dast/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/web-dast/tsconfig.lib.json"
+      }
+    }
+  }
+}

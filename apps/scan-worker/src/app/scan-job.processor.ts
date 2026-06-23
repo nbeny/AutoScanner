@@ -74,10 +74,18 @@ export class ScanJobProcessor extends WorkerHost {
     // credential-missing throw or docker.run catch-rethrow fires before
     // the store/parse block that originally held the only cleanup.
     try {
+      const oastServerUrl = process.env['OAST_SERVER_URL']?.trim();
+      const oastToken = process.env['OAST_TOKEN']?.trim();
+      const oast = {
+        ...(oastServerUrl ? { serverUrl: oastServerUrl } : {}),
+        ...(oastToken ? { token: oastToken } : {}),
+        allowPublic: process.env['OAST_ALLOW_PUBLIC'] === 'true',
+      };
       const build = scanner.build(parsedInput, payload.target, {
         scanJobId: payload.scanJobId,
         engagementId: payload.engagementId,
         scratchDir: artifactHostDir ? '/output' : '/tmp',
+        oast,
       });
 
       let extraEnv: Record<string, string> | undefined;

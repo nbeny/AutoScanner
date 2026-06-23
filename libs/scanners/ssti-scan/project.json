@@ -1,0 +1,22 @@
+{
+  "name": "scanners-ssti-scan",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/ssti-scan/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/ssti-scan"],
+      "options": {
+        "jestConfig": "libs/scanners/ssti-scan/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/ssti-scan/tsconfig.lib.json"
+      }
+    }
+  }
+}

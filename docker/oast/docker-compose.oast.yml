@@ -1,0 +1,19 @@
+# =============================================================================
+# OAST collaborator — self-hosted interactsh server (opt-in, NOT part of dev:up)
+# Bring up only when you want blind/out-of-band detection (SSRF, blind XXE).
+# Requires a public domain whose NS/A records point at this host's public IP.
+# Configure OAST_SERVER_URL / OAST_TOKEN for scan-worker to use it.
+# =============================================================================
+name: autoscanner-oast
+
+services:
+  interactsh-server:
+    image: projectdiscovery/interactsh-server:v1.2.0
+    container_name: autoscanner-interactsh
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - -domain
+      - ${OAST_DOMAIN:?set OAST_DOMAIN, e.g. oast.example.com}
+      - -token
+      - ${OAST_TOKEN:?set OAST_TOKEN}

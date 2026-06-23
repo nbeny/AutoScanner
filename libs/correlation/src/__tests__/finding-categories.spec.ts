@@ -22,6 +22,14 @@ describe('FINDING_CATEGORY_RULES coverage', () => {
     ['CORS misconfiguration detected', 'cors-misconfig'],
     ['.git directory exposed', 'exposed-git'],
     ['.env file exposed', 'exposed-env-file'],
+    ['Blind SSRF via url parameter', 'ssrf'],
+    ['Server-Side Request Forgery detected', 'ssrf'],
+    ['Local File Inclusion in page param', 'lfi'],
+    ['Path traversal to /etc/passwd', 'lfi'],
+    ['XXE injection via XML body', 'xxe'],
+    ['XML external entity processing', 'xxe'],
+    ['Server-side template injection (Jinja2)', 'ssti'],
+    ['SSTI confirmed in Twig', 'ssti'],
   ])('categorize(%j) → %j', (title, expected) => {
     expect(categorize(title)).toBe(expected);
   });

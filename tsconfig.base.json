@@ -58,6 +58,8 @@
       "@autoscanner/scanners-xss-scan": ["libs/scanners/xss-scan/src/index.ts"],
       "@autoscanner/scanners-sqli-scan": ["libs/scanners/sqli-scan/src/index.ts"],
       "@autoscanner/scanners-cmdi-scan": ["libs/scanners/cmdi-scan/src/index.ts"],
+      "@autoscanner/scanners-web-dast": ["libs/scanners/web-dast/src/index.ts"],
+      "@autoscanner/scanners-ssti-scan": ["libs/scanners/ssti-scan/src/index.ts"],
       "@autoscanner/scanners-smb-enum": ["libs/scanners/smb-enum/src/index.ts"],
       "@autoscanner/scanners-api-discovery": ["libs/scanners/api-discovery/src/index.ts"],
       "@autoscanner/scanners-cloud-enum": ["libs/scanners/cloud-enum/src/index.ts"],

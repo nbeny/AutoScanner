@@ -50,4 +50,6 @@ export * from './nbtscan-text';
 export * from './rdp-sec-check-text';
 export * from './abuseipdb-json';
 export * from './greynoise-json';
+export * from './web-dast-json';
+export * from './sstimap-text';
 export * from './parsers.module';

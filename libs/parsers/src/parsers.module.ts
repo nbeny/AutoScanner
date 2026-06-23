@@ -50,6 +50,8 @@ import { NbtscanTextParser } from './nbtscan-text/nbtscan-text.parser';
 import { RdpSecCheckTextParser } from './rdp-sec-check-text/rdp-sec-check-text.parser';
 import { AbuseipdbJsonParser } from './abuseipdb-json/abuseipdb-json.parser';
 import { GreynoiseJsonParser } from './greynoise-json/greynoise-json.parser';
+import { WebDastJsonParser } from './web-dast-json';
+import { SstimapTextParser } from './sstimap-text';
 
 @Global()
 @Module({
@@ -105,6 +107,8 @@ import { GreynoiseJsonParser } from './greynoise-json/greynoise-json.parser';
     RdpSecCheckTextParser,
     AbuseipdbJsonParser,
     GreynoiseJsonParser,
+    WebDastJsonParser,
+    SstimapTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -158,6 +162,8 @@ import { GreynoiseJsonParser } from './greynoise-json/greynoise-json.parser';
     RdpSecCheckTextParser,
     AbuseipdbJsonParser,
     GreynoiseJsonParser,
+    WebDastJsonParser,
+    SstimapTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -213,6 +219,8 @@ export class ParsersModule implements OnModuleInit {
     private readonly rdpSecCheckText: RdpSecCheckTextParser,
     private readonly abuseipdbJson: AbuseipdbJsonParser,
     private readonly greynoise: GreynoiseJsonParser,
+    private readonly webDastJson: WebDastJsonParser,
+    private readonly sstimapText: SstimapTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -266,5 +274,7 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.rdpSecCheckText);
     this.registry.register(this.abuseipdbJson);
     this.registry.register(this.greynoise);
+    this.registry.register(this.webDastJson);
+    this.registry.register(this.sstimapText);
   }
 }

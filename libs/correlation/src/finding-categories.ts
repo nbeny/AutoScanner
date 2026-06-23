@@ -29,6 +29,16 @@ export const FINDING_CATEGORY_RULES: readonly FindingCategoryRule[] = [
   },
   { category: 'exposed-git', match: /\.git (exposed|directory)|exposed \.git/i },
   { category: 'exposed-env-file', match: /\.env (file )?exposed|exposed \.env/i },
+  { category: 'ssrf', match: /\bssrf\b|server[- ]side request forgery/i },
+  {
+    category: 'lfi',
+    match: /\blfi\b|local file inclusion|path[- ]?traversal|directory traversal/i,
+  },
+  { category: 'xxe', match: /\bxxe\b|xml external entit/i },
+  {
+    category: 'ssti',
+    match: /\bssti\b|server[- ]side template injection|template injection/i,
+  },
 ];
 
 export function categorize(title: string, templateId?: string | null): string | null {

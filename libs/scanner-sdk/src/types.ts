@@ -54,10 +54,21 @@ export type ProducedEntity =
   | 'TlsCertificate'
   | 'Screenshot';
 
+export interface OastConfig {
+  /** Self-hosted interactsh server base URL (e.g. https://oast.example.com). */
+  serverUrl?: string;
+  /** Auth token for the self-hosted interactsh server. */
+  token?: string;
+  /** When true and no serverUrl is set, allow nuclei's default PUBLIC interactsh (oast.pro). */
+  allowPublic?: boolean;
+}
+
 export interface BuildContext {
   scanJobId: string;
   engagementId: string;
   scratchDir: string;
+  /** Optional out-of-band scanning config, injected by scan-worker from env. */
+  oast?: OastConfig;
 }
 
 export interface BuildResult {
