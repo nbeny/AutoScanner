@@ -1,6 +1,7 @@
 import type { TemplateDefinition } from '../types';
 import { OsintPassive } from './osint-passive';
 import { OsintPassiveDeep } from './osint-passive-deep';
+import { IdentityOsint } from './identity-osint';
 import { ReconActive } from './recon-active';
 import { ReconPassive } from './recon-passive';
 import { ReconPassiveDeep } from './recon-passive-deep';
@@ -24,6 +25,7 @@ import { IpReconFull } from './ip-recon-full';
 export {
   ActiveDirectoryRecon,
   CloudExposure,
+  IdentityOsint,
   IpActiveAudit,
   IpPassiveIntel,
   IpReconFull,
@@ -72,4 +74,5 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   IpPassiveIntel,
   IpActiveAudit,
   IpReconFull,
+  IdentityOsint,
 ];
