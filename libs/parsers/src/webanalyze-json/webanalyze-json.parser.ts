@@ -52,7 +52,7 @@ export class WebanalyzeJsonParser implements Parser {
     for (const res of results) {
       if (!res || typeof res !== 'object') continue;
       const host = hostOf(res.hostname ?? '', ctx.target);
-      for (const m of res.matches ?? []) {
+      for (const m of Array.isArray(res.matches) ? res.matches : []) {
         if (!m.app_name) continue;
         out.technologies.push({
           assetValue: host,
