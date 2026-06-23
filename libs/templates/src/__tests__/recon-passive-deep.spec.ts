@@ -14,6 +14,7 @@ describe('recon-passive-deep template', () => {
       'assetfinder',
       'findomain',
       'amass',
+      'cero',
       'puredns',
       'dnsx',
       'httpx',

@@ -10,5 +10,6 @@ export const IpPassiveIntel: TemplateDefinition = {
   steps: [
     { scannerName: 'abuseipdb', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'greynoise', inputs: {}, target: { kind: 'context', path: 'target' } },
+    { scannerName: 'mapcidr', inputs: {}, target: { kind: 'context', path: 'target' } },
   ],
 };

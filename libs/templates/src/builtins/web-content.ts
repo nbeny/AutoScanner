@@ -23,5 +23,7 @@ export const WebContent: TemplateDefinition = {
     { scannerName: 'gau', inputs: {}, target: { kind: 'context', path: 'subdomains' } },
     { scannerName: 'ffuf', inputs: {}, target: { kind: 'context', path: 'subdomains' } },
     { scannerName: 'gobuster', inputs: {}, target: { kind: 'context', path: 'subdomains' } },
+    { scannerName: 'waymore', inputs: {}, target: { kind: 'context', path: 'subdomains' } },
+    { scannerName: 'paramspider', inputs: {}, target: { kind: 'context', path: 'subdomains' } },
   ],
 };

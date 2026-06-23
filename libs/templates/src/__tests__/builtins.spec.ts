@@ -53,19 +53,22 @@ describe('builtin templates', () => {
       expect(ReconActive.displayName).toBe('Active Recon');
       expect(typeof ReconActive.description).toBe('string');
       expect(ReconActive.description.length).toBeGreaterThan(0);
-      expect(ReconActive.steps).toHaveLength(4);
+      expect(ReconActive.steps).toHaveLength(6);
     });
 
-    it('chains subfinder -> dnsx -> httpx -> naabu in order', () => {
+    it('chains subfinder -> alterx -> dnsx -> httpx -> naabu -> subzy in order', () => {
       const order = ReconActive.steps.map((s) => s.scannerName);
-      expect(order).toEqual(['subfinder', 'dnsx', 'httpx', 'naabu']);
+      expect(order).toEqual(['subfinder', 'alterx', 'dnsx', 'httpx', 'naabu', 'subzy']);
     });
 
     it('wires each step to the correct context target and inputs', () => {
-      const [subfinder, dnsx, httpx, naabu] = ReconActive.steps;
+      const [subfinder, alterx, dnsx, httpx, naabu, subzy] = ReconActive.steps;
 
       expect(subfinder.target).toEqual({ kind: 'context', path: 'target' });
       expect(subfinder.inputs).toEqual({});
+
+      expect(alterx.target).toEqual({ kind: 'context', path: 'target' });
+      expect(alterx.inputs).toEqual({});
 
       expect(dnsx.target).toEqual({ kind: 'context', path: 'subdomains' });
       expect(dnsx.inputs).toEqual({});
@@ -75,6 +78,9 @@ describe('builtin templates', () => {
 
       expect(naabu.target).toEqual({ kind: 'context', path: 'ipAddresses' });
       expect(naabu.inputs['ports']).toEqual({ kind: 'static', value: 'top-100' });
+
+      expect(subzy.target).toEqual({ kind: 'context', path: 'subdomains' });
+      expect(subzy.inputs).toEqual({});
     });
   });
 

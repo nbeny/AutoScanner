@@ -13,6 +13,8 @@ describe('web-content template', () => {
       'gau',
       'ffuf',
       'gobuster',
+      'waymore',
+      'paramspider',
     ]);
     for (const s of WebContent.steps) {
       expect(s.target).toEqual({ kind: 'context', path: 'subdomains' });

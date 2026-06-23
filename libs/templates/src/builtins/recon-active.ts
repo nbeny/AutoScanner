@@ -23,6 +23,11 @@ export const ReconActive: TemplateDefinition = {
       target: { kind: 'context', path: 'target' },
     },
     {
+      scannerName: 'alterx',
+      inputs: {},
+      target: { kind: 'context', path: 'target' },
+    },
+    {
       scannerName: 'dnsx',
       inputs: {},
       target: { kind: 'context', path: 'subdomains' },
@@ -40,6 +45,11 @@ export const ReconActive: TemplateDefinition = {
         ports: { kind: 'static', value: 'top-100' },
       },
       target: { kind: 'context', path: 'ipAddresses' },
+    },
+    {
+      scannerName: 'subzy',
+      inputs: {},
+      target: { kind: 'context', path: 'subdomains' },
     },
   ],
 };

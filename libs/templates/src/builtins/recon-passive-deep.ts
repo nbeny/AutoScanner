@@ -20,6 +20,7 @@ export const ReconPassiveDeep: TemplateDefinition = {
     { scannerName: 'assetfinder', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'findomain', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'amass', inputs: {}, target: { kind: 'context', path: 'target' } },
+    { scannerName: 'cero', inputs: {}, target: { kind: 'context', path: 'target' } },
     {
       scannerName: 'puredns',
       inputs: { mode: { kind: 'static', value: 'bruteforce' } },

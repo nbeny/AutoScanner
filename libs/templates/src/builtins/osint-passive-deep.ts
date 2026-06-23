@@ -26,5 +26,7 @@ export const OsintPassiveDeep: TemplateDefinition = {
       inputs: {},
       target: { kind: 'context', path: 'target' },
     },
+    { scannerName: 'metabigor', inputs: {}, target: { kind: 'context', path: 'target' } },
+    { scannerName: 'spiderfoot', inputs: {}, target: { kind: 'context', path: 'target' } },
   ],
 };
