@@ -31,9 +31,14 @@ services:
       timeout: 3s
       retries: 10
 
+  # Mongo is prepared but not yet consumed by any worker (only validated in the
+  # env schema). It is the heaviest infra container (~hundreds of MB RAM), so it
+  # is gated behind the `mongo` compose profile: `pnpm dev:up` does NOT start it.
+  # Start it only when a feature needs it: `pnpm dev:up:mongo`.
   mongo:
     image: mongo:7
     container_name: autoscanner-mongo
+    profiles: ['mongo']
     ports:
       - '27017:27017'
     volumes:
