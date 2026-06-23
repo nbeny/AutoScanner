@@ -1,0 +1,123 @@
+# =============================================================================
+# AutoScanner — Daemon/service-style scanners (host ports 12000+)
+# =============================================================================
+# Most scanners are one-shot CLI tools spawned ephemerally by the scan-worker
+# (`docker run` → produce output → exit). A FEW need a long-running daemon that
+# listens on a port and exposes an API the scan-worker talks to. This file is
+# the single place those daemon scanners live, with host ports following the
+# 12000+ convention (one port per daemon scanner: 12000, 12001, ...).
+#
+# ON-DEMAND BY DESIGN — every service is gated behind a compose PROFILE, so:
+#   docker compose -f docker/services/docker-compose.services.yml up        # starts NOTHING
+# You only power on a scanner's daemon when that scan must run, e.g.:
+#   docker compose -f docker/services/docker-compose.services.yml --profile openvas up -d
+# and stop it again when done:
+#   docker compose -f docker/services/docker-compose.services.yml --profile openvas down
+# The scan-worker still spawns the actual scanner CLI container ephemerally; it
+# joins the daemon's network and reaches the daemon by hostname.
+#
+# REUSE, NO DUPLICATION — service config (images, env, volumes, commands) is
+# pulled from the canonical stack files via `extends`; this file only adds the
+# profile gating, the host-port mapping, and the depends_on that `extends`
+# drops. The greenbone/oast compose files are left untouched.
+#
+# SHARED VOLUMES/NETWORK — `name: autoscanner-greenbone` matches the greenbone
+# stack's project name so the multi-GB feed volumes (vt_data/notus_data/
+# scap_data) and the `autoscanner-greenbone` network are SHARED, not re-synced.
+# Use this file OR docker-compose.greenbone.yml (same project) — not both at once.
+#
+# NOTE — OAST/interactsh is intentionally NOT here: it needs `network_mode: host`
+# (OOB DNS/HTTP on ports 53/80/443) and cannot be remapped onto 12000. It keeps
+# its dedicated docker/oast/docker-compose.oast.yml.
+# =============================================================================
+
+name: autoscanner-greenbone
+
+services:
+  # --- openvas-scan daemon stack (profile: openvas) ---------------------------
+  # Supporting services for openvasd. All share the `openvas` profile so the
+  # whole stack powers on/off together, on demand.
+  mqtt-broker:
+    extends:
+      file: ../greenbone/docker-compose.greenbone.yml
+      service: mqtt-broker
+    profiles: ['openvas']
+
+  redis-server:
+    extends:
+      file: ../greenbone/docker-compose.greenbone.yml
+      service: redis-server
+    profiles: ['openvas']
+
+  vulnerability-tests:
+    extends:
+      file: ../greenbone/docker-compose.greenbone.yml
+      service: vulnerability-tests
+    profiles: ['openvas']
+
+  notus-data:
+    extends:
+      file: ../greenbone/docker-compose.greenbone.yml
+      service: notus-data
+    profiles: ['openvas']
+
+  scap-data:
+    extends:
+      file: ../greenbone/docker-compose.greenbone.yml
+      service: scap-data
+    profiles: ['openvas']
+
+  notus-scanner:
+    extends:
+      file: ../greenbone/docker-compose.greenbone.yml
+      service: notus-scanner
+    profiles: ['openvas']
+    # `extends` does not carry depends_on — re-declare it here.
+    depends_on:
+      - mqtt-broker
+      - notus-data
+
+  # openvasd — OpenVAS daemon + HTTP API. Internal port 3000, now also published
+  # on the host at 127.0.0.1:12000 (12000+ convention) for host-side access /
+  # debugging. The scan-worker still reaches it in-network at http://openvasd:3000.
+  openvasd:
+    extends:
+      file: ../greenbone/docker-compose.greenbone.yml
+      service: openvasd
+    profiles: ['openvas']
+    depends_on:
+      - mqtt-broker
+      - redis-server
+      - notus-scanner
+      - vulnerability-tests
+      - scap-data
+    ports:
+      - '127.0.0.1:12000:3000'
+
+  # --- NEXT daemon scanner (template) -----------------------------------------
+  # When a new daemon-style scanner is added, give it its own profile and the
+  # next free host port (12001, 12002, ...). Example:
+  #
+  # <scanner-name>:
+  #   extends:
+  #     file: ../<scanner>/docker-compose.<scanner>.yml
+  #     service: <daemon-service>
+  #   profiles: ['<scanner-name>']
+  #   ports:
+  #     - '127.0.0.1:12001:<internal-port>'
+
+# Named volumes — declared so the extended services' mounts resolve. Same names
+# + same project (`autoscanner-greenbone`) => same physical volumes as the
+# greenbone stack, so synced feeds are reused, never re-downloaded.
+volumes:
+  vt_data:
+  notus_data:
+  scap_data:
+  redis_socket:
+  openvasd_socket:
+
+# The scan-worker attaches scanner containers to this network (by name) to reach
+# the daemon by hostname. `name:` fixes the real network name across compose files.
+networks:
+  autoscanner-greenbone:
+    name: autoscanner-greenbone
