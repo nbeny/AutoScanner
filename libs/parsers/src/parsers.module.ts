@@ -61,6 +61,7 @@ import { MaigretTextParser } from './maigret-text';
 import { HoleheTextParser } from './holehe-text';
 import { DnstwistJsonParser } from './dnstwist-json';
 import { WebanalyzeJsonParser } from './webanalyze-json';
+import { SubjsTextParser } from './subjs-text';
 
 @Global()
 @Module({
@@ -127,6 +128,7 @@ import { WebanalyzeJsonParser } from './webanalyze-json';
     HoleheTextParser,
     DnstwistJsonParser,
     WebanalyzeJsonParser,
+    SubjsTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -191,6 +193,7 @@ import { WebanalyzeJsonParser } from './webanalyze-json';
     HoleheTextParser,
     DnstwistJsonParser,
     WebanalyzeJsonParser,
+    SubjsTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -257,6 +260,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly holeheText: HoleheTextParser,
     private readonly dnstwistJson: DnstwistJsonParser,
     private readonly webanalyzeJson: WebanalyzeJsonParser,
+    private readonly subjsText: SubjsTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -321,5 +325,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.holeheText);
     this.registry.register(this.dnstwistJson);
     this.registry.register(this.webanalyzeJson);
+    this.registry.register(this.subjsText);
   }
 }
