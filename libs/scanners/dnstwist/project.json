@@ -1,0 +1,18 @@
+{
+  "name": "scanners-dnstwist",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/dnstwist/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/dnstwist"],
+      "options": { "jestConfig": "libs/scanners/dnstwist/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/dnstwist/tsconfig.lib.json" }
+    }
+  }
+}

@@ -110,6 +110,7 @@
       "@autoscanner/scanners-spiderfoot": ["libs/scanners/spiderfoot/src/index.ts"],
       "@autoscanner/scanners-maigret": ["libs/scanners/maigret/src/index.ts"],
       "@autoscanner/scanners-holehe": ["libs/scanners/holehe/src/index.ts"],
+      "@autoscanner/scanners-dnstwist": ["libs/scanners/dnstwist/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
