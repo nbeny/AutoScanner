@@ -21,6 +21,7 @@ import { SubdomainIpPersister } from './persisters/subdomain-ip-persister';
 import { TechnologyPersister } from './persisters/technology-persister';
 import { EndpointPersister } from './persisters/endpoint-persister';
 import { EmailPersister } from './persisters/email-persister';
+import { IdentityPersister } from './persisters/identity-persister';
 import { OrgMetadataPersister } from './persisters/org-metadata-persister';
 import { TlsCertificatePersister } from './persisters/tls-certificate-persister';
 
@@ -48,6 +49,7 @@ import { TlsCertificatePersister } from './persisters/tls-certificate-persister'
     SubdomainIpPersister,
     EndpointPersister,
     EmailPersister,
+    IdentityPersister,
     OrgMetadataPersister,
     TlsCertificatePersister,
   ],
