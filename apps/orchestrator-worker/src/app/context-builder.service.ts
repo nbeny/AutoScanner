@@ -76,6 +76,16 @@ export class ContextBuilder {
         resolved = rows.map((r) => r.canonicalValue);
         break;
       }
+      case 'endpoints': {
+        // Full discovered URLs (scheme://host/path?query) — e.g. crawled by
+        // katana. These are what the active injection scanners (web-dast,
+        // sqli-scan, ssti-scan, ...) fuzz, since a bare host carries no params.
+        const rows = await this.prisma.endpoint.findMany({
+          where: { engagementId: run.engagementId },
+        });
+        resolved = rows.map((r) => r.canonicalUrl);
+        break;
+      }
       case 'ipAddresses': {
         const rows = await this.prisma.ipAddress.findMany({
           where: { engagementId: run.engagementId },

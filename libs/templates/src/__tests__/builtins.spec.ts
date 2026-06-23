@@ -17,6 +17,7 @@ import {
   WebAppAudit,
   WebContent,
   WebDeep,
+  WebDeepActiveInjection,
   WebEnrich,
   WebFingerprint,
   WebQuick,
@@ -131,9 +132,41 @@ describe('builtin templates', () => {
     });
   });
 
+  describe('WebDeepActiveInjection', () => {
+    it('declares name, displayName, description and 9 steps', () => {
+      expect(WebDeepActiveInjection.name).toBe('web-deep-active-injection');
+      expect(WebDeepActiveInjection.displayName).toBe('Web Deep — Active Injection');
+      expect(typeof WebDeepActiveInjection.description).toBe('string');
+      expect(WebDeepActiveInjection.description.length).toBeGreaterThan(0);
+      expect(WebDeepActiveInjection.steps).toHaveLength(9);
+    });
+
+    it('crawls then fans the injection scanners out over the endpoints context', () => {
+      const order = WebDeepActiveInjection.steps.map((s) => s.scannerName);
+      expect(order).toEqual([
+        'subfinder',
+        'httpx',
+        'katana',
+        'arjun',
+        'web-dast',
+        'sqli-scan',
+        'ssti-scan',
+        'xss-scan',
+        'cmdi-scan',
+      ]);
+
+      // katana crawls live hosts; every injection scanner targets endpoints.
+      const katana = WebDeepActiveInjection.steps[2];
+      expect(katana.target).toEqual({ kind: 'context', path: 'urls' });
+      for (const injector of WebDeepActiveInjection.steps.slice(3)) {
+        expect(injector.target).toEqual({ kind: 'context', path: 'endpoints' });
+      }
+    });
+  });
+
   describe('BUILTIN_TEMPLATES', () => {
     it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich + service-recon + vuln-active + network-vuln + web-app-audit + active-directory-recon + k8s-recon + cloud-exposure + ip-passive-intel + ip-active-audit + ip-recon-full', () => {
-      expect(BUILTIN_TEMPLATES).toHaveLength(20);
+      expect(BUILTIN_TEMPLATES).toHaveLength(21);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassive);
       expect(BUILTIN_TEMPLATES).toContain(ReconActive);
       expect(BUILTIN_TEMPLATES).toContain(ReconPassiveDeep);
@@ -168,6 +201,7 @@ describe('builtin templates', () => {
       expect(registry.get('recon-active')).toBe(ReconActive);
       expect(registry.get('web-quick')).toBe(WebQuick);
       expect(registry.get('web-deep')).toBe(WebDeep);
+      expect(registry.get('web-deep-active-injection')).toBe(WebDeepActiveInjection);
       expect(registry.get('service-recon')).toBe(ServiceRecon);
       expect(registry.get('vuln-active')).toBe(VulnActive);
       expect(registry.get('network-vuln')).toBe(NetworkVuln);
@@ -198,7 +232,7 @@ describe('builtin templates', () => {
       expect(registry.get('active-directory-recon')).toBe(ActiveDirectoryRecon);
       expect(registry.get('k8s-recon')).toBe(K8sRecon);
       expect(registry.get('cloud-exposure')).toBe(CloudExposure);
-      expect(registry.list()).toHaveLength(20);
+      expect(registry.list()).toHaveLength(21);
 
       // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
       const moduleInstance = ref.get(TemplatesModule);

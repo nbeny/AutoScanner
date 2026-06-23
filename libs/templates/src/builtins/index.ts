@@ -9,6 +9,7 @@ import { NetworkVuln } from './network-vuln';
 import { VulnActive } from './vuln-active';
 import { WebContent } from './web-content';
 import { WebDeep } from './web-deep';
+import { WebDeepActiveInjection } from './web-deep-active-injection';
 import { WebEnrich } from './web-enrich';
 import { WebFingerprint } from './web-fingerprint';
 import { WebQuick } from './web-quick';
@@ -38,6 +39,7 @@ export {
   WebAppAudit,
   WebContent,
   WebDeep,
+  WebDeepActiveInjection,
   WebEnrich,
   WebFingerprint,
   WebQuick,
@@ -54,6 +56,7 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   ReconPassiveDeep,
   WebQuick,
   WebDeep,
+  WebDeepActiveInjection,
   WebContent,
   OsintPassive,
   WebFingerprint,

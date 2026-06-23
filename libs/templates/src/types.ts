@@ -1,6 +1,6 @@
 export type ContextRef =
   | { kind: 'static'; value: unknown }
-  | { kind: 'context'; path: 'subdomains' | 'urls' | 'ipAddresses' | 'target' };
+  | { kind: 'context'; path: 'subdomains' | 'urls' | 'ipAddresses' | 'endpoints' | 'target' };
 
 export interface TemplateStep {
   scannerName: string;
