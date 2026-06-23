@@ -53,4 +53,8 @@ export * from './greynoise-json';
 export * from './web-dast-json';
 export * from './sstimap-text';
 export * from './zap-json';
+export * from './subzy-json';
+export * from './metabigor-json';
+export * from './iplines-text';
+export * from './spiderfoot-json';
 export * from './parsers.module';

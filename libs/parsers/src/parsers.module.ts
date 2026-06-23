@@ -53,6 +53,10 @@ import { GreynoiseJsonParser } from './greynoise-json/greynoise-json.parser';
 import { WebDastJsonParser } from './web-dast-json';
 import { SstimapTextParser } from './sstimap-text';
 import { ZapJsonParser } from './zap-json';
+import { SubzyJsonParser } from './subzy-json';
+import { MetabigorJsonParser } from './metabigor-json';
+import { IplinesTextParser } from './iplines-text';
+import { SpiderfootJsonParser } from './spiderfoot-json';
 
 @Global()
 @Module({
@@ -111,6 +115,10 @@ import { ZapJsonParser } from './zap-json';
     WebDastJsonParser,
     SstimapTextParser,
     ZapJsonParser,
+    SubzyJsonParser,
+    MetabigorJsonParser,
+    IplinesTextParser,
+    SpiderfootJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -167,6 +175,10 @@ import { ZapJsonParser } from './zap-json';
     WebDastJsonParser,
     SstimapTextParser,
     ZapJsonParser,
+    SubzyJsonParser,
+    MetabigorJsonParser,
+    IplinesTextParser,
+    SpiderfootJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -224,6 +236,11 @@ export class ParsersModule implements OnModuleInit {
     private readonly greynoise: GreynoiseJsonParser,
     private readonly webDastJson: WebDastJsonParser,
     private readonly sstimapText: SstimapTextParser,
+    private readonly zapJson: ZapJsonParser,
+    private readonly subzyJson: SubzyJsonParser,
+    private readonly metabigorJson: MetabigorJsonParser,
+    private readonly iplinesText: IplinesTextParser,
+    private readonly spiderfootJson: SpiderfootJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -279,5 +296,10 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.greynoise);
     this.registry.register(this.webDastJson);
     this.registry.register(this.sstimapText);
+    this.registry.register(this.zapJson);
+    this.registry.register(this.subzyJson);
+    this.registry.register(this.metabigorJson);
+    this.registry.register(this.iplinesText);
+    this.registry.register(this.spiderfootJson);
   }
 }
