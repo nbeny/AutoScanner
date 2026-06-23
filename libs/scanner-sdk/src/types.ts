@@ -18,6 +18,7 @@ export enum ScannerCategory {
   NETWORK_ANALYSIS = 'network-analysis',
   PASSWORD = 'password',
   OSINT = 'osint',
+  IDENTITY_OSINT = 'identity-osint',
   PASSIVE_RECON = 'passive-recon',
   API_SECURITY = 'api-security',
   SMTP = 'smtp',
@@ -52,7 +53,8 @@ export type ProducedEntity =
   | 'Email'
   | 'OrgMetadata'
   | 'TlsCertificate'
-  | 'Screenshot';
+  | 'Screenshot'
+  | 'Identity';
 
 export interface OastConfig {
   /** Self-hosted interactsh server base URL (e.g. https://oast.example.com). */
