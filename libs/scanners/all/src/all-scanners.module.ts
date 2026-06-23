@@ -70,6 +70,7 @@ import { SpiderfootScannerModule } from '@autoscanner/scanners-spiderfoot';
 import { MaigretScannerModule } from '@autoscanner/scanners-maigret';
 import { HoleheScannerModule } from '@autoscanner/scanners-holehe';
 import { DnstwistScannerModule } from '@autoscanner/scanners-dnstwist';
+import { WebanalyzeScannerModule } from '@autoscanner/scanners-webanalyze';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -150,6 +151,7 @@ const SCANNER_MODULES = [
   MaigretScannerModule,
   HoleheScannerModule,
   DnstwistScannerModule,
+  WebanalyzeScannerModule,
 ];
 
 @Module({
