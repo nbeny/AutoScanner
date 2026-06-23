@@ -4,13 +4,16 @@ import type { NormalizedOutput, Parser, ParserContext } from '../types';
 import { emptyNormalizedOutput } from '../types';
 
 const SEED_RE = /^##\s*SEED\s+(.+)$/;
-const USED_RE = /^\[\+\]\s*(\S+)/;
+// holehe services are always domains (contain a dot), so requiring a dot in the
+// captured token excludes holehe's `[+] Email used` legend line.
+const USED_RE = /^\[\+\]\s*(\S+\.\S+)/;
 
 /**
  * Parser for holehe stdout. `## SEED <email>` markers (emitted by the scanner's
  * build script) set the current seed; only `[+] <service>` lines (confirmed
- * accounts) become EMAIL_ACCOUNT identities. `[-]` (not used) and `[x]`
- * (rate-limited) lines are ignored.
+ * accounts, where <service> is a domain) become EMAIL_ACCOUNT identities.
+ * `[-]` (not used), `[x]` (rate-limited), and the `[+] Email used` legend line
+ * are ignored.
  */
 @Injectable()
 export class HoleheTextParser implements Parser {

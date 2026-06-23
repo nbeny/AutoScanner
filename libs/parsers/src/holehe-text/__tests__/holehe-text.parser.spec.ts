@@ -34,4 +34,13 @@ describe('HoleheTextParser', () => {
     const out = await new HoleheTextParser().parse('## SEED a@b.com\n[-] x.com\n[x] y.com', ctx);
     expect(out.identities).toHaveLength(0);
   });
+
+  it('ignores the "[+] Email used" legend line (non-domain token)', async () => {
+    const out = await new HoleheTextParser().parse(
+      '## SEED a@b.com\n[+] Email used\n[+] github.com',
+      ctx,
+    );
+    expect(out.identities).toHaveLength(1);
+    expect(out.identities[0]).toMatchObject({ service: 'github.com' });
+  });
 });
