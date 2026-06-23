@@ -52,6 +52,7 @@ describe('AllScannersModule', () => {
       'cmdi-scan',
       'web-dast',
       'ssti-scan',
+      'zap-scan',
       'openvas-scan',
     ]) {
       expect(registry.has(name)).toBe(true);

@@ -43,6 +43,7 @@ import { SqliScanScannerModule } from '@autoscanner/scanners-sqli-scan';
 import { CmdiScanScannerModule } from '@autoscanner/scanners-cmdi-scan';
 import { WebDastScannerModule } from '@autoscanner/scanners-web-dast';
 import { SstiScanScannerModule } from '@autoscanner/scanners-ssti-scan';
+import { ZapScanScannerModule } from '@autoscanner/scanners-zap-scan';
 import { OpenvasScanScannerModule } from '@autoscanner/scanners-openvas-scan';
 import { NiktoScannerModule } from '@autoscanner/scanners-nikto';
 import { ArjunScannerModule } from '@autoscanner/scanners-arjun';
@@ -111,6 +112,7 @@ const SCANNER_MODULES = [
   CmdiScanScannerModule,
   WebDastScannerModule,
   SstiScanScannerModule,
+  ZapScanScannerModule,
   OpenvasScanScannerModule,
   NiktoScannerModule,
   ArjunScannerModule,

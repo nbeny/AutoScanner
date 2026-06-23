@@ -60,6 +60,7 @@
       "@autoscanner/scanners-cmdi-scan": ["libs/scanners/cmdi-scan/src/index.ts"],
       "@autoscanner/scanners-web-dast": ["libs/scanners/web-dast/src/index.ts"],
       "@autoscanner/scanners-ssti-scan": ["libs/scanners/ssti-scan/src/index.ts"],
+      "@autoscanner/scanners-zap-scan": ["libs/scanners/zap-scan/src/index.ts"],
       "@autoscanner/scanners-smb-enum": ["libs/scanners/smb-enum/src/index.ts"],
       "@autoscanner/scanners-api-discovery": ["libs/scanners/api-discovery/src/index.ts"],
       "@autoscanner/scanners-cloud-enum": ["libs/scanners/cloud-enum/src/index.ts"],

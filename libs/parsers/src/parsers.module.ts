@@ -52,6 +52,7 @@ import { AbuseipdbJsonParser } from './abuseipdb-json/abuseipdb-json.parser';
 import { GreynoiseJsonParser } from './greynoise-json/greynoise-json.parser';
 import { WebDastJsonParser } from './web-dast-json';
 import { SstimapTextParser } from './sstimap-text';
+import { ZapJsonParser } from './zap-json';
 
 @Global()
 @Module({
@@ -109,6 +110,7 @@ import { SstimapTextParser } from './sstimap-text';
     GreynoiseJsonParser,
     WebDastJsonParser,
     SstimapTextParser,
+    ZapJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -164,6 +166,7 @@ import { SstimapTextParser } from './sstimap-text';
     GreynoiseJsonParser,
     WebDastJsonParser,
     SstimapTextParser,
+    ZapJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {

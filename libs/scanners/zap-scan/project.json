@@ -1,0 +1,22 @@
+{
+  "name": "scanners-zap-scan",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/zap-scan/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/zap-scan"],
+      "options": {
+        "jestConfig": "libs/scanners/zap-scan/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/zap-scan/tsconfig.lib.json"
+      }
+    }
+  }
+}
