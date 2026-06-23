@@ -96,13 +96,32 @@ export class ScanJobProcessor extends WorkerHost {
           );
         }
       }
-      const auth =
+      let auth: { cookie?: string; headers?: Record<string, string> } | undefined =
         authCookie || authHeaders
           ? {
               ...(authCookie ? { cookie: authCookie } : {}),
               ...(authHeaders ? { headers: authHeaders } : {}),
             }
           : undefined;
+
+      // A per-engagement auth profile (sealed in the DB) takes precedence over
+      // the worker-global env auth: it is more specific and scoped to one
+      // engagement. Falls back to the env auth above when none is configured.
+      const authProfile = await this.prisma.engagementAuthProfile.findUnique({
+        where: { engagementId: payload.engagementId },
+      });
+      if (authProfile) {
+        try {
+          auth = JSON.parse(this.secretBox.open(authProfile.ciphertext as Buffer)) as {
+            cookie?: string;
+            headers?: Record<string, string>;
+          };
+        } catch (err) {
+          this.logger.warn(
+            `scanJob=${payload.scanJobId} failed to decode engagement auth profile: ${(err as Error).message}`,
+          );
+        }
+      }
 
       const build = scanner.build(parsedInput, payload.target, {
         scanJobId: payload.scanJobId,

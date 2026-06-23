@@ -46,6 +46,9 @@ describe('ScanJobProcessor', () => {
       apiCredential: {
         findUnique: jest.fn().mockResolvedValue(null),
       },
+      engagementAuthProfile: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
     } as unknown as jest.Mocked<PrismaService>;
 
     docker = {

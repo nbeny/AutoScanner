@@ -13,6 +13,7 @@ import { authenticateWsConnection } from './auth/ws-auth';
 import { formatGraphqlError } from './graphql-error.formatter';
 import { AgentsModule } from './agents/agents.module';
 import { ApiCredentialsModule } from './api-credentials/api-credentials.module';
+import { EngagementAuthModule } from './engagement-auth/engagement-auth.module';
 import { AssetsModule } from './assets/assets.module';
 import { AuthModule } from './auth/auth.module';
 import { CorrelatedFindingsModule } from './correlated-findings/correlated-findings.module';
@@ -75,6 +76,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     }),
     AgentsModule,
     ApiCredentialsModule,
+    EngagementAuthModule,
     AssetsModule,
     AuthModule,
     CorrelatedFindingsModule,

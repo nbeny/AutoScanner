@@ -99,6 +99,7 @@ model Engagement {
   orgMetadata        OrgMetadata[]
   tlsCertificates    TlsCertificate[]
   correlatedFindings CorrelatedFinding[]
+  authProfile        EngagementAuthProfile?
 
   @@index([ownerId])
   @@index([status])
@@ -590,6 +591,21 @@ model ApiCredential {
 
   @@unique([ownerId, provider])
   @@index([ownerId])
+}
+
+model EngagementAuthProfile {
+  id           String @id @default(cuid())
+  engagementId String @unique
+  // AES-256-GCM SecretBox-sealed JSON { cookie?, headers? } for authenticated
+  // scanning. Plaintext is never persisted, returned via GraphQL, or logged;
+  // decrypted in-memory only by scan-worker to populate BuildContext.auth.
+  ciphertext Bytes
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@index([engagementId])
 }
 
 enum DnsRecordType {
