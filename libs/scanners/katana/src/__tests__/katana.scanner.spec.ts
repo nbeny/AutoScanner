@@ -30,4 +30,25 @@ describe('KatanaScanner', () => {
     expect(() => KatanaScanner.inputSchema.parse({ depth: 0 })).toThrow();
     expect(() => KatanaScanner.inputSchema.parse({ depth: 11 })).toThrow();
   });
+
+  it('attaches session headers for authenticated crawl when auth is configured', () => {
+    const input = KatanaScanner.inputSchema.parse({});
+    const { cmd } = KatanaScanner.build(input, 'example.com', {
+      ...ctx,
+      auth: { cookie: 'session=abc', headers: { Authorization: 'Bearer xyz' } },
+    });
+    expect(cmd).toEqual([
+      'katana',
+      '-u',
+      'example.com',
+      '-jsonl',
+      '-silent',
+      '-d',
+      '3',
+      '-H',
+      'Cookie: session=abc',
+      '-H',
+      'Authorization: Bearer xyz',
+    ]);
+  });
 });

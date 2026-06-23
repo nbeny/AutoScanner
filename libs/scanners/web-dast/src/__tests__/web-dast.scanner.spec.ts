@@ -46,4 +46,13 @@ describe('WebDastScanner.build', () => {
     const { cmd } = WebDastScanner.build({ mode: 'detect' }, "x'; rm -rf /", ctx());
     expect(cmd).not.toContain('sh');
   });
+
+  it('attaches session headers (-H) for authenticated fuzzing', () => {
+    const { cmd } = WebDastScanner.build({ mode: 'detect' }, target, {
+      ...ctx(),
+      auth: { cookie: 'session=abc', headers: { Authorization: 'Bearer xyz' } },
+    });
+    expect(cmd).toEqual(expect.arrayContaining(['-H', 'Cookie: session=abc']));
+    expect(cmd).toEqual(expect.arrayContaining(['-H', 'Authorization: Bearer xyz']));
+  });
 });

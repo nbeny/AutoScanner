@@ -81,11 +81,35 @@ export class ScanJobProcessor extends WorkerHost {
         ...(oastToken ? { token: oastToken } : {}),
         allowPublic: process.env['OAST_ALLOW_PUBLIC'] === 'true',
       };
+      const authCookie = process.env['SCAN_AUTH_COOKIE']?.trim();
+      let authHeaders: Record<string, string> | undefined;
+      const rawAuthHeaders = process.env['SCAN_AUTH_HEADERS']?.trim();
+      if (rawAuthHeaders) {
+        try {
+          const parsed = JSON.parse(rawAuthHeaders) as unknown;
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            authHeaders = parsed as Record<string, string>;
+          }
+        } catch {
+          this.logger.warn(
+            `scanJob=${payload.scanJobId} ignoring malformed SCAN_AUTH_HEADERS JSON`,
+          );
+        }
+      }
+      const auth =
+        authCookie || authHeaders
+          ? {
+              ...(authCookie ? { cookie: authCookie } : {}),
+              ...(authHeaders ? { headers: authHeaders } : {}),
+            }
+          : undefined;
+
       const build = scanner.build(parsedInput, payload.target, {
         scanJobId: payload.scanJobId,
         engagementId: payload.engagementId,
         scratchDir: artifactHostDir ? '/output' : '/tmp',
         oast,
+        auth,
       });
 
       let extraEnv: Record<string, string> | undefined;

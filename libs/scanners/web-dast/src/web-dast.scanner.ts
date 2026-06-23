@@ -3,6 +3,7 @@ import {
   type ScannerDefinition,
   type BuildContext,
   ScannerCategory,
+  authHeaderLines,
 } from '@autoscanner/scanner-sdk';
 
 const WebDastInput = z.object({
@@ -54,6 +55,10 @@ export const WebDastScanner: ScannerDefinition<WebDastInputType> = {
       cmd.push('-no-interactsh');
     }
     // else: allowPublic && no serverUrl → let nuclei use its default public interactsh.
+
+    // Authenticated fuzzing: attach session headers so nuclei reaches
+    // protected endpoints. No-op when no auth is configured.
+    for (const header of authHeaderLines(ctx.auth)) cmd.push('-H', header);
 
     return { cmd, stdin: target };
   },

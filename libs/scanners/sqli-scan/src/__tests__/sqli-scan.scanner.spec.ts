@@ -43,4 +43,21 @@ describe('SqliScanScanner', () => {
     expect(cmd[2]).not.toContain('--dump');
     expect(cmd[2]).not.toContain('--os-shell');
   });
+
+  it('passes the session cookie via --cookie when auth is configured', () => {
+    const { cmd } = SqliScanScanner.build(SqliScanScanner.inputSchema.parse({}), 'https://x.test', {
+      ...ctx,
+      auth: { cookie: 'session=abc' },
+    });
+    expect(cmd[2]).toContain("--cookie='session=abc'");
+  });
+
+  it('omits --cookie when no auth is configured', () => {
+    const { cmd } = SqliScanScanner.build(
+      SqliScanScanner.inputSchema.parse({}),
+      'https://x.test',
+      ctx,
+    );
+    expect(cmd[2]).not.toContain('--cookie');
+  });
 });

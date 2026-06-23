@@ -26,10 +26,13 @@ export const SqliScanScanner: ScannerDefinition<SqliScanInputType> = {
     cpuQuota: 1_000_000,
     defaultTimeoutMs: 600_000,
   },
-  build(input, target) {
+  build(input, target, ctx) {
     const t = shellQuoteSingle(target);
     const depth = input.level === 'aggressive' ? '--level 3 --risk 2' : '--level 1 --risk 1';
-    const script = `sqlmap -u ${t} --batch ${depth} --technique=BEU --flush-session 2>/dev/null || true`;
+    // Authenticated SQLi: pass the session cookie via sqlmap's native --cookie
+    // (sqlmap uses --cookie/--headers, not -H). No-op when no auth is configured.
+    const cookie = ctx.auth?.cookie ? ` --cookie=${shellQuoteSingle(ctx.auth.cookie)}` : '';
+    const script = `sqlmap -u ${t} --batch ${depth} --technique=BEU --flush-session${cookie} 2>/dev/null || true`;
     return { cmd: ['sh', '-lc', script] };
   },
   outputs: [{ format: 'TEXT', capture: 'stdout', parser: 'sqlmap-json' }],

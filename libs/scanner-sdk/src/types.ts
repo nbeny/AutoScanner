@@ -63,12 +63,21 @@ export interface OastConfig {
   allowPublic?: boolean;
 }
 
+export interface AuthConfig {
+  /** Extra HTTP headers (e.g. Authorization) attached to every scanner request. */
+  headers?: Record<string, string>;
+  /** Raw Cookie header value (e.g. "session=abc; csrf=def") for authenticated scans. */
+  cookie?: string;
+}
+
 export interface BuildContext {
   scanJobId: string;
   engagementId: string;
   scratchDir: string;
   /** Optional out-of-band scanning config, injected by scan-worker from env. */
   oast?: OastConfig;
+  /** Optional authenticated-session config, injected by scan-worker from env. */
+  auth?: AuthConfig;
 }
 
 export interface BuildResult {
