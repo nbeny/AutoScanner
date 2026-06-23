@@ -100,6 +100,14 @@
       "@autoscanner/scanners-rdp-sec-check": ["libs/scanners/rdp-sec-check/src/index.ts"],
       "@autoscanner/scanners-abuseipdb": ["libs/scanners/abuseipdb/src/index.ts"],
       "@autoscanner/scanners-greynoise": ["libs/scanners/greynoise/src/index.ts"],
+      "@autoscanner/scanners-subzy": ["libs/scanners/subzy/src/index.ts"],
+      "@autoscanner/scanners-alterx": ["libs/scanners/alterx/src/index.ts"],
+      "@autoscanner/scanners-metabigor": ["libs/scanners/metabigor/src/index.ts"],
+      "@autoscanner/scanners-mapcidr": ["libs/scanners/mapcidr/src/index.ts"],
+      "@autoscanner/scanners-cero": ["libs/scanners/cero/src/index.ts"],
+      "@autoscanner/scanners-waymore": ["libs/scanners/waymore/src/index.ts"],
+      "@autoscanner/scanners-paramspider": ["libs/scanners/paramspider/src/index.ts"],
+      "@autoscanner/scanners-spiderfoot": ["libs/scanners/spiderfoot/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }

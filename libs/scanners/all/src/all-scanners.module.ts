@@ -59,6 +59,14 @@ import { NbtscanScannerModule } from '@autoscanner/scanners-nbtscan';
 import { RdpSecCheckScannerModule } from '@autoscanner/scanners-rdp-sec-check';
 import { AbuseipdbScannerModule } from '@autoscanner/scanners-abuseipdb';
 import { GreynoiseScannerModule } from '@autoscanner/scanners-greynoise';
+import { SubzyScannerModule } from '@autoscanner/scanners-subzy';
+import { AlterxScannerModule } from '@autoscanner/scanners-alterx';
+import { MetabigorScannerModule } from '@autoscanner/scanners-metabigor';
+import { MapcidrScannerModule } from '@autoscanner/scanners-mapcidr';
+import { CeroScannerModule } from '@autoscanner/scanners-cero';
+import { WaymoreScannerModule } from '@autoscanner/scanners-waymore';
+import { ParamspiderScannerModule } from '@autoscanner/scanners-paramspider';
+import { SpiderfootScannerModule } from '@autoscanner/scanners-spiderfoot';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -128,6 +136,14 @@ const SCANNER_MODULES = [
   RdpSecCheckScannerModule,
   AbuseipdbScannerModule,
   GreynoiseScannerModule,
+  SubzyScannerModule,
+  AlterxScannerModule,
+  MetabigorScannerModule,
+  MapcidrScannerModule,
+  CeroScannerModule,
+  WaymoreScannerModule,
+  ParamspiderScannerModule,
+  SpiderfootScannerModule,
 ];
 
 @Module({

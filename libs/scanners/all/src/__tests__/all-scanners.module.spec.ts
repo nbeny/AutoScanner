@@ -54,6 +54,14 @@ describe('AllScannersModule', () => {
       'ssti-scan',
       'zap-scan',
       'openvas-scan',
+      'subzy',
+      'alterx',
+      'metabigor',
+      'mapcidr',
+      'cero',
+      'waymore',
+      'paramspider',
+      'spiderfoot',
     ]) {
       expect(registry.has(name)).toBe(true);
     }
