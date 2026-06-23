@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type ScannerDefinition, ScannerCategory } from '@autoscanner/scanner-sdk';
+import { type ScannerDefinition, ScannerCategory, authHeaderLines } from '@autoscanner/scanner-sdk';
 
 function shellQuoteSingle(s: string): string {
   return `'${s.replace(/'/g, "'\\''")}'`;
@@ -28,12 +28,18 @@ export const SstiScanScanner: ScannerDefinition<SstiScanInputType> = {
     cpuQuota: 1_000_000,
     defaultTimeoutMs: 600_000,
   },
-  build(input, target) {
+  build(input, target, ctx) {
     const t = shellQuoteSingle(target);
     const evalFlag = input.level === 'exploit' ? '--eval' : '';
+    // Authenticated SSTI: SSTImap takes repeatable -H 'Name: Value'. No-op when
+    // no auth is configured.
+    const headerArgs = authHeaderLines(ctx.auth)
+      .map((h) => `-H ${shellQuoteSingle(h)}`)
+      .join(' ');
     // SSTImap runs non-interactively when given -u and no interactive action.
-    // `|| true` keeps a clean exit 0 on "no injection found".
-    const script = `python3 /opt/SSTImap/sstimap.py -u ${t} ${evalFlag} 2>/dev/null || true`;
+    // `|| true` keeps a clean exit 0 on "no injection found". Extra spaces from
+    // empty evalFlag/headerArgs are harmless to sh.
+    const script = `python3 /opt/SSTImap/sstimap.py -u ${t} ${evalFlag} ${headerArgs} 2>/dev/null || true`;
     return { cmd: ['sh', '-lc', script] };
   },
   outputs: [{ format: 'TEXT', capture: 'stdout', parser: 'sstimap-text' }],

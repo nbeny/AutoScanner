@@ -38,4 +38,12 @@ describe('CmdiScanScanner', () => {
     expect(cmd[2]).toContain('--level 2');
     expect(cmd[2]).not.toContain('--os-cmd');
   });
+
+  it('passes the session cookie via --cookie when auth is configured', () => {
+    const { cmd } = CmdiScanScanner.build(CmdiScanScanner.inputSchema.parse({}), 'https://x.test', {
+      ...ctx,
+      auth: { cookie: 'session=abc' },
+    });
+    expect(cmd[2]).toContain("--cookie='session=abc'");
+  });
 });

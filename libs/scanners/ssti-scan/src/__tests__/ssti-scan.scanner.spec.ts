@@ -21,4 +21,13 @@ describe('SstiScanScanner.build', () => {
     const { cmd } = SstiScanScanner.build({ level: 'detect' }, "x'; rm -rf /", ctx);
     expect(cmd.join(' ')).toContain("'x'\\''; rm -rf /'");
   });
+
+  it('attaches session headers (-H) for authenticated scanning', () => {
+    const { cmd } = SstiScanScanner.build({ level: 'detect' }, 'https://t.example/', {
+      ...ctx,
+      auth: { cookie: 'session=abc', headers: { Authorization: 'Bearer xyz' } },
+    });
+    expect(cmd[2]).toContain("-H 'Cookie: session=abc'");
+    expect(cmd[2]).toContain("-H 'Authorization: Bearer xyz'");
+  });
 });

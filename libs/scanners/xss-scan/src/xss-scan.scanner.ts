@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type ScannerDefinition, ScannerCategory } from '@autoscanner/scanner-sdk';
+import { type ScannerDefinition, ScannerCategory, authHeaderLines } from '@autoscanner/scanner-sdk';
 
 const XssScanInput = z.object({
   level: z.enum(['detect', 'aggressive']).default('detect'),
@@ -26,10 +26,13 @@ export const XssScanScanner: ScannerDefinition<XssScanInputType> = {
     cpuQuota: 1_000_000,
     defaultTimeoutMs: 600_000,
   },
-  build(input, target) {
+  build(input, target, ctx) {
     const t = shellQuoteSingle(target);
     const flags = ['--format', 'json', '--no-color', '--silence'];
     if (input.level === 'aggressive') flags.push('--mining-dom', '--deep-domxss');
+    // Authenticated XSS: dalfox takes repeatable -H 'Name: Value'. No-op when
+    // no auth is configured.
+    for (const h of authHeaderLines(ctx.auth)) flags.push('-H', shellQuoteSingle(h));
     const script = `dalfox url ${t} ${flags.join(' ')} 2>/dev/null || true`;
     return { cmd: ['sh', '-lc', script] };
   },

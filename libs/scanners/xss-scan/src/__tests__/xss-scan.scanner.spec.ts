@@ -39,4 +39,13 @@ describe('XssScanScanner', () => {
     expect(cmd[2]).toContain('--mining-dom');
     expect(cmd[2]).not.toContain('-b ');
   });
+
+  it('attaches session headers (-H) for authenticated scanning', () => {
+    const { cmd } = XssScanScanner.build(XssScanScanner.inputSchema.parse({}), 'https://x.test', {
+      ...ctx,
+      auth: { cookie: 'session=abc', headers: { Authorization: 'Bearer xyz' } },
+    });
+    expect(cmd[2]).toContain("-H 'Cookie: session=abc'");
+    expect(cmd[2]).toContain("-H 'Authorization: Bearer xyz'");
+  });
 });

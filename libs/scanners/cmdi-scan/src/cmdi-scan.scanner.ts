@@ -26,10 +26,13 @@ export const CmdiScanScanner: ScannerDefinition<CmdiScanInputType> = {
     cpuQuota: 1_000_000,
     defaultTimeoutMs: 600_000,
   },
-  build(input, target) {
+  build(input, target, ctx) {
     const t = shellQuoteSingle(target);
     const depth = input.level === 'aggressive' ? '--level 2' : '--level 1';
-    const script = `commix --url=${t} --batch ${depth} 2>/dev/null || true`;
+    // Authenticated command-injection: pass the session cookie via commix's
+    // native --cookie. No-op when no auth is configured.
+    const cookie = ctx.auth?.cookie ? ` --cookie=${shellQuoteSingle(ctx.auth.cookie)}` : '';
+    const script = `commix --url=${t} --batch ${depth}${cookie} 2>/dev/null || true`;
     return { cmd: ['sh', '-lc', script] };
   },
   outputs: [{ format: 'TEXT', capture: 'stdout', parser: 'commix-text' }],
