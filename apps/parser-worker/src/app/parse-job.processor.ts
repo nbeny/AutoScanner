@@ -39,6 +39,7 @@ import { SubdomainIpPersister } from './persisters/subdomain-ip-persister';
 import { TechnologyPersister } from './persisters/technology-persister';
 import { EndpointPersister } from './persisters/endpoint-persister';
 import { EmailPersister } from './persisters/email-persister';
+import { IdentityPersister } from './persisters/identity-persister';
 import { OrgMetadataPersister } from './persisters/org-metadata-persister';
 import { TlsCertificatePersister } from './persisters/tls-certificate-persister';
 
@@ -53,6 +54,7 @@ export interface ParseJobResult {
   subdomainIpsPersisted: number;
   endpointsPersisted: number;
   emailsPersisted: number;
+  identitiesPersisted: number;
   orgMetadataPersisted: number;
   tlsCertificatesPersisted: number;
   correlatedFindings: number;
@@ -77,6 +79,7 @@ export class ParseJobProcessor extends WorkerHost {
     private readonly subdomainIpPersister: SubdomainIpPersister,
     private readonly endpointPersister: EndpointPersister,
     private readonly emailPersister: EmailPersister,
+    private readonly identityPersister: IdentityPersister,
     private readonly orgMetadataPersister: OrgMetadataPersister,
     private readonly tlsCertificatePersister: TlsCertificatePersister,
     private readonly prisma: PrismaService,
@@ -251,7 +254,7 @@ export class ParseJobProcessor extends WorkerHost {
 
     const finalResult = { ...result, correlatedFindings };
     this.logger.log(
-      `parseJob scanJob=${payload.scanJobId} assets=${finalResult.assetsPersisted} ports=${finalResult.portsPersisted} services=${finalResult.servicesPersisted} findings=${finalResult.findingsPersisted} technologies=${finalResult.technologiesPersisted} ipAddresses=${finalResult.ipAddressesPersisted} dnsRecords=${finalResult.dnsRecordsPersisted} subdomainIps=${finalResult.subdomainIpsPersisted} endpoints=${finalResult.endpointsPersisted} emails=${finalResult.emailsPersisted} orgMetadata=${finalResult.orgMetadataPersisted} tlsCertificates=${finalResult.tlsCertificatesPersisted} correlatedFindings=${finalResult.correlatedFindings}`,
+      `parseJob scanJob=${payload.scanJobId} assets=${finalResult.assetsPersisted} ports=${finalResult.portsPersisted} services=${finalResult.servicesPersisted} findings=${finalResult.findingsPersisted} technologies=${finalResult.technologiesPersisted} ipAddresses=${finalResult.ipAddressesPersisted} dnsRecords=${finalResult.dnsRecordsPersisted} subdomainIps=${finalResult.subdomainIpsPersisted} endpoints=${finalResult.endpointsPersisted} emails=${finalResult.emailsPersisted} identities=${finalResult.identitiesPersisted} orgMetadata=${finalResult.orgMetadataPersisted} tlsCertificates=${finalResult.tlsCertificatesPersisted} correlatedFindings=${finalResult.correlatedFindings}`,
     );
     return finalResult;
   }
@@ -745,6 +748,12 @@ export class ParseJobProcessor extends WorkerHost {
         this.prisma.$transaction((tx) => this.emailPersister.upsert(out.emails, ctx, tx)),
       );
     }
+    let identitiesPersisted = 0;
+    if (out.identities?.length > 0) {
+      identitiesPersisted = await this.withRetryOnSerializationConflict(() =>
+        this.prisma.$transaction((tx) => this.identityPersister.upsert(out.identities, ctx, tx)),
+      );
+    }
     let orgMetadataPersisted = 0;
     if (out.orgMetadata?.length > 0) {
       orgMetadataPersisted = await this.withRetryOnSerializationConflict(() =>
@@ -773,6 +782,7 @@ export class ParseJobProcessor extends WorkerHost {
       subdomainIpsPersisted,
       endpointsPersisted,
       emailsPersisted,
+      identitiesPersisted,
       orgMetadataPersisted,
       tlsCertificatesPersisted,
     };

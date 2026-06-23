@@ -96,6 +96,7 @@ model Engagement {
   schedules          Schedule[]
   endpoints          Endpoint[]
   emails             Email[]
+  identities         Identity[]
   orgMetadata        OrgMetadata[]
   tlsCertificates    TlsCertificate[]
   correlatedFindings CorrelatedFinding[]
@@ -558,6 +559,24 @@ model Email {
   engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
 
   @@unique([engagementId, address])
+  @@index([engagementId])
+}
+
+model Identity {
+  id           String   @id @default(cuid())
+  engagementId String
+  kind         String // USERNAME | EMAIL_ACCOUNT
+  seed         String
+  service      String
+  url          String?
+  source       String
+  firstSeenAt  DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+  metadata     Json?
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@unique([engagementId, kind, seed, service])
   @@index([engagementId])
 }
 

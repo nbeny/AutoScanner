@@ -83,6 +83,19 @@ export interface NormalizedEmail {
   source?: string;
 }
 
+export interface NormalizedIdentity {
+  /** USERNAME = compte trouvé par recherche de pseudo (maigret) ; EMAIL_ACCOUNT = service où l'email est enregistré (holehe). */
+  kind: 'USERNAME' | 'EMAIL_ACCOUNT';
+  /** Le pseudo ou l'email interrogé. */
+  seed: string;
+  /** Nom du site/service (ex: "GitHub", "twitter.com"). */
+  service: string;
+  /** URL du profil si disponible. */
+  url?: string;
+  /** Nom du scanner source. */
+  source: string;
+}
+
 export interface NormalizedOrgMetadata {
   kind: 'WHOIS' | 'ASN' | 'ORG' | 'NETBLOCK' | 'CLOUD_BUCKET' | 'OTHER';
   data: unknown;
@@ -112,6 +125,7 @@ export interface NormalizedOutput {
   httpProbes: NormalizedHttpProbe[];
   endpoints: NormalizedEndpoint[];
   emails: NormalizedEmail[];
+  identities: NormalizedIdentity[];
   orgMetadata: NormalizedOrgMetadata[];
   tlsCertificates: NormalizedTlsCertificate[];
   raw?: unknown;
@@ -144,6 +158,7 @@ export function emptyNormalizedOutput(): NormalizedOutput {
     httpProbes: [],
     endpoints: [],
     emails: [],
+    identities: [],
     orgMetadata: [],
     tlsCertificates: [],
   };

@@ -25,5 +25,7 @@ export const WebFingerprint: TemplateDefinition = {
     { scannerName: 'tlsx', inputs: {}, target: { kind: 'context', path: 'subdomains' } },
     { scannerName: 'whatweb', inputs: {}, target: { kind: 'context', path: 'subdomains' } },
     { scannerName: 'sslscan', inputs: {}, target: { kind: 'context', path: 'subdomains' } },
+    { scannerName: 'webanalyze', inputs: {}, target: { kind: 'context', path: 'target' } },
+    { scannerName: 'subjs', inputs: {}, target: { kind: 'context', path: 'target' } },
   ],
 };

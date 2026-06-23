@@ -34,6 +34,7 @@ import { SubdomainIpPersister } from '../persisters/subdomain-ip-persister';
 import { TechnologyPersister } from '../persisters/technology-persister';
 import { EndpointPersister } from '../persisters/endpoint-persister';
 import { EmailPersister } from '../persisters/email-persister';
+import { IdentityPersister } from '../persisters/identity-persister';
 import { OrgMetadataPersister } from '../persisters/org-metadata-persister';
 import { TlsCertificatePersister } from '../persisters/tls-certificate-persister';
 
@@ -159,6 +160,9 @@ describe('ParseJobProcessor', () => {
       endpoint: {
         upsert: jest.fn().mockResolvedValue({ id: 'endpoint_mock' }),
       },
+      identity: {
+        upsert: jest.fn().mockResolvedValue({}),
+      },
       assetObservation: {
         create: jest.fn().mockResolvedValue({ id: 'obs_mock' }),
         count: jest.fn().mockResolvedValue(0),
@@ -221,6 +225,7 @@ describe('ParseJobProcessor', () => {
       new SubdomainIpPersister(prisma),
       new EndpointPersister(prisma),
       new EmailPersister(prisma),
+      new IdentityPersister(prisma),
       new OrgMetadataPersister(prisma),
       new TlsCertificatePersister(prisma),
       prisma,
@@ -312,6 +317,7 @@ describe('ParseJobProcessor', () => {
       subdomainIpsPersisted: 0,
       endpointsPersisted: 0,
       emailsPersisted: 0,
+      identitiesPersisted: 0,
       orgMetadataPersisted: 0,
       tlsCertificatesPersisted: 0,
       correlatedFindings: 0,

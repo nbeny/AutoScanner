@@ -9,16 +9,22 @@ describe('WebFingerprint template', () => {
     expect(WebFingerprint.name).toBe('web-fingerprint');
   });
 
-  it('has exactly 4 steps: httpx, tlsx, whatweb, sslscan', () => {
-    expect(WebFingerprint.steps).toHaveLength(4);
+  it('has exactly 6 steps: httpx, tlsx, whatweb, sslscan, webanalyze, subjs', () => {
+    expect(WebFingerprint.steps).toHaveLength(6);
     const names = WebFingerprint.steps.map((s) => s.scannerName);
-    expect(names).toEqual(['httpx', 'tlsx', 'whatweb', 'sslscan']);
+    expect(names).toEqual(['httpx', 'tlsx', 'whatweb', 'sslscan', 'webanalyze', 'subjs']);
   });
 
-  it('all steps target {kind:"context", path:"subdomains"}', () => {
-    for (const step of WebFingerprint.steps) {
+  it('first 4 steps target {kind:"context", path:"subdomains"}', () => {
+    for (const step of WebFingerprint.steps.slice(0, 4)) {
       expect(step.target).toEqual({ kind: 'context', path: 'subdomains' });
     }
+  });
+
+  it('webanalyze and subjs steps target {kind:"context", path:"target"}', () => {
+    const [, , , , webanalyze, subjs] = WebFingerprint.steps;
+    expect(webanalyze.target).toEqual({ kind: 'context', path: 'target' });
+    expect(subjs.target).toEqual({ kind: 'context', path: 'target' });
   });
 
   it('httpx step has techDetect static true', () => {

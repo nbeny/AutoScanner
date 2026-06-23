@@ -57,6 +57,11 @@ import { SubzyJsonParser } from './subzy-json';
 import { MetabigorJsonParser } from './metabigor-json';
 import { IplinesTextParser } from './iplines-text';
 import { SpiderfootJsonParser } from './spiderfoot-json';
+import { MaigretTextParser } from './maigret-text';
+import { HoleheTextParser } from './holehe-text';
+import { DnstwistJsonParser } from './dnstwist-json';
+import { WebanalyzeJsonParser } from './webanalyze-json';
+import { SubjsTextParser } from './subjs-text';
 
 @Global()
 @Module({
@@ -119,6 +124,11 @@ import { SpiderfootJsonParser } from './spiderfoot-json';
     MetabigorJsonParser,
     IplinesTextParser,
     SpiderfootJsonParser,
+    MaigretTextParser,
+    HoleheTextParser,
+    DnstwistJsonParser,
+    WebanalyzeJsonParser,
+    SubjsTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -179,6 +189,11 @@ import { SpiderfootJsonParser } from './spiderfoot-json';
     MetabigorJsonParser,
     IplinesTextParser,
     SpiderfootJsonParser,
+    MaigretTextParser,
+    HoleheTextParser,
+    DnstwistJsonParser,
+    WebanalyzeJsonParser,
+    SubjsTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -241,6 +256,11 @@ export class ParsersModule implements OnModuleInit {
     private readonly metabigorJson: MetabigorJsonParser,
     private readonly iplinesText: IplinesTextParser,
     private readonly spiderfootJson: SpiderfootJsonParser,
+    private readonly maigretText: MaigretTextParser,
+    private readonly holeheText: HoleheTextParser,
+    private readonly dnstwistJson: DnstwistJsonParser,
+    private readonly webanalyzeJson: WebanalyzeJsonParser,
+    private readonly subjsText: SubjsTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -301,5 +321,10 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.metabigorJson);
     this.registry.register(this.iplinesText);
     this.registry.register(this.spiderfootJson);
+    this.registry.register(this.maigretText);
+    this.registry.register(this.holeheText);
+    this.registry.register(this.dnstwistJson);
+    this.registry.register(this.webanalyzeJson);
+    this.registry.register(this.subjsText);
   }
 }
