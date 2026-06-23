@@ -57,6 +57,7 @@ import { SubzyJsonParser } from './subzy-json';
 import { MetabigorJsonParser } from './metabigor-json';
 import { IplinesTextParser } from './iplines-text';
 import { SpiderfootJsonParser } from './spiderfoot-json';
+import { MaigretTextParser } from './maigret-text';
 
 @Global()
 @Module({
@@ -119,6 +120,7 @@ import { SpiderfootJsonParser } from './spiderfoot-json';
     MetabigorJsonParser,
     IplinesTextParser,
     SpiderfootJsonParser,
+    MaigretTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -179,6 +181,7 @@ import { SpiderfootJsonParser } from './spiderfoot-json';
     MetabigorJsonParser,
     IplinesTextParser,
     SpiderfootJsonParser,
+    MaigretTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -241,6 +244,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly metabigorJson: MetabigorJsonParser,
     private readonly iplinesText: IplinesTextParser,
     private readonly spiderfootJson: SpiderfootJsonParser,
+    private readonly maigretText: MaigretTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -301,5 +305,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.metabigorJson);
     this.registry.register(this.iplinesText);
     this.registry.register(this.spiderfootJson);
+    this.registry.register(this.maigretText);
   }
 }
