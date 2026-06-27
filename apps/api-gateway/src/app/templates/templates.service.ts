@@ -5,7 +5,9 @@ import type { Scan, ScanTemplate, ScopeRule, TemplateRun } from '@prisma/client'
 
 import { NotFoundError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
+import { CapabilityService, type CapabilityKey } from '@autoscanner/auth';
 import { QueueName, type TemplateRunPayload } from '@autoscanner/queues';
+import type { TemplateStep } from '@autoscanner/templates';
 
 import { RunTemplateInput } from './dto/run-template.input';
 
@@ -19,7 +21,36 @@ export class TemplatesService {
     private readonly prisma: PrismaService,
     @InjectQueue(QueueName.TEMPLATE_RUNS)
     private readonly templateRunsQueue: Queue<TemplateRunPayload>,
+    private readonly capabilities: CapabilityService,
   ) {}
+
+  /**
+   * Filter out template steps whose `requiresCapability` is not granted to the
+   * caller. Skipped steps emit an audit log line so an operator can see why
+   * a capability-gated scanner (e.g. ike-scan) did not run.
+   */
+  async filterStepsByCapability(
+    userId: string,
+    steps: readonly TemplateStep[],
+  ): Promise<TemplateStep[]> {
+    const kept: TemplateStep[] = [];
+    for (const step of steps) {
+      if (step.requiresCapability) {
+        const allowed = await this.capabilities.has(
+          userId,
+          step.requiresCapability as CapabilityKey,
+        );
+        if (!allowed) {
+          this.logger.log(
+            `skip step scanner=${step.scannerName} reason=missing-capability key=${step.requiresCapability}`,
+          );
+          continue;
+        }
+      }
+      kept.push(step);
+    }
+    return kept;
+  }
 
   async runTemplate(userId: string, input: RunTemplateInput): Promise<TemplateRun> {
     const engagement = await this.prisma.engagement.findFirst({
