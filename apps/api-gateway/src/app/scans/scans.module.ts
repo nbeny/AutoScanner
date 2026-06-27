@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import IORedis from 'ioredis';
 
 import { AppConfigModule, AppConfigService } from '@autoscanner/config';
+import { CapabilityModule } from '@autoscanner/auth';
 import { LogStreamModule } from '@autoscanner/log-stream';
 import { QueueName, QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
@@ -28,6 +29,7 @@ import './dto/scan-log-chunk.object';
     AllScannersModule,
     BullModule.registerQueue({ name: QueueName.SCAN_JOBS }),
     EngagementEventsModule.forRoot(),
+    CapabilityModule,
   ],
   controllers: [ScansController],
   providers: [

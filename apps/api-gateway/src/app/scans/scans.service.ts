@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import type { Scan, ScanJob } from '@prisma/client';
 import { NotFoundError, ValidationError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
+import { CapabilityService, ACTIVE_RECON_HOST_NET } from '@autoscanner/auth';
 import { QueueName, type ScanJobPayload } from '@autoscanner/queues';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
@@ -38,6 +39,7 @@ export class ScansService {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly scanControl: ScanControlPublisher,
     @Inject(ENGAGEMENT_EVENTS_PUBLISHER) private readonly events: EngagementEventsPublisher,
+    private readonly capabilities: CapabilityService,
   ) {}
 
   async runScan(userId: string, input: RunScanInput): Promise<Scan> {
@@ -45,6 +47,15 @@ export class ScansService {
       throw new ValidationError(`Unknown scanner: ${input.scannerName}`);
     }
     const scanner = this.registry.get(input.scannerName);
+
+    if (scanner.name === 'ike-scan') {
+      const allowed = await this.capabilities.has(userId, ACTIVE_RECON_HOST_NET);
+      if (!allowed) {
+        throw new ValidationError(
+          'Scanner ike-scan requires the active-recon-host-net capability.',
+        );
+      }
+    }
 
     const engagement = await this.prisma.engagement.findFirst({
       where: { id: input.engagementId, ownerId: userId, deletedAt: null },

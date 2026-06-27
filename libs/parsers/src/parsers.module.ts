@@ -65,6 +65,7 @@ import { SubjsTextParser } from './subjs-text';
 import { RustscanGreppableParser } from './rustscan-greppable';
 import { OnesixtyoneTextParser } from './onesixtyone-text';
 import { Enum4LinuxJsonParser } from './enum4linux-json';
+import { IkeScanTextParser } from './ike-scan-text';
 
 @Global()
 @Module({
@@ -135,6 +136,7 @@ import { Enum4LinuxJsonParser } from './enum4linux-json';
     RustscanGreppableParser,
     OnesixtyoneTextParser,
     Enum4LinuxJsonParser,
+    IkeScanTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -203,6 +205,7 @@ import { Enum4LinuxJsonParser } from './enum4linux-json';
     RustscanGreppableParser,
     OnesixtyoneTextParser,
     Enum4LinuxJsonParser,
+    IkeScanTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -273,6 +276,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly rustscanGreppable: RustscanGreppableParser,
     private readonly onesixtyoneText: OnesixtyoneTextParser,
     private readonly enum4linuxJson: Enum4LinuxJsonParser,
+    private readonly ikeScanText: IkeScanTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -341,5 +345,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.rustscanGreppable);
     this.registry.register(this.onesixtyoneText);
     this.registry.register(this.enum4linuxJson);
+    this.registry.register(this.ikeScanText);
   }
 }
