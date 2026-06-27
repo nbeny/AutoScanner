@@ -79,6 +79,7 @@ import { CorsyJsonParser } from './corsy-json';
 import { LinkfinderTextParser } from './linkfinder-text';
 import { JsluiceJsonlParser } from './jsluice-jsonl';
 import { Graphw00fJsonParser } from './graphw00f-json';
+import { GraphqlCopJsonParser } from './graphql-cop-json';
 
 @Global()
 @Module({
@@ -163,6 +164,7 @@ import { Graphw00fJsonParser } from './graphw00f-json';
     LinkfinderTextParser,
     JsluiceJsonlParser,
     Graphw00fJsonParser,
+    GraphqlCopJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -245,6 +247,7 @@ import { Graphw00fJsonParser } from './graphw00f-json';
     LinkfinderTextParser,
     JsluiceJsonlParser,
     Graphw00fJsonParser,
+    GraphqlCopJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -329,6 +332,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly linkfinderText: LinkfinderTextParser,
     private readonly jsluiceJsonl: JsluiceJsonlParser,
     private readonly graphw00fJson: Graphw00fJsonParser,
+    private readonly graphqlCopJson: GraphqlCopJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -411,5 +415,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.linkfinderText);
     this.registry.register(this.jsluiceJsonl);
     this.registry.register(this.graphw00fJson);
+    this.registry.register(this.graphqlCopJson);
   }
 }
