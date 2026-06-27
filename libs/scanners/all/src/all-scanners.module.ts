@@ -73,6 +73,7 @@ import { DnstwistScannerModule } from '@autoscanner/scanners-dnstwist';
 import { WebanalyzeScannerModule } from '@autoscanner/scanners-webanalyze';
 import { SubjsScannerModule } from '@autoscanner/scanners-subjs';
 import { RustscanScannerModule } from '@autoscanner/scanners-rustscan';
+import { OnesixtyoneScannerModule } from '@autoscanner/scanners-onesixtyone';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -156,6 +157,7 @@ const SCANNER_MODULES = [
   WebanalyzeScannerModule,
   SubjsScannerModule,
   RustscanScannerModule,
+  OnesixtyoneScannerModule,
 ];
 
 @Module({

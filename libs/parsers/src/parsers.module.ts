@@ -63,6 +63,7 @@ import { DnstwistJsonParser } from './dnstwist-json';
 import { WebanalyzeJsonParser } from './webanalyze-json';
 import { SubjsTextParser } from './subjs-text';
 import { RustscanGreppableParser } from './rustscan-greppable';
+import { OnesixtyoneTextParser } from './onesixtyone-text';
 
 @Global()
 @Module({
@@ -131,6 +132,7 @@ import { RustscanGreppableParser } from './rustscan-greppable';
     WebanalyzeJsonParser,
     SubjsTextParser,
     RustscanGreppableParser,
+    OnesixtyoneTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -197,6 +199,7 @@ import { RustscanGreppableParser } from './rustscan-greppable';
     WebanalyzeJsonParser,
     SubjsTextParser,
     RustscanGreppableParser,
+    OnesixtyoneTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -265,6 +268,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly webanalyzeJson: WebanalyzeJsonParser,
     private readonly subjsText: SubjsTextParser,
     private readonly rustscanGreppable: RustscanGreppableParser,
+    private readonly onesixtyoneText: OnesixtyoneTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -331,5 +335,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.webanalyzeJson);
     this.registry.register(this.subjsText);
     this.registry.register(this.rustscanGreppable);
+    this.registry.register(this.onesixtyoneText);
   }
 }
