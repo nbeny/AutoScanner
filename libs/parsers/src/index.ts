@@ -72,4 +72,5 @@ export * from './gospider-json';
 export * from './cariddi-json';
 export * from './corsy-json';
 export * from './linkfinder-text';
+export * from './jsluice-jsonl';
 export * from './parsers.module';

@@ -77,6 +77,7 @@ import { GospiderJsonParser } from './gospider-json';
 import { CariddiJsonParser } from './cariddi-json';
 import { CorsyJsonParser } from './corsy-json';
 import { LinkfinderTextParser } from './linkfinder-text';
+import { JsluiceJsonlParser } from './jsluice-jsonl';
 
 @Global()
 @Module({
@@ -159,6 +160,7 @@ import { LinkfinderTextParser } from './linkfinder-text';
     CariddiJsonParser,
     CorsyJsonParser,
     LinkfinderTextParser,
+    JsluiceJsonlParser,
   ],
   exports: [
     ParserRegistry,
@@ -239,6 +241,7 @@ import { LinkfinderTextParser } from './linkfinder-text';
     CariddiJsonParser,
     CorsyJsonParser,
     LinkfinderTextParser,
+    JsluiceJsonlParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -321,6 +324,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly cariddiJson: CariddiJsonParser,
     private readonly corsyJson: CorsyJsonParser,
     private readonly linkfinderText: LinkfinderTextParser,
+    private readonly jsluiceJsonl: JsluiceJsonlParser,
   ) {}
 
   onModuleInit(): void {
@@ -401,5 +405,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.cariddiJson);
     this.registry.register(this.corsyJson);
     this.registry.register(this.linkfinderText);
+    this.registry.register(this.jsluiceJsonl);
   }
 }
