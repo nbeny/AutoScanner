@@ -58,4 +58,5 @@ export * from './metabigor-json';
 export * from './iplines-text';
 export * from './spiderfoot-json';
 export * from './feroxbuster-json';
+export * from './hakrawler-text';
 export * from './parsers.module';

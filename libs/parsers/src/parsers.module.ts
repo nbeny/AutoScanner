@@ -63,6 +63,7 @@ import { DnstwistJsonParser } from './dnstwist-json';
 import { WebanalyzeJsonParser } from './webanalyze-json';
 import { SubjsTextParser } from './subjs-text';
 import { FeroxbusterJsonParser } from './feroxbuster-json';
+import { HakrawlerTextParser } from './hakrawler-text';
 
 @Global()
 @Module({
@@ -131,6 +132,7 @@ import { FeroxbusterJsonParser } from './feroxbuster-json';
     WebanalyzeJsonParser,
     SubjsTextParser,
     FeroxbusterJsonParser,
+    HakrawlerTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -197,6 +199,7 @@ import { FeroxbusterJsonParser } from './feroxbuster-json';
     WebanalyzeJsonParser,
     SubjsTextParser,
     FeroxbusterJsonParser,
+    HakrawlerTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -265,6 +268,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly webanalyzeJson: WebanalyzeJsonParser,
     private readonly subjsText: SubjsTextParser,
     private readonly feroxbusterJson: FeroxbusterJsonParser,
+    private readonly hakrawlerText: HakrawlerTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -331,5 +335,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.webanalyzeJson);
     this.registry.register(this.subjsText);
     this.registry.register(this.feroxbusterJson);
+    this.registry.register(this.hakrawlerText);
   }
 }
