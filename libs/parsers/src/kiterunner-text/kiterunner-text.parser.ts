@@ -46,22 +46,26 @@ export class KiterunnerTextParser implements Parser {
 
     const seenUrls = new Set<string>();
 
-    for (const line of text.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      const match = LINE_RE.exec(trimmed);
-      if (!match) continue;
+    try {
+      for (const line of text.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        const match = LINE_RE.exec(trimmed);
+        if (!match) continue;
 
-      const method = match[1];
-      const statusCode = Number(match[2]);
-      const url = match[3].replace(/\s.*$/, '');
+        const method = match[1];
+        const statusCode = Number(match[2]);
+        const url = match[3].replace(/\s.*$/, '');
 
-      if (!seenUrls.has(url)) {
+        if (seenUrls.has(url)) continue;
         seenUrls.add(url);
         out.endpoints.push({ url, method, statusCode });
+
+        const finding = classify(statusCode, url, ctx.scannerName);
+        if (finding) out.findings.push(finding);
       }
-      const finding = classify(statusCode, url, ctx.scannerName);
-      if (finding) out.findings.push(finding);
+    } catch {
+      return emptyNormalizedOutput();
     }
     return out;
   }

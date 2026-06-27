@@ -8,12 +8,14 @@ import type { TemplateDefinition } from '../types';
  *   - API brute:       kiterunner (routes-large.kite, conservative defaults)
  *   - GraphQL branch:  graphw00f (-d auto-discovery) → graphql-cop (only if endpoint confirmed)
  *
- * Conditional fan-out for graphql-cop:
+ * Target-tolerant fan-out for graphql-cop:
  *   graphw00f-json emits an Endpoint when it confirms a GraphQL path. The parser-worker
  *   persists the row; ContextBuilder resolves `path: 'endpoints'` to the merged set
- *   (which also contains URLs from linkfinder/jsluice). graphql-cop is intentionally
- *   tolerant of non-GraphQL URLs in the input list — it simply emits no Finding when
- *   the target is not a GraphQL endpoint.
+ *   of every Endpoint for the engagement (JS files, kiterunner hits, GraphQL paths).
+ *   graphql-cop is therefore invoked once per discovered endpoint regardless of whether
+ *   each is actually a GraphQL endpoint — it simply emits no Finding for non-GraphQL
+ *   URLs. A future iteration could narrow this to a typed-Endpoint filter; for now the
+ *   no-op cost on non-GraphQL URLs is accepted.
  *
  * Rate-limit acknowledgement: kiterunner uses maxConnPerHost=3 by default, but on
  * shared/aggressive targets the operator must opt-in via the banner below.

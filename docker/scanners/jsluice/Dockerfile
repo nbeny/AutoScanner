@@ -1,6 +1,7 @@
 FROM golang:1.22-bookworm AS build
-RUN go install github.com/BishopFox/jsluice/cmd/jsluice@v0.0.0-20240206
-# Mandiant repo lives at github.com/BishopFox/jsluice (community fork tracks Mandiant upstream).
+# TODO(phase-14a): pin to a real BishopFox/jsluice tag once they tag a v1.x release.
+RUN go install github.com/BishopFox/jsluice/cmd/jsluice@latest
+# jsluice was originally authored by Hakluke at BishopFox; the upstream is github.com/BishopFox/jsluice.
 
 FROM debian:bookworm-slim
 RUN apt-get update \

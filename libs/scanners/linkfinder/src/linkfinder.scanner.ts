@@ -25,15 +25,7 @@ export const LinkfinderScanner: ScannerDefinition<LinkfinderInputType> = {
   },
   build(input, target) {
     return {
-      cmd: [
-        'python',
-        '/opt/linkfinder/linkfinder.py',
-        '-i',
-        target,
-        '-o',
-        'cli',
-        ...(input.outputFormat === 'html' ? ['-d'] : []),
-      ],
+      cmd: ['python', '/opt/linkfinder/linkfinder.py', '-i', target, '-o', input.outputFormat],
     };
   },
   outputs: [{ format: 'TEXT', capture: 'stdout', parser: 'linkfinder-text' }],

@@ -29,11 +29,12 @@ describe('LinkfinderScanner', () => {
     expect(cmd).toContain('cli');
   });
 
-  it('build() supports html output format', () => {
+  it('build() emits -o html when outputFormat is html', () => {
     const input = LinkfinderScanner.inputSchema.parse({ outputFormat: 'html' });
     const { cmd } = LinkfinderScanner.build(input, 'https://acme.tld/x.js', ctx);
-    expect(cmd).toContain('cli');
-    expect(cmd).toContain('-d');
+    expect(cmd).toContain('-o');
+    expect(cmd).toContain('html');
+    expect(cmd).not.toContain('-d');
   });
 
   it('rejects unsupported output formats via zod', () => {

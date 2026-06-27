@@ -1,6 +1,6 @@
 import { ContextBuilder } from '../context-builder.service';
 
-describe('ContextBuilder — web-api-deep graphql-cop conditional fan-out', () => {
+describe('ContextBuilder — web-api-deep endpoint context fan-out (target-tolerant)', () => {
   const prisma = {
     scopeRule: { findMany: jest.fn() },
     endpoint: { findMany: jest.fn() },
@@ -17,7 +17,7 @@ describe('ContextBuilder — web-api-deep graphql-cop conditional fan-out', () =
     ]);
   });
 
-  it('feeds the graphql endpoint into graphql-cop when graphw00f persisted one', async () => {
+  it('passes the graphql endpoint among other endpoints to graphql-cop when graphw00f persisted one', async () => {
     (prisma as { endpoint: { findMany: jest.Mock } }).endpoint.findMany.mockResolvedValue([
       { canonicalUrl: 'https://acme.tld/api/graphql' },
       { canonicalUrl: 'https://acme.tld/static/app.js' },
@@ -28,9 +28,10 @@ describe('ContextBuilder — web-api-deep graphql-cop conditional fan-out', () =
       6,
     );
     expect(result).toContain('https://acme.tld/api/graphql');
+    expect(result).toContain('https://acme.tld/static/app.js');
   });
 
-  it('falls back to engagement root (D3) when no endpoint was persisted', async () => {
+  it('falls back to engagement root (D3) when no endpoint was persisted (graphql-cop becomes a no-op)', async () => {
     (prisma as { endpoint: { findMany: jest.Mock } }).endpoint.findMany.mockResolvedValue([]);
     const result = await builder.buildTargets(
       { scannerName: 'graphql-cop', inputs: {}, target: { kind: 'context', path: 'endpoints' } },
