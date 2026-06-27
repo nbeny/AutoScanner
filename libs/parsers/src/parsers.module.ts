@@ -64,6 +64,7 @@ import { WebanalyzeJsonParser } from './webanalyze-json';
 import { SubjsTextParser } from './subjs-text';
 import { FeroxbusterJsonParser } from './feroxbuster-json';
 import { HakrawlerTextParser } from './hakrawler-text';
+import { GospiderJsonParser } from './gospider-json';
 
 @Global()
 @Module({
@@ -133,6 +134,7 @@ import { HakrawlerTextParser } from './hakrawler-text';
     SubjsTextParser,
     FeroxbusterJsonParser,
     HakrawlerTextParser,
+    GospiderJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -200,6 +202,7 @@ import { HakrawlerTextParser } from './hakrawler-text';
     SubjsTextParser,
     FeroxbusterJsonParser,
     HakrawlerTextParser,
+    GospiderJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -269,6 +272,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly subjsText: SubjsTextParser,
     private readonly feroxbusterJson: FeroxbusterJsonParser,
     private readonly hakrawlerText: HakrawlerTextParser,
+    private readonly gospiderJson: GospiderJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -336,5 +340,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.subjsText);
     this.registry.register(this.feroxbusterJson);
     this.registry.register(this.hakrawlerText);
+    this.registry.register(this.gospiderJson);
   }
 }
