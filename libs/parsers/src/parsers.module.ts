@@ -66,6 +66,7 @@ import { RustscanGreppableParser } from './rustscan-greppable';
 import { OnesixtyoneTextParser } from './onesixtyone-text';
 import { Enum4LinuxJsonParser } from './enum4linux-json';
 import { IkeScanTextParser } from './ike-scan-text';
+import { DnsreconJsonParser } from './dnsrecon-json';
 
 @Global()
 @Module({
@@ -137,6 +138,7 @@ import { IkeScanTextParser } from './ike-scan-text';
     OnesixtyoneTextParser,
     Enum4LinuxJsonParser,
     IkeScanTextParser,
+    DnsreconJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -206,6 +208,7 @@ import { IkeScanTextParser } from './ike-scan-text';
     OnesixtyoneTextParser,
     Enum4LinuxJsonParser,
     IkeScanTextParser,
+    DnsreconJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -277,6 +280,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly onesixtyoneText: OnesixtyoneTextParser,
     private readonly enum4linuxJson: Enum4LinuxJsonParser,
     private readonly ikeScanText: IkeScanTextParser,
+    private readonly dnsreconJson: DnsreconJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -346,5 +350,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.onesixtyoneText);
     this.registry.register(this.enum4linuxJson);
     this.registry.register(this.ikeScanText);
+    this.registry.register(this.dnsreconJson);
   }
 }

@@ -1,0 +1,8 @@
+[
+  { "type": "A", "name": "www.example.com", "address": "93.184.216.34" },
+  { "type": "AAAA", "name": "www.example.com", "address": "2606:2800:220:1:248:1893:25c8:1946" },
+  { "type": "MX", "exchange": "mail.example.com", "preference": 10 },
+  { "type": "NS", "target": "ns1.example.com" },
+  { "type": "SRV", "target": "ldap.example.com", "name": "_ldap._tcp.example.com", "port": 389 },
+  { "type": "AXFR", "zone_transfer": "success", "ns_server": "ns1.example.com" }
+]
