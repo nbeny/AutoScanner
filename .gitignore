@@ -45,3 +45,6 @@ docker/data/
 
 # Claude Code local session/runtime state (locks, settings) — not project content
 .claude/
+
+# Local worktrees for parallel work
+.worktrees/
