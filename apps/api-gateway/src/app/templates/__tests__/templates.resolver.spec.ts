@@ -49,7 +49,8 @@ describe('TemplatesService', () => {
   beforeEach(() => {
     prisma = buildPrismaMock();
     queue = buildQueueMock();
-    svc = new TemplatesService(prisma, queue);
+    const capabilities = { has: jest.fn().mockResolvedValue(true) };
+    svc = new TemplatesService(prisma, queue, capabilities as any);
   });
 
   describe('runTemplate', () => {
