@@ -1,0 +1,18 @@
+{
+  "name": "scanners-rustscan",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/rustscan/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/rustscan"],
+      "options": { "jestConfig": "libs/scanners/rustscan/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/rustscan/tsconfig.lib.json" }
+    }
+  }
+}

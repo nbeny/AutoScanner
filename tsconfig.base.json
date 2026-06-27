@@ -113,6 +113,11 @@
       "@autoscanner/scanners-dnstwist": ["libs/scanners/dnstwist/src/index.ts"],
       "@autoscanner/scanners-webanalyze": ["libs/scanners/webanalyze/src/index.ts"],
       "@autoscanner/scanners-subjs": ["libs/scanners/subjs/src/index.ts"],
+      "@autoscanner/scanners-rustscan": ["libs/scanners/rustscan/src/index.ts"],
+      "@autoscanner/scanners-onesixtyone": ["libs/scanners/onesixtyone/src/index.ts"],
+      "@autoscanner/scanners-enum4linux-ng": ["libs/scanners/enum4linux-ng/src/index.ts"],
+      "@autoscanner/scanners-ike-scan": ["libs/scanners/ike-scan/src/index.ts"],
+      "@autoscanner/scanners-dnsrecon": ["libs/scanners/dnsrecon/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
