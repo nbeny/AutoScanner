@@ -1,26 +1,32 @@
 import type { TemplateDefinition } from '../types';
 
 /**
- * Phase 6.4/6.5 — HTTP probe + TLS cert capture + app fingerprint + TLS/SSL
- * weakness scan over discovered hosts.
- *
- * Steps:
- *   1. httpx  — HTTP probe and technology detection.
- *   2. tlsx   — TLS certificate capture; emits expired/self-signed/weak-version findings.
- *   3. whatweb — Web application fingerprint (CMS, frameworks, server headers).
- *   4. sslscan — Full cipher-suite + protocol scan; flags weak protocols (SSLv2/3,
- *               TLSv1.0/1.1) and weak ciphers (RC4, NULL, EXPORT, DES, MD5, anon).
+ * Phase 6.4/6.5 + Phase 13C enrichment:
+ *   1. httpx       — HTTP probe + tech detect.
+ *   2. feroxbuster — quick-mode content discovery (depth 1, bundled top-1000 wordlist).
+ *   3. tlsx        — TLS certificate capture.
+ *   4. whatweb     — app fingerprint.
+ *   5. sslscan     — TLS/SSL weakness scan.
+ *   6. webanalyze  — Wappalyzer-style fingerprint.
+ *   7. subjs       — JS endpoint extraction.
  */
 export const WebFingerprint: TemplateDefinition = {
   name: 'web-fingerprint',
   displayName: 'Web Fingerprint',
   description:
-    'HTTP fingerprint (httpx), TLS certificate capture (tlsx), app fingerprint (whatweb), and TLS/SSL weakness scan (sslscan).',
+    'HTTP fingerprint (httpx), quick content discovery (feroxbuster depth 1), TLS cert capture (tlsx), ' +
+    'app fingerprint (whatweb), TLS/SSL weakness scan (sslscan), Wappalyzer-style fingerprint (webanalyze), ' +
+    'JS endpoint extraction (subjs).',
   steps: [
     {
       scannerName: 'httpx',
       inputs: { techDetect: { kind: 'static', value: true } },
       target: { kind: 'context', path: 'subdomains' },
+    },
+    {
+      scannerName: 'feroxbuster',
+      inputs: { depth: { kind: 'static', value: 1 } },
+      target: { kind: 'context', path: 'target' },
     },
     { scannerName: 'tlsx', inputs: {}, target: { kind: 'context', path: 'subdomains' } },
     { scannerName: 'whatweb', inputs: {}, target: { kind: 'context', path: 'subdomains' } },
