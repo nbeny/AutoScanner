@@ -24,6 +24,7 @@ import { CloudExposure } from './cloud-exposure';
 import { IpActiveAudit } from './ip-active-audit';
 import { IpPassiveIntel } from './ip-passive-intel';
 import { IpReconFull } from './ip-recon-full';
+import { WebApiDeep } from './web-api-deep';
 
 export {
   ActiveDirectoryRecon,
@@ -43,6 +44,7 @@ export {
   ReconPassiveDeep,
   ServiceRecon,
   VulnActive,
+  WebApiDeep,
   WebAppAudit,
   WebContent,
   WebCrawlDeep,
@@ -84,4 +86,5 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   IpReconFull,
   IdentityOsint,
   WebCrawlDeep,
+  WebApiDeep,
 ];

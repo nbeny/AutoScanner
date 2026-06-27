@@ -76,6 +76,10 @@ import { HakrawlerTextParser } from './hakrawler-text';
 import { GospiderJsonParser } from './gospider-json';
 import { CariddiJsonParser } from './cariddi-json';
 import { CorsyJsonParser } from './corsy-json';
+import { LinkfinderTextParser } from './linkfinder-text';
+import { JsluiceJsonlParser } from './jsluice-jsonl';
+import { Graphw00fJsonParser } from './graphw00f-json';
+import { GraphqlCopJsonParser } from './graphql-cop-json';
 
 @Global()
 @Module({
@@ -157,6 +161,10 @@ import { CorsyJsonParser } from './corsy-json';
     GospiderJsonParser,
     CariddiJsonParser,
     CorsyJsonParser,
+    LinkfinderTextParser,
+    JsluiceJsonlParser,
+    Graphw00fJsonParser,
+    GraphqlCopJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -236,6 +244,10 @@ import { CorsyJsonParser } from './corsy-json';
     GospiderJsonParser,
     CariddiJsonParser,
     CorsyJsonParser,
+    LinkfinderTextParser,
+    JsluiceJsonlParser,
+    Graphw00fJsonParser,
+    GraphqlCopJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -317,6 +329,10 @@ export class ParsersModule implements OnModuleInit {
     private readonly gospiderJson: GospiderJsonParser,
     private readonly cariddiJson: CariddiJsonParser,
     private readonly corsyJson: CorsyJsonParser,
+    private readonly linkfinderText: LinkfinderTextParser,
+    private readonly jsluiceJsonl: JsluiceJsonlParser,
+    private readonly graphw00fJson: Graphw00fJsonParser,
+    private readonly graphqlCopJson: GraphqlCopJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -396,5 +412,9 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.gospiderJson);
     this.registry.register(this.cariddiJson);
     this.registry.register(this.corsyJson);
+    this.registry.register(this.linkfinderText);
+    this.registry.register(this.jsluiceJsonl);
+    this.registry.register(this.graphw00fJson);
+    this.registry.register(this.graphqlCopJson);
   }
 }

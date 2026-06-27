@@ -87,6 +87,11 @@ import { HakrawlerScannerModule } from '@autoscanner/scanners-hakrawler';
 import { GospiderScannerModule } from '@autoscanner/scanners-gospider';
 import { CariddiScannerModule } from '@autoscanner/scanners-cariddi';
 import { CorsyScannerModule } from '@autoscanner/scanners-corsy';
+import { LinkfinderScannerModule } from '@autoscanner/scanners-linkfinder';
+import { JsluiceScannerModule } from '@autoscanner/scanners-jsluice';
+import { KiterunnerScannerModule } from '@autoscanner/scanners-kiterunner';
+import { Graphw00fScannerModule } from '@autoscanner/scanners-graphw00f';
+import { GraphqlCopScannerModule } from '@autoscanner/scanners-graphql-cop';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -184,6 +189,11 @@ const SCANNER_MODULES = [
   GospiderScannerModule,
   CariddiScannerModule,
   CorsyScannerModule,
+  LinkfinderScannerModule,
+  JsluiceScannerModule,
+  KiterunnerScannerModule,
+  Graphw00fScannerModule,
+  GraphqlCopScannerModule,
 ];
 
 @Module({

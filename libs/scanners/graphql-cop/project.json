@@ -1,0 +1,18 @@
+{
+  "name": "scanners-graphql-cop",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/graphql-cop/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/graphql-cop"],
+      "options": { "jestConfig": "libs/scanners/graphql-cop/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/graphql-cop/tsconfig.lib.json" }
+    }
+  }
+}

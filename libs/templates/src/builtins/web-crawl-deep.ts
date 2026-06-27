@@ -2,8 +2,9 @@ import type { TemplateDefinition } from '../types';
 
 /**
  * Phase 13C — Deep web crawling + light vuln-recon.
+ * Phase 14A — adds kiterunner deep-wordlist API brute after the crawler fan-in.
  *
- * Chain: httpx → katana → gospider → hakrawler → feroxbuster → cariddi → corsy.
+ * Chain: httpx → katana → gospider → hakrawler → feroxbuster → kiterunner → cariddi → corsy.
  *
  * Fan-in: all four crawler steps (katana, gospider, hakrawler, feroxbuster)
  * target the engagement root and emit Endpoint entities. The parser-worker
@@ -35,6 +36,7 @@ export const WebCrawlDeep: TemplateDefinition = {
     { scannerName: 'gospider', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'hakrawler', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'feroxbuster', inputs: {}, target: { kind: 'context', path: 'target' } },
+    { scannerName: 'kiterunner', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'cariddi', inputs: {}, target: { kind: 'context', path: 'endpoints' } },
     { scannerName: 'corsy', inputs: {}, target: { kind: 'context', path: 'endpoints' } },
   ],
