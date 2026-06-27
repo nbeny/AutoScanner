@@ -37,6 +37,7 @@ model User {
   notificationChannels NotificationChannel[]
   agentsCreated        Agent[]
   findingStatusEvents  FindingStatusEvent[]
+  capabilities         UserCapability[]
 
   @@index([deletedAt])
 }
@@ -55,6 +56,19 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model UserCapability {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String
+  grantedAt DateTime @default(now())
+  grantedBy String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([key])
 }
 
 // =====================================================================
