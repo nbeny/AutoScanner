@@ -90,6 +90,7 @@ import { CorsyScannerModule } from '@autoscanner/scanners-corsy';
 import { LinkfinderScannerModule } from '@autoscanner/scanners-linkfinder';
 import { JsluiceScannerModule } from '@autoscanner/scanners-jsluice';
 import { KiterunnerScannerModule } from '@autoscanner/scanners-kiterunner';
+import { Graphw00fScannerModule } from '@autoscanner/scanners-graphw00f';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -190,6 +191,7 @@ const SCANNER_MODULES = [
   LinkfinderScannerModule,
   JsluiceScannerModule,
   KiterunnerScannerModule,
+  Graphw00fScannerModule,
 ];
 
 @Module({

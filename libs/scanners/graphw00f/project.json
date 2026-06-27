@@ -1,0 +1,18 @@
+{
+  "name": "scanners-graphw00f",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/graphw00f/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/graphw00f"],
+      "options": { "jestConfig": "libs/scanners/graphw00f/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/graphw00f/tsconfig.lib.json" }
+    }
+  }
+}

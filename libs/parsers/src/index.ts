@@ -73,4 +73,5 @@ export * from './cariddi-json';
 export * from './corsy-json';
 export * from './linkfinder-text';
 export * from './jsluice-jsonl';
+export * from './graphw00f-json';
 export * from './parsers.module';
