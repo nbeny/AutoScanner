@@ -74,6 +74,7 @@ import { WebanalyzeScannerModule } from '@autoscanner/scanners-webanalyze';
 import { SubjsScannerModule } from '@autoscanner/scanners-subjs';
 import { RustscanScannerModule } from '@autoscanner/scanners-rustscan';
 import { OnesixtyoneScannerModule } from '@autoscanner/scanners-onesixtyone';
+import { Enum4LinuxNgScannerModule } from '@autoscanner/scanners-enum4linux-ng';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -158,6 +159,7 @@ const SCANNER_MODULES = [
   SubjsScannerModule,
   RustscanScannerModule,
   OnesixtyoneScannerModule,
+  Enum4LinuxNgScannerModule,
 ];
 
 @Module({
