@@ -59,4 +59,5 @@ export * from './iplines-text';
 export * from './spiderfoot-json';
 export * from './chaos-json';
 export * from './uncover-jsonl';
+export * from './fofa-json';
 export * from './parsers.module';

@@ -74,6 +74,7 @@ import { WebanalyzeScannerModule } from '@autoscanner/scanners-webanalyze';
 import { SubjsScannerModule } from '@autoscanner/scanners-subjs';
 import { ChaosScannerModule } from '@autoscanner/scanners-chaos';
 import { UncoverScannerModule } from '@autoscanner/scanners-uncover';
+import { FofaScannerModule } from '@autoscanner/scanners-fofa';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -158,6 +159,7 @@ const SCANNER_MODULES = [
   SubjsScannerModule,
   ChaosScannerModule,
   UncoverScannerModule,
+  FofaScannerModule,
 ];
 
 @Module({

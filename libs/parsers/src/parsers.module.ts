@@ -64,6 +64,7 @@ import { WebanalyzeJsonParser } from './webanalyze-json';
 import { SubjsTextParser } from './subjs-text';
 import { ChaosJsonParser } from './chaos-json';
 import { UncoverJsonlParser } from './uncover-jsonl';
+import { FofaJsonParser } from './fofa-json';
 
 @Global()
 @Module({
@@ -133,6 +134,7 @@ import { UncoverJsonlParser } from './uncover-jsonl';
     SubjsTextParser,
     ChaosJsonParser,
     UncoverJsonlParser,
+    FofaJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -200,6 +202,7 @@ import { UncoverJsonlParser } from './uncover-jsonl';
     SubjsTextParser,
     ChaosJsonParser,
     UncoverJsonlParser,
+    FofaJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -269,6 +272,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly subjsText: SubjsTextParser,
     private readonly chaosJson: ChaosJsonParser,
     private readonly uncoverJsonl: UncoverJsonlParser,
+    private readonly fofaJson: FofaJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -336,5 +340,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.subjsText);
     this.registry.register(this.chaosJson);
     this.registry.register(this.uncoverJsonl);
+    this.registry.register(this.fofaJson);
   }
 }
