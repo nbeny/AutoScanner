@@ -1,0 +1,18 @@
+{
+  "name": "scanners-fofa",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/fofa/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/fofa"],
+      "options": { "jestConfig": "libs/scanners/fofa/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/fofa/tsconfig.lib.json" }
+    }
+  }
+}

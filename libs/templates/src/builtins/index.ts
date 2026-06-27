@@ -1,6 +1,7 @@
 import type { TemplateDefinition } from '../types';
 import { OsintPassive } from './osint-passive';
 import { OsintPassiveDeep } from './osint-passive-deep';
+import { OsintMetaDeep } from './osint-meta-deep';
 import { IdentityOsint } from './identity-osint';
 import { ReconActive } from './recon-active';
 import { ReconPassive } from './recon-passive';
@@ -31,6 +32,7 @@ export {
   IpReconFull,
   K8sRecon,
   NetworkVuln,
+  OsintMetaDeep,
   OsintPassive,
   OsintPassiveDeep,
   ReconActive,
@@ -63,6 +65,7 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   OsintPassive,
   WebFingerprint,
   OsintPassiveDeep,
+  OsintMetaDeep,
   WebEnrich,
   ServiceRecon,
   VulnActive,

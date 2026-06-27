@@ -57,4 +57,8 @@ export * from './subzy-json';
 export * from './metabigor-json';
 export * from './iplines-text';
 export * from './spiderfoot-json';
+export * from './chaos-json';
+export * from './uncover-jsonl';
+export * from './fofa-json';
+export * from './gitleaks-json';
 export * from './parsers.module';

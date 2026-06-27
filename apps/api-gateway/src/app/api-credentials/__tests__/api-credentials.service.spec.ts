@@ -142,4 +142,30 @@ describe('ApiCredentialsService', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe.each([ApiProvider.CHAOS, ApiProvider.FOFA, ApiProvider.UNCOVER])(
+    'phase-13a provider %s',
+    (newProvider) => {
+      it('seals & upserts the secret with the correct compound key', async () => {
+        const otherUserId = 'user-13a';
+        (prisma.apiCredential.upsert as jest.Mock).mockResolvedValueOnce({});
+
+        const ok = await svc.set(otherUserId, newProvider, 'plaintext-secret-' + newProvider);
+
+        expect(ok).toBe(true);
+        expect(prisma.apiCredential.upsert).toHaveBeenCalledTimes(1);
+        const call = (prisma.apiCredential.upsert as jest.Mock).mock.calls[0][0] as {
+          where: { ownerId_provider: { ownerId: string; provider: ApiProvider } };
+          create: { ownerId: string; provider: ApiProvider; ciphertext: Buffer };
+          update: { ciphertext: Buffer };
+        };
+        expect(call.where.ownerId_provider).toEqual({
+          ownerId: otherUserId,
+          provider: newProvider,
+        });
+        expect(Buffer.isBuffer(call.create.ciphertext)).toBe(true);
+        expect(call.create.provider).toBe(newProvider);
+      });
+    },
+  );
 });

@@ -7,14 +7,22 @@ import {
 } from '../../lib/graphql/queries';
 import { formatDate } from '../../lib/format-date';
 
-type ApiProvider = 'SHODAN' | 'CENSYS';
+type ApiProvider = 'SHODAN' | 'CENSYS' | 'CHAOS' | 'FOFA' | 'UNCOVER';
 
 interface ApiCredentialInfo {
   provider: ApiProvider;
   createdAt: string;
 }
 
-const PROVIDERS: ApiProvider[] = ['SHODAN', 'CENSYS'];
+const PROVIDERS: ApiProvider[] = ['SHODAN', 'CENSYS', 'CHAOS', 'FOFA', 'UNCOVER'];
+
+const PROVIDER_HINT: Record<ApiProvider, string> = {
+  SHODAN: 'Single API key.',
+  CENSYS: 'Single API key (combined id:secret).',
+  CHAOS: 'ProjectDiscovery Chaos API key.',
+  FOFA: 'Paste as email:key (combined).',
+  UNCOVER: 'Optional aggregator token (Quake / Hunter).',
+};
 
 export function ApiKeysPanel() {
   const { data, loading, error } = useQuery<{ apiCredentials: ApiCredentialInfo[] }>(
@@ -122,6 +130,7 @@ export function ApiKeysPanel() {
               autoComplete="new-password"
               className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm"
             />
+            <p className="text-[10px] text-slate-500">{PROVIDER_HINT[provider]}</p>
           </div>
           <button
             type="submit"

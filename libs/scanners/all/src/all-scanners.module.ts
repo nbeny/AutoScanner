@@ -72,6 +72,11 @@ import { HoleheScannerModule } from '@autoscanner/scanners-holehe';
 import { DnstwistScannerModule } from '@autoscanner/scanners-dnstwist';
 import { WebanalyzeScannerModule } from '@autoscanner/scanners-webanalyze';
 import { SubjsScannerModule } from '@autoscanner/scanners-subjs';
+import { ChaosScannerModule } from '@autoscanner/scanners-chaos';
+import { UncoverScannerModule } from '@autoscanner/scanners-uncover';
+import { FofaScannerModule } from '@autoscanner/scanners-fofa';
+import { UrlfinderScannerModule } from '@autoscanner/scanners-urlfinder';
+import { GitleaksScannerModule } from '@autoscanner/scanners-gitleaks';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -154,6 +159,11 @@ const SCANNER_MODULES = [
   DnstwistScannerModule,
   WebanalyzeScannerModule,
   SubjsScannerModule,
+  ChaosScannerModule,
+  UncoverScannerModule,
+  FofaScannerModule,
+  UrlfinderScannerModule,
+  GitleaksScannerModule,
 ];
 
 @Module({

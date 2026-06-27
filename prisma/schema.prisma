@@ -545,6 +545,9 @@ enum ApiProvider {
   SECURITYTRAILS
   OPENVAS
   ABUSEIPDB
+  CHAOS
+  FOFA
+  UNCOVER
 }
 
 model Email {
