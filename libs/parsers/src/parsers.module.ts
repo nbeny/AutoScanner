@@ -71,6 +71,11 @@ import { OnesixtyoneTextParser } from './onesixtyone-text';
 import { Enum4LinuxJsonParser } from './enum4linux-json';
 import { IkeScanTextParser } from './ike-scan-text';
 import { DnsreconJsonParser } from './dnsrecon-json';
+import { FeroxbusterJsonParser } from './feroxbuster-json';
+import { HakrawlerTextParser } from './hakrawler-text';
+import { GospiderJsonParser } from './gospider-json';
+import { CariddiJsonParser } from './cariddi-json';
+import { CorsyJsonParser } from './corsy-json';
 
 @Global()
 @Module({
@@ -147,6 +152,11 @@ import { DnsreconJsonParser } from './dnsrecon-json';
     Enum4LinuxJsonParser,
     IkeScanTextParser,
     DnsreconJsonParser,
+    FeroxbusterJsonParser,
+    HakrawlerTextParser,
+    GospiderJsonParser,
+    CariddiJsonParser,
+    CorsyJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -221,6 +231,11 @@ import { DnsreconJsonParser } from './dnsrecon-json';
     Enum4LinuxJsonParser,
     IkeScanTextParser,
     DnsreconJsonParser,
+    FeroxbusterJsonParser,
+    HakrawlerTextParser,
+    GospiderJsonParser,
+    CariddiJsonParser,
+    CorsyJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -297,6 +312,11 @@ export class ParsersModule implements OnModuleInit {
     private readonly enum4linuxJson: Enum4LinuxJsonParser,
     private readonly ikeScanText: IkeScanTextParser,
     private readonly dnsreconJson: DnsreconJsonParser,
+    private readonly feroxbusterJson: FeroxbusterJsonParser,
+    private readonly hakrawlerText: HakrawlerTextParser,
+    private readonly gospiderJson: GospiderJsonParser,
+    private readonly cariddiJson: CariddiJsonParser,
+    private readonly corsyJson: CorsyJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -371,5 +391,10 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.enum4linuxJson);
     this.registry.register(this.ikeScanText);
     this.registry.register(this.dnsreconJson);
+    this.registry.register(this.feroxbusterJson);
+    this.registry.register(this.hakrawlerText);
+    this.registry.register(this.gospiderJson);
+    this.registry.register(this.cariddiJson);
+    this.registry.register(this.corsyJson);
   }
 }

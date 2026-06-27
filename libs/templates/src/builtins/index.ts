@@ -13,6 +13,7 @@ import { VulnActive } from './vuln-active';
 import { WebContent } from './web-content';
 import { WebDeep } from './web-deep';
 import { WebDeepActiveInjection } from './web-deep-active-injection';
+import { WebCrawlDeep } from './web-crawl-deep';
 import { WebEnrich } from './web-enrich';
 import { WebFingerprint } from './web-fingerprint';
 import { WebQuick } from './web-quick';
@@ -44,6 +45,7 @@ export {
   VulnActive,
   WebAppAudit,
   WebContent,
+  WebCrawlDeep,
   WebDeep,
   WebDeepActiveInjection,
   WebEnrich,
@@ -81,4 +83,5 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   IpActiveAudit,
   IpReconFull,
   IdentityOsint,
+  WebCrawlDeep,
 ];

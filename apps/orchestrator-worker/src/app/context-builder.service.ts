@@ -13,6 +13,30 @@ export interface TemplateRunLike {
   target: string;
 }
 
+interface ScopeRuleLike {
+  ruleType: string;
+  targetType: string;
+  value: string;
+}
+
+function urlHost(u: string): string | null {
+  try {
+    return new URL(u).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function hostInScope(host: string, rules: readonly ScopeRuleLike[]): boolean {
+  for (const r of rules) {
+    if (r.ruleType !== 'INCLUDE') continue;
+    const v = r.value.toLowerCase();
+    if (r.targetType === 'DOMAIN' && host === v) return true;
+    if (r.targetType === 'WILDCARD_DOMAIN' && (host === v || host.endsWith(`.${v}`))) return true;
+  }
+  return false;
+}
+
 /**
  * Resolves a `step.target` ContextRef into a concrete list of target strings
  * that the step will fan out over.
@@ -33,6 +57,12 @@ export interface TemplateRunLike {
  *
  * `kind=static` for `step.target` is rejected — out of scope in Phase 2.
  * `step.inputs` resolution is handled separately by {@link StepExecutor}.
+ *
+ * Phase 13C: when `path=endpoints` and `stepIndex > 0`, the resolved URL list
+ * is filtered against the engagement's INCLUDE ScopeRule set. URLs whose host
+ * is not covered by any INCLUDE rule are dropped before being passed to
+ * downstream scanners (cariddi/corsy fan-in target). This blocks crawlers that
+ * occasionally emit out-of-scope external links from feeding active scanners.
  */
 @Injectable()
 export class ContextBuilder {
@@ -84,6 +114,26 @@ export class ContextBuilder {
           where: { engagementId: run.engagementId },
         });
         resolved = rows.map((r) => r.canonicalUrl);
+        if (stepIndex > 0 && resolved.length > 0) {
+          const rules = (await this.prisma.scopeRule.findMany({
+            where: { engagementId: run.engagementId, ruleType: 'INCLUDE' },
+            select: { ruleType: true, targetType: true, value: true },
+          })) as ScopeRuleLike[];
+          if (rules.length > 0) {
+            const before = resolved.length;
+            resolved = resolved.filter((u) => {
+              const h = urlHost(u);
+              return h !== null && hostInScope(h, rules);
+            });
+            const dropped = before - resolved.length;
+            if (dropped > 0) {
+              this.logger.warn(
+                `Phase 13C scope gate: dropped ${dropped} out-of-scope endpoint(s) ` +
+                  `for engagement=${run.engagementId} at stepIndex=${stepIndex}`,
+              );
+            }
+          }
+        }
         break;
       }
       case 'ipAddresses': {

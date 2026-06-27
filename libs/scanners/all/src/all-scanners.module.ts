@@ -82,6 +82,11 @@ import { OnesixtyoneScannerModule } from '@autoscanner/scanners-onesixtyone';
 import { Enum4LinuxNgScannerModule } from '@autoscanner/scanners-enum4linux-ng';
 import { IkeScanScannerModule } from '@autoscanner/scanners-ike-scan';
 import { DnsreconScannerModule } from '@autoscanner/scanners-dnsrecon';
+import { FeroxbusterScannerModule } from '@autoscanner/scanners-feroxbuster';
+import { HakrawlerScannerModule } from '@autoscanner/scanners-hakrawler';
+import { GospiderScannerModule } from '@autoscanner/scanners-gospider';
+import { CariddiScannerModule } from '@autoscanner/scanners-cariddi';
+import { CorsyScannerModule } from '@autoscanner/scanners-corsy';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -174,6 +179,11 @@ const SCANNER_MODULES = [
   Enum4LinuxNgScannerModule,
   IkeScanScannerModule,
   DnsreconScannerModule,
+  FeroxbusterScannerModule,
+  HakrawlerScannerModule,
+  GospiderScannerModule,
+  CariddiScannerModule,
+  CorsyScannerModule,
 ];
 
 @Module({

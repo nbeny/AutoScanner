@@ -9,6 +9,7 @@ function makePrisma(overrides: Record<string, unknown> = {}): PrismaService {
     subdomain: { findMany: jest.fn().mockResolvedValue([]) },
     ipAddress: { findMany: jest.fn().mockResolvedValue([]) },
     endpoint: { findMany: jest.fn().mockResolvedValue([]) },
+    scopeRule: { findMany: jest.fn().mockResolvedValue([]) },
     ...overrides,
   } as unknown as PrismaService;
 }

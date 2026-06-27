@@ -123,6 +123,11 @@
       "@autoscanner/scanners-enum4linux-ng": ["libs/scanners/enum4linux-ng/src/index.ts"],
       "@autoscanner/scanners-ike-scan": ["libs/scanners/ike-scan/src/index.ts"],
       "@autoscanner/scanners-dnsrecon": ["libs/scanners/dnsrecon/src/index.ts"],
+      "@autoscanner/scanners-feroxbuster": ["libs/scanners/feroxbuster/src/index.ts"],
+      "@autoscanner/scanners-hakrawler": ["libs/scanners/hakrawler/src/index.ts"],
+      "@autoscanner/scanners-gospider": ["libs/scanners/gospider/src/index.ts"],
+      "@autoscanner/scanners-cariddi": ["libs/scanners/cariddi/src/index.ts"],
+      "@autoscanner/scanners-corsy": ["libs/scanners/corsy/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
