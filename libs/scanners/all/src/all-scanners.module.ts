@@ -76,6 +76,7 @@ import { ChaosScannerModule } from '@autoscanner/scanners-chaos';
 import { UncoverScannerModule } from '@autoscanner/scanners-uncover';
 import { FofaScannerModule } from '@autoscanner/scanners-fofa';
 import { UrlfinderScannerModule } from '@autoscanner/scanners-urlfinder';
+import { GitleaksScannerModule } from '@autoscanner/scanners-gitleaks';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -162,6 +163,7 @@ const SCANNER_MODULES = [
   UncoverScannerModule,
   FofaScannerModule,
   UrlfinderScannerModule,
+  GitleaksScannerModule,
 ];
 
 @Module({

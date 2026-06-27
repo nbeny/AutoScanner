@@ -65,6 +65,7 @@ import { SubjsTextParser } from './subjs-text';
 import { ChaosJsonParser } from './chaos-json';
 import { UncoverJsonlParser } from './uncover-jsonl';
 import { FofaJsonParser } from './fofa-json';
+import { GitleaksJsonParser } from './gitleaks-json';
 
 @Global()
 @Module({
@@ -135,6 +136,7 @@ import { FofaJsonParser } from './fofa-json';
     ChaosJsonParser,
     UncoverJsonlParser,
     FofaJsonParser,
+    GitleaksJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -203,6 +205,7 @@ import { FofaJsonParser } from './fofa-json';
     ChaosJsonParser,
     UncoverJsonlParser,
     FofaJsonParser,
+    GitleaksJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -273,6 +276,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly chaosJson: ChaosJsonParser,
     private readonly uncoverJsonl: UncoverJsonlParser,
     private readonly fofaJson: FofaJsonParser,
+    private readonly gitleaksJson: GitleaksJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -341,5 +345,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.chaosJson);
     this.registry.register(this.uncoverJsonl);
     this.registry.register(this.fofaJson);
+    this.registry.register(this.gitleaksJson);
   }
 }

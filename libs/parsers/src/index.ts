@@ -60,4 +60,5 @@ export * from './spiderfoot-json';
 export * from './chaos-json';
 export * from './uncover-jsonl';
 export * from './fofa-json';
+export * from './gitleaks-json';
 export * from './parsers.module';
