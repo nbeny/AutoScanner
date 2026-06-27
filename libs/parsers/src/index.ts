@@ -60,4 +60,5 @@ export * from './spiderfoot-json';
 export * from './feroxbuster-json';
 export * from './hakrawler-text';
 export * from './gospider-json';
+export * from './cariddi-json';
 export * from './parsers.module';

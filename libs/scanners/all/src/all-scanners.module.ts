@@ -75,6 +75,7 @@ import { SubjsScannerModule } from '@autoscanner/scanners-subjs';
 import { FeroxbusterScannerModule } from '@autoscanner/scanners-feroxbuster';
 import { HakrawlerScannerModule } from '@autoscanner/scanners-hakrawler';
 import { GospiderScannerModule } from '@autoscanner/scanners-gospider';
+import { CariddiScannerModule } from '@autoscanner/scanners-cariddi';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -160,6 +161,7 @@ const SCANNER_MODULES = [
   FeroxbusterScannerModule,
   HakrawlerScannerModule,
   GospiderScannerModule,
+  CariddiScannerModule,
 ];
 
 @Module({
