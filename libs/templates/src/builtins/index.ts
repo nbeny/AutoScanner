@@ -4,6 +4,7 @@ import { OsintPassiveDeep } from './osint-passive-deep';
 import { OsintMetaDeep } from './osint-meta-deep';
 import { IdentityOsint } from './identity-osint';
 import { ReconActive } from './recon-active';
+import { ReconActiveDeepV2 } from './recon-active-deep-v2';
 import { ReconPassive } from './recon-passive';
 import { ReconPassiveDeep } from './recon-passive-deep';
 import { ServiceRecon } from './service-recon';
@@ -36,6 +37,7 @@ export {
   OsintPassive,
   OsintPassiveDeep,
   ReconActive,
+  ReconActiveDeepV2,
   ReconPassive,
   ReconPassiveDeep,
   ServiceRecon,
@@ -58,6 +60,7 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   ReconPassive,
   ReconActive,
   ReconPassiveDeep,
+  ReconActiveDeepV2,
   WebQuick,
   WebDeep,
   WebDeepActiveInjection,

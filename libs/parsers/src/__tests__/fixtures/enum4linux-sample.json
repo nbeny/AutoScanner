@@ -1,0 +1,19 @@
+{
+  "target": "10.0.0.5",
+  "users": {
+    "1001": { "username": "alice" },
+    "1002": { "username": "bob" }
+  },
+  "groups": {
+    "domain admins": { "members": ["alice"] }
+  },
+  "shares": {
+    "PUBLIC": { "comment": "Public share", "access": { "read": true, "write": false } },
+    "C$": { "comment": "Admin share", "access": { "read": false, "write": false } }
+  },
+  "smb_dialects": ["SMB 2.10"],
+  "sessions": { "null_session": true },
+  "policy": {
+    "domain_password_information": { "min_password_length": 4 }
+  }
+}

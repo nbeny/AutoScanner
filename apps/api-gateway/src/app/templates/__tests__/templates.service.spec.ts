@@ -51,7 +51,44 @@ describe('TemplatesService.runTemplate', () => {
       Queue<TemplateRunPayload>
     >;
 
-    svc = new TemplatesService(prisma, queue);
+    const capabilities = { has: jest.fn().mockResolvedValue(true) };
+    svc = new TemplatesService(prisma, queue, capabilities as any);
+  });
+
+  it('filterStepsByCapability() skips a step whose requiresCapability is not held by the caller', async () => {
+    const cap = { has: jest.fn().mockResolvedValue(false) };
+    const localSvc = new TemplatesService(prisma, queue, cap as any);
+    const logSpy = jest.spyOn((localSvc as any).logger, 'log');
+    const filtered = await localSvc.filterStepsByCapability('user_x', [
+      { scannerName: 'nmap', inputs: {}, target: { kind: 'context', path: 'target' } },
+      {
+        scannerName: 'ike-scan',
+        inputs: {},
+        target: { kind: 'context', path: 'ipAddresses' },
+        requiresCapability: 'active-recon-host-net',
+      },
+    ]);
+    expect(filtered.map((s) => s.scannerName)).toEqual(['nmap']);
+    expect(cap.has).toHaveBeenCalledWith('user_x', 'active-recon-host-net');
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'skip step scanner=ike-scan reason=missing-capability key=active-recon-host-net',
+      ),
+    );
+  });
+
+  it('filterStepsByCapability() keeps a gated step when the capability is granted', async () => {
+    const cap = { has: jest.fn().mockResolvedValue(true) };
+    const localSvc = new TemplatesService(prisma, queue, cap as any);
+    const filtered = await localSvc.filterStepsByCapability('user_x', [
+      {
+        scannerName: 'ike-scan',
+        inputs: {},
+        target: { kind: 'context', path: 'ipAddresses' },
+        requiresCapability: 'active-recon-host-net',
+      },
+    ]);
+    expect(filtered.map((s) => s.scannerName)).toEqual(['ike-scan']);
   });
 
   it('creates a PENDING TemplateRun and enqueues the payload for an in-scope target', async () => {

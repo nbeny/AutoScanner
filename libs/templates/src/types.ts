@@ -8,6 +8,8 @@ export interface TemplateStep {
   inputs: Record<string, ContextRef>;
   /** Comment construire la liste de targets de ce step. */
   target: ContextRef;
+  /** When set, step is skipped (not failed) if the caller lacks the capability. */
+  requiresCapability?: string;
 }
 
 export interface TemplateDefinition {
@@ -15,4 +17,6 @@ export interface TemplateDefinition {
   displayName: string;
   description: string;
   steps: TemplateStep[];
+  /** Banner shown in the template form; the operator must tick acknowledgement before scheduling. */
+  scopeAcknowledgement?: string;
 }

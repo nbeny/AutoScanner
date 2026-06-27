@@ -83,7 +83,16 @@ describe('ScansService.runScan', () => {
     scanControl = { publishCancel: jest.fn() };
     events = { publish: jest.fn() };
 
-    svc = new ScansService(prisma, registry, scanQueue, storage, scanControl as any, events as any);
+    const capabilities = { has: jest.fn().mockResolvedValue(true) };
+    svc = new ScansService(
+      prisma,
+      registry,
+      scanQueue,
+      storage,
+      scanControl as any,
+      events as any,
+      capabilities as any,
+    );
   });
 
   it('creates Scan + ScanJob, enqueues payload, returns Scan', async () => {

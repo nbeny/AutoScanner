@@ -77,6 +77,11 @@ import { UncoverScannerModule } from '@autoscanner/scanners-uncover';
 import { FofaScannerModule } from '@autoscanner/scanners-fofa';
 import { UrlfinderScannerModule } from '@autoscanner/scanners-urlfinder';
 import { GitleaksScannerModule } from '@autoscanner/scanners-gitleaks';
+import { RustscanScannerModule } from '@autoscanner/scanners-rustscan';
+import { OnesixtyoneScannerModule } from '@autoscanner/scanners-onesixtyone';
+import { Enum4LinuxNgScannerModule } from '@autoscanner/scanners-enum4linux-ng';
+import { IkeScanScannerModule } from '@autoscanner/scanners-ike-scan';
+import { DnsreconScannerModule } from '@autoscanner/scanners-dnsrecon';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -164,6 +169,11 @@ const SCANNER_MODULES = [
   FofaScannerModule,
   UrlfinderScannerModule,
   GitleaksScannerModule,
+  RustscanScannerModule,
+  OnesixtyoneScannerModule,
+  Enum4LinuxNgScannerModule,
+  IkeScanScannerModule,
+  DnsreconScannerModule,
 ];
 
 @Module({

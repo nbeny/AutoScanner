@@ -7,6 +7,7 @@ export default {
   moduleFileExtensions: ['ts', 'js', 'html'],
   moduleNameMapper: {
     '^@autoscanner/scanners-nmap$': '<rootDir>/../../libs/scanners/nmap/src/index.ts',
+    '^@autoscanner/scanners-ike-scan$': '<rootDir>/../../libs/scanners/ike-scan/src/index.ts',
     '^@autoscanner/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
   },
   testMatch: ['<rootDir>/src/**/*.spec.ts'],
