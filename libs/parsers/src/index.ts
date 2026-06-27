@@ -58,4 +58,5 @@ export * from './metabigor-json';
 export * from './iplines-text';
 export * from './spiderfoot-json';
 export * from './chaos-json';
+export * from './uncover-jsonl';
 export * from './parsers.module';

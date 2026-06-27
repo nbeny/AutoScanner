@@ -63,6 +63,7 @@ import { DnstwistJsonParser } from './dnstwist-json';
 import { WebanalyzeJsonParser } from './webanalyze-json';
 import { SubjsTextParser } from './subjs-text';
 import { ChaosJsonParser } from './chaos-json';
+import { UncoverJsonlParser } from './uncover-jsonl';
 
 @Global()
 @Module({
@@ -131,6 +132,7 @@ import { ChaosJsonParser } from './chaos-json';
     WebanalyzeJsonParser,
     SubjsTextParser,
     ChaosJsonParser,
+    UncoverJsonlParser,
   ],
   exports: [
     ParserRegistry,
@@ -197,6 +199,7 @@ import { ChaosJsonParser } from './chaos-json';
     WebanalyzeJsonParser,
     SubjsTextParser,
     ChaosJsonParser,
+    UncoverJsonlParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -265,6 +268,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly webanalyzeJson: WebanalyzeJsonParser,
     private readonly subjsText: SubjsTextParser,
     private readonly chaosJson: ChaosJsonParser,
+    private readonly uncoverJsonl: UncoverJsonlParser,
   ) {}
 
   onModuleInit(): void {
@@ -331,5 +335,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.webanalyzeJson);
     this.registry.register(this.subjsText);
     this.registry.register(this.chaosJson);
+    this.registry.register(this.uncoverJsonl);
   }
 }
