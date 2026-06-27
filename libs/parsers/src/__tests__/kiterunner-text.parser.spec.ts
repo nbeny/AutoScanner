@@ -37,13 +37,14 @@ describe('KiterunnerTextParser — Phase 14A Finding emission', () => {
   const parser = new KiterunnerTextParser();
 
   it('emits MEDIUM Finding on 200-status undocumented routes (default)', async () => {
+    const krCtx = { ...ctx, scannerName: 'kiterunner' };
     const text = ['GET     200 [  1234,   45,  6] https://api.example.com/api/v1/products 0c'].join(
       '\n',
     );
-    const out = await parser.parse(text, ctx);
+    const out = await parser.parse(text, krCtx);
     expect(out.findings).toHaveLength(1);
     expect(out.findings[0]).toMatchObject({
-      scannerName: 'api-discovery',
+      scannerName: 'kiterunner',
       title: 'KITERUNNER_UNDOCUMENTED_ROUTE',
       severity: 'MEDIUM',
       location: 'https://api.example.com/api/v1/products',
@@ -79,10 +80,10 @@ describe('KiterunnerTextParser — Phase 14A Finding emission', () => {
     expect(out.findings).toHaveLength(0);
   });
 
-  it('uses scannerName from context for Findings (api-discovery sets it to api-discovery)', async () => {
-    const apiCtx = { ...ctx, scannerName: 'api-discovery' };
+  it('uses scannerName from context for Findings (kiterunner scanner sets it to kiterunner)', async () => {
+    const krCtx = { ...ctx, scannerName: 'kiterunner' };
     const text = 'GET 200 [1, 2, 3] https://api.example.com/admin 0c';
-    const out = await parser.parse(text, apiCtx);
-    expect(out.findings[0].scannerName).toBe('api-discovery');
+    const out = await parser.parse(text, krCtx);
+    expect(out.findings[0].scannerName).toBe('kiterunner');
   });
 });
