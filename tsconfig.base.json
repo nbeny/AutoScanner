@@ -113,6 +113,7 @@
       "@autoscanner/scanners-dnstwist": ["libs/scanners/dnstwist/src/index.ts"],
       "@autoscanner/scanners-webanalyze": ["libs/scanners/webanalyze/src/index.ts"],
       "@autoscanner/scanners-subjs": ["libs/scanners/subjs/src/index.ts"],
+      "@autoscanner/scanners-feroxbuster": ["libs/scanners/feroxbuster/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }

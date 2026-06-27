@@ -72,6 +72,7 @@ import { HoleheScannerModule } from '@autoscanner/scanners-holehe';
 import { DnstwistScannerModule } from '@autoscanner/scanners-dnstwist';
 import { WebanalyzeScannerModule } from '@autoscanner/scanners-webanalyze';
 import { SubjsScannerModule } from '@autoscanner/scanners-subjs';
+import { FeroxbusterScannerModule } from '@autoscanner/scanners-feroxbuster';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -154,6 +155,7 @@ const SCANNER_MODULES = [
   DnstwistScannerModule,
   WebanalyzeScannerModule,
   SubjsScannerModule,
+  FeroxbusterScannerModule,
 ];
 
 @Module({

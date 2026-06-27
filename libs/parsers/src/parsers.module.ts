@@ -62,6 +62,7 @@ import { HoleheTextParser } from './holehe-text';
 import { DnstwistJsonParser } from './dnstwist-json';
 import { WebanalyzeJsonParser } from './webanalyze-json';
 import { SubjsTextParser } from './subjs-text';
+import { FeroxbusterJsonParser } from './feroxbuster-json';
 
 @Global()
 @Module({
@@ -129,6 +130,7 @@ import { SubjsTextParser } from './subjs-text';
     DnstwistJsonParser,
     WebanalyzeJsonParser,
     SubjsTextParser,
+    FeroxbusterJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -194,6 +196,7 @@ import { SubjsTextParser } from './subjs-text';
     DnstwistJsonParser,
     WebanalyzeJsonParser,
     SubjsTextParser,
+    FeroxbusterJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -261,6 +264,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly dnstwistJson: DnstwistJsonParser,
     private readonly webanalyzeJson: WebanalyzeJsonParser,
     private readonly subjsText: SubjsTextParser,
+    private readonly feroxbusterJson: FeroxbusterJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -326,5 +330,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.dnstwistJson);
     this.registry.register(this.webanalyzeJson);
     this.registry.register(this.subjsText);
+    this.registry.register(this.feroxbusterJson);
   }
 }
