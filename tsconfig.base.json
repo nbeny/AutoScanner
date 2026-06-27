@@ -130,6 +130,7 @@
       "@autoscanner/scanners-corsy": ["libs/scanners/corsy/src/index.ts"],
       "@autoscanner/scanners-linkfinder": ["libs/scanners/linkfinder/src/index.ts"],
       "@autoscanner/scanners-jsluice": ["libs/scanners/jsluice/src/index.ts"],
+      "@autoscanner/scanners-kiterunner": ["libs/scanners/kiterunner/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
