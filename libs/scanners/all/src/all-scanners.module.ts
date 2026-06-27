@@ -87,6 +87,7 @@ import { HakrawlerScannerModule } from '@autoscanner/scanners-hakrawler';
 import { GospiderScannerModule } from '@autoscanner/scanners-gospider';
 import { CariddiScannerModule } from '@autoscanner/scanners-cariddi';
 import { CorsyScannerModule } from '@autoscanner/scanners-corsy';
+import { LinkfinderScannerModule } from '@autoscanner/scanners-linkfinder';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -184,6 +185,7 @@ const SCANNER_MODULES = [
   GospiderScannerModule,
   CariddiScannerModule,
   CorsyScannerModule,
+  LinkfinderScannerModule,
 ];
 
 @Module({

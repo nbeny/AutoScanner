@@ -71,4 +71,5 @@ export * from './hakrawler-text';
 export * from './gospider-json';
 export * from './cariddi-json';
 export * from './corsy-json';
+export * from './linkfinder-text';
 export * from './parsers.module';
