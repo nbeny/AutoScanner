@@ -120,10 +120,15 @@ export class AzureCredentialsService {
           error: 'no accessible subscription returned by the credential',
         };
       })();
-      const timeout = new Promise<never>((_resolve, reject) =>
-        setTimeout(() => reject(new Error('timeout')), timeoutMs),
-      );
-      return await Promise.race([work, timeout]);
+      let timer: NodeJS.Timeout | undefined;
+      const timeout = new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error('timeout')), timeoutMs);
+      });
+      try {
+        return await Promise.race([work, timeout]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Azure live-check failed: ${msg}`);
