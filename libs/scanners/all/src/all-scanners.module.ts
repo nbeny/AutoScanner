@@ -94,6 +94,11 @@ import { Graphw00fScannerModule } from '@autoscanner/scanners-graphw00f';
 import { GraphqlCopScannerModule } from '@autoscanner/scanners-graphql-cop';
 import { MsftreconScannerModule } from '@autoscanner/scanners-msftrecon';
 import { GcpBucketBruteScannerModule } from '@autoscanner/scanners-gcp-bucket-brute';
+import { MailspoofScannerModule } from '@autoscanner/scanners-mailspoof';
+import { SpoofyScannerModule } from '@autoscanner/scanners-spoofy';
+import { SwaksScannerModule } from '@autoscanner/scanners-swaks';
+import { EmailfinderScannerModule } from '@autoscanner/scanners-emailfinder';
+import { EmailrepScannerModule } from '@autoscanner/scanners-emailrep';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -198,6 +203,11 @@ const SCANNER_MODULES = [
   GraphqlCopScannerModule,
   MsftreconScannerModule,
   GcpBucketBruteScannerModule,
+  MailspoofScannerModule,
+  SpoofyScannerModule,
+  SwaksScannerModule,
+  EmailfinderScannerModule,
+  EmailrepScannerModule,
 ];
 
 @Module({

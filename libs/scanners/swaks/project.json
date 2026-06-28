@@ -1,0 +1,18 @@
+{
+  "name": "scanners-swaks",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/swaks/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/swaks"],
+      "options": { "jestConfig": "libs/scanners/swaks/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/swaks/tsconfig.lib.json" }
+    }
+  }
+}

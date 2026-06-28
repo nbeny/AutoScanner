@@ -82,6 +82,11 @@ import { Graphw00fJsonParser } from './graphw00f-json';
 import { GraphqlCopJsonParser } from './graphql-cop-json';
 import { MsftreconJsonParser } from './msftrecon-json';
 import { GcpBucketBruteTextParser } from './gcp-bucket-brute-text';
+import { MailspoofJsonParser } from './mailspoof-json';
+import { SpoofyJsonParser } from './spoofy-json';
+import { SwaksTextParser } from './swaks-text';
+import { EmailfinderJsonParser } from './emailfinder-json';
+import { EmailrepJsonlParser } from './emailrep-jsonl';
 
 @Global()
 @Module({
@@ -169,6 +174,11 @@ import { GcpBucketBruteTextParser } from './gcp-bucket-brute-text';
     GraphqlCopJsonParser,
     MsftreconJsonParser,
     GcpBucketBruteTextParser,
+    MailspoofJsonParser,
+    SpoofyJsonParser,
+    SwaksTextParser,
+    EmailfinderJsonParser,
+    EmailrepJsonlParser,
   ],
   exports: [
     ParserRegistry,
@@ -254,6 +264,11 @@ import { GcpBucketBruteTextParser } from './gcp-bucket-brute-text';
     GraphqlCopJsonParser,
     MsftreconJsonParser,
     GcpBucketBruteTextParser,
+    MailspoofJsonParser,
+    SpoofyJsonParser,
+    SwaksTextParser,
+    EmailfinderJsonParser,
+    EmailrepJsonlParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -341,6 +356,11 @@ export class ParsersModule implements OnModuleInit {
     private readonly graphqlCopJson: GraphqlCopJsonParser,
     private readonly msftreconJson: MsftreconJsonParser,
     private readonly gcpBucketBruteText: GcpBucketBruteTextParser,
+    private readonly mailspoofJson: MailspoofJsonParser,
+    private readonly spoofyJson: SpoofyJsonParser,
+    private readonly swaksText: SwaksTextParser,
+    private readonly emailfinderJson: EmailfinderJsonParser,
+    private readonly emailrepJsonl: EmailrepJsonlParser,
   ) {}
 
   onModuleInit(): void {
@@ -426,5 +446,10 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.graphqlCopJson);
     this.registry.register(this.msftreconJson);
     this.registry.register(this.gcpBucketBruteText);
+    this.registry.register(this.mailspoofJson);
+    this.registry.register(this.spoofyJson);
+    this.registry.register(this.swaksText);
+    this.registry.register(this.emailfinderJson);
+    this.registry.register(this.emailrepJsonl);
   }
 }

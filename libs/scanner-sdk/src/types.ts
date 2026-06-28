@@ -127,7 +127,8 @@ export interface ScannerDefinition<TInput = unknown, _TRawOutput = unknown> {
     | 'ABUSEIPDB'
     | 'CHAOS'
     | 'FOFA'
-    | 'UNCOVER';
+    | 'UNCOVER'
+    | 'EMAILREP';
   /** Env var name to inject the decrypted credential into (e.g. 'SHODAN_API_KEY'). */
   credentialEnvVar?: string;
 }

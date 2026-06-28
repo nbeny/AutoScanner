@@ -6,7 +6,7 @@ import { Prisma } from '@prisma/client';
 import type { Scan, ScanJob } from '@prisma/client';
 import { NotFoundError, ValidationError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
-import { CapabilityService, ACTIVE_RECON_HOST_NET } from '@autoscanner/auth';
+import { CapabilityService, ACTIVE_RECON_HOST_NET, ACTIVE_MAIL_PROBE } from '@autoscanner/auth';
 import { QueueName, type ScanJobPayload } from '@autoscanner/queues';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
@@ -54,6 +54,13 @@ export class ScansService {
         throw new ValidationError(
           'Scanner ike-scan requires the active-recon-host-net capability.',
         );
+      }
+    }
+
+    if (scanner.name === 'swaks') {
+      const allowed = await this.capabilities.has(userId, ACTIVE_MAIL_PROBE);
+      if (!allowed) {
+        throw new ValidationError('Scanner swaks requires the active-mail-probe capability.');
       }
     }
 
