@@ -76,4 +76,5 @@ export * from './jsluice-jsonl';
 export * from './graphw00f-json';
 export * from './graphql-cop-json';
 export * from './msftrecon-json';
+export * from './gcp-bucket-brute-text';
 export * from './parsers.module';
