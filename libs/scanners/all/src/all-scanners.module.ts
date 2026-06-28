@@ -92,6 +92,8 @@ import { JsluiceScannerModule } from '@autoscanner/scanners-jsluice';
 import { KiterunnerScannerModule } from '@autoscanner/scanners-kiterunner';
 import { Graphw00fScannerModule } from '@autoscanner/scanners-graphw00f';
 import { GraphqlCopScannerModule } from '@autoscanner/scanners-graphql-cop';
+import { MsftreconScannerModule } from '@autoscanner/scanners-msftrecon';
+import { GcpBucketBruteScannerModule } from '@autoscanner/scanners-gcp-bucket-brute';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -194,6 +196,8 @@ const SCANNER_MODULES = [
   KiterunnerScannerModule,
   Graphw00fScannerModule,
   GraphqlCopScannerModule,
+  MsftreconScannerModule,
+  GcpBucketBruteScannerModule,
 ];
 
 @Module({

@@ -80,6 +80,8 @@ import { LinkfinderTextParser } from './linkfinder-text';
 import { JsluiceJsonlParser } from './jsluice-jsonl';
 import { Graphw00fJsonParser } from './graphw00f-json';
 import { GraphqlCopJsonParser } from './graphql-cop-json';
+import { MsftreconJsonParser } from './msftrecon-json';
+import { GcpBucketBruteTextParser } from './gcp-bucket-brute-text';
 
 @Global()
 @Module({
@@ -165,6 +167,8 @@ import { GraphqlCopJsonParser } from './graphql-cop-json';
     JsluiceJsonlParser,
     Graphw00fJsonParser,
     GraphqlCopJsonParser,
+    MsftreconJsonParser,
+    GcpBucketBruteTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -248,6 +252,8 @@ import { GraphqlCopJsonParser } from './graphql-cop-json';
     JsluiceJsonlParser,
     Graphw00fJsonParser,
     GraphqlCopJsonParser,
+    MsftreconJsonParser,
+    GcpBucketBruteTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -333,6 +339,8 @@ export class ParsersModule implements OnModuleInit {
     private readonly jsluiceJsonl: JsluiceJsonlParser,
     private readonly graphw00fJson: Graphw00fJsonParser,
     private readonly graphqlCopJson: GraphqlCopJsonParser,
+    private readonly msftreconJson: MsftreconJsonParser,
+    private readonly gcpBucketBruteText: GcpBucketBruteTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -416,5 +424,7 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.jsluiceJsonl);
     this.registry.register(this.graphw00fJson);
     this.registry.register(this.graphqlCopJson);
+    this.registry.register(this.msftreconJson);
+    this.registry.register(this.gcpBucketBruteText);
   }
 }
