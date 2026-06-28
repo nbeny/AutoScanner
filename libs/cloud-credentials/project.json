@@ -1,0 +1,18 @@
+{
+  "name": "cloud-credentials",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/cloud-credentials/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/cloud-credentials"],
+      "options": { "jestConfig": "libs/cloud-credentials/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/cloud-credentials/tsconfig.lib.json" }
+    }
+  }
+}

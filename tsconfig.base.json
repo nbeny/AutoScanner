@@ -26,6 +26,7 @@
     "resolveJsonModule": true,
     "paths": {
       "@autoscanner/auth": ["libs/auth/src/index.ts"],
+      "@autoscanner/cloud-credentials": ["libs/cloud-credentials/src/index.ts"],
       "@autoscanner/common": ["libs/common/src/index.ts"],
       "@autoscanner/config": ["libs/config/src/index.ts"],
       "@autoscanner/correlation": ["libs/correlation/src/index.ts"],
