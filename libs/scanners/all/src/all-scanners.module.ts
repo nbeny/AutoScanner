@@ -96,6 +96,7 @@ import { MsftreconScannerModule } from '@autoscanner/scanners-msftrecon';
 import { GcpBucketBruteScannerModule } from '@autoscanner/scanners-gcp-bucket-brute';
 import { MailspoofScannerModule } from '@autoscanner/scanners-mailspoof';
 import { SpoofyScannerModule } from '@autoscanner/scanners-spoofy';
+import { SwaksScannerModule } from '@autoscanner/scanners-swaks';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -202,6 +203,7 @@ const SCANNER_MODULES = [
   GcpBucketBruteScannerModule,
   MailspoofScannerModule,
   SpoofyScannerModule,
+  SwaksScannerModule,
 ];
 
 @Module({

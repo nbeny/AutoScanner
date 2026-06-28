@@ -137,6 +137,7 @@
       "@autoscanner/scanners-gcp-bucket-brute": ["libs/scanners/gcp-bucket-brute/src/index.ts"],
       "@autoscanner/scanners-mailspoof": ["libs/scanners/mailspoof/src/index.ts"],
       "@autoscanner/scanners-spoofy": ["libs/scanners/spoofy/src/index.ts"],
+      "@autoscanner/scanners-swaks": ["libs/scanners/swaks/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }

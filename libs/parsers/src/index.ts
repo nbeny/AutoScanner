@@ -79,4 +79,5 @@ export * from './msftrecon-json';
 export * from './gcp-bucket-brute-text';
 export * from './mailspoof-json';
 export * from './spoofy-json';
+export * from './swaks-text';
 export * from './parsers.module';
