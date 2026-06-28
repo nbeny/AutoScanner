@@ -82,6 +82,10 @@ describe('AzureCredentialsService', () => {
     expect(call.create.subscriptionName).toBe('Prod Sub');
     expect(box.open(call.create.tenantIdCipher)).toBe(VALID_INPUT.tenantId);
     expect(box.open(call.create.clientSecretCipher)).toBe('super-secret');
+    // callerObjectId must be persisted so list() can surface the real principal
+    expect(call.create.callerObjectId).toBe(
+      '00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002',
+    );
   });
 
   it('set() upserts on success without subscriptionId (uses first listed)', async () => {
@@ -98,7 +102,24 @@ describe('AzureCredentialsService', () => {
     expect(call.create.subscriptionIdCipher).toBeNull();
   });
 
-  it('list() returns metadata-only', async () => {
+  it('list() returns the persisted principal when callerObjectId is set', async () => {
+    const { service, prisma } = makeService();
+    prisma.azureCredential.findUnique.mockResolvedValueOnce({
+      callerObjectId: '00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002',
+      subscriptionName: 'Prod Sub',
+      createdAt: new Date('2026-06-28'),
+      updatedAt: new Date('2026-06-28'),
+    });
+    const out = await service.list('user-1');
+    expect(out).toEqual({
+      principal: '00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002',
+      subscriptionName: 'Prod Sub',
+      createdAt: new Date('2026-06-28'),
+      updatedAt: new Date('2026-06-28'),
+    });
+  });
+
+  it('list() falls back to placeholder when callerObjectId is null', async () => {
     const { service, prisma } = makeService();
     prisma.azureCredential.findUnique.mockResolvedValueOnce({
       callerObjectId: null,

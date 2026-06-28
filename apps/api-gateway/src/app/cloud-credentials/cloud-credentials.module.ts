@@ -1,7 +1,13 @@
 import { Module } from '@nestjs/common';
 import { SecretBox } from '@autoscanner/common';
 import { AppConfigService } from '@autoscanner/config';
-import { CloudCredentialsModule as CoreModule, SECRET_BOX } from '@autoscanner/cloud-credentials';
+import {
+  AwsCredentialsService,
+  AzureCredentialsService,
+  GcpCredentialsService,
+  CloudCredentialsModule as CoreModule,
+  SECRET_BOX,
+} from '@autoscanner/cloud-credentials';
 import { AuthModule } from '../auth/auth.module';
 import { CloudCredentialsResolver } from './cloud-credentials.resolver';
 
@@ -9,6 +15,9 @@ import { CloudCredentialsResolver } from './cloud-credentials.resolver';
   imports: [AuthModule, CoreModule],
   providers: [
     CloudCredentialsResolver,
+    AwsCredentialsService,
+    AzureCredentialsService,
+    GcpCredentialsService,
     {
       provide: SECRET_BOX,
       inject: [AppConfigService],

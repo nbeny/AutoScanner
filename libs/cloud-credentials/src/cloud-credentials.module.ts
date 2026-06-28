@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
-import { AwsCredentialsService } from './aws/aws-credentials.service';
-import { AzureCredentialsService } from './azure/azure-credentials.service';
-import { GcpCredentialsService } from './gcp/gcp-credentials.service';
 
+/**
+ * CloudCredentialsModule — empty re-export shell. The 3 services
+ * are registered by the api-gateway-side CloudCredentialsApiModule
+ * to keep them in the same DI scope as the SECRET_BOX provider.
+ */
 @Module({
-  providers: [AwsCredentialsService, AzureCredentialsService, GcpCredentialsService],
-  exports: [AwsCredentialsService, AzureCredentialsService, GcpCredentialsService],
+  providers: [],
+  exports: [],
 })
 export class CloudCredentialsModule {}

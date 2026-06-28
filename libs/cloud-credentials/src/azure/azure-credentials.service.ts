@@ -15,6 +15,23 @@ export interface AzureCredentialInfo {
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
+function friendlyAzureError(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes('aadsts7000215') ||
+    lower.includes('invalid client secret') ||
+    lower.includes('invalid client')
+  ) {
+    return 'invalid Azure client secret';
+  }
+  if (lower.includes('aadsts70011') || lower.includes('invalid scope'))
+    return 'invalid Azure permissions';
+  if (lower.includes('not found') || lower.includes('subscriptionnotfound'))
+    return 'Azure subscription not found';
+  if (lower.includes('timeout') || lower.includes('aborted')) return 'Azure request timed out';
+  return 'Azure rejected the credential';
+}
+
 @Injectable()
 export class AzureCredentialsService {
   private readonly logger = new Logger(AzureCredentialsService.name);
@@ -35,6 +52,7 @@ export class AzureCredentialsService {
       clientSecretCipher: this.box.seal(parsed.clientSecret),
       subscriptionIdCipher: parsed.subscriptionId ? this.box.seal(parsed.subscriptionId) : null,
       subscriptionName: check.subscriptionName ?? null,
+      callerObjectId: check.principal ?? null,
     };
 
     await this.prisma.azureCredential.upsert({
@@ -79,7 +97,7 @@ export class AzureCredentialsService {
     });
     if (!row) return null;
     return {
-      principal: 'tenant/client (live-check pending)',
+      principal: row.callerObjectId ?? 'tenant/client (live-check pending)',
       subscriptionName: row.subscriptionName,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -130,9 +148,9 @@ export class AzureCredentialsService {
         if (timer) clearTimeout(timer);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Azure live-check failed: ${msg}`);
-      return { ok: false, error: msg };
+      const raw = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Azure live-check failed: ${raw}`);
+      return { ok: false, error: friendlyAzureError(raw) };
     }
   }
 }

@@ -74,7 +74,7 @@ describe('AwsCredentialsService', () => {
       { liveCheckTimeoutMs: 5 },
     );
     expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/timeout/i);
+    expect(result.error).toMatch(/timeout|timed.out/i);
     expect(prisma.awsCredential.upsert).not.toHaveBeenCalled();
   });
 

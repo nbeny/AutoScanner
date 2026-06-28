@@ -5,6 +5,17 @@ import { SecretBox } from '@autoscanner/common';
 import { SECRET_BOX } from '../tokens';
 import { AwsInput, AwsInputSchema, LiveCheckResult } from '../types';
 
+function friendlyAwsError(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower.includes('access') && lower.includes('denied')) return 'access denied';
+  if (lower.includes('invalid') && (lower.includes('access key') || lower.includes('signature'))) {
+    return 'invalid AWS credential';
+  }
+  if (lower.includes('timeout') || lower.includes('aborted')) return 'STS request timed out';
+  if (lower.includes('expired')) return 'AWS credential is expired';
+  return 'AWS STS rejected the credential';
+}
+
 export interface AwsCredentialInfo {
   principal: string | null;
   accountId: string | null;
@@ -129,9 +140,9 @@ export class AwsCredentialsService {
       const accountId = out.Account ?? undefined;
       return { ok: true, principal, accountId };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`AWS STS live-check failed: ${msg}`);
-      return { ok: false, error: msg };
+      const raw = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`AWS STS live-check failed: ${raw}`);
+      return { ok: false, error: friendlyAwsError(raw) };
     } finally {
       clearTimeout(timer);
     }

@@ -5,6 +5,20 @@ import { SecretBox } from '@autoscanner/common';
 import { SECRET_BOX } from '../tokens';
 import { GcpInput, GcpInputSchema, LiveCheckResult } from '../types';
 
+function friendlyGcpError(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes('invalid_grant') ||
+    lower.includes('private_key') ||
+    lower.includes('invalid jwt')
+  ) {
+    return 'invalid GCP service account JSON';
+  }
+  if (lower.includes('access_denied') || lower.includes('forbidden')) return 'GCP access denied';
+  if (lower.includes('timeout')) return 'GCP request timed out';
+  return 'GCP rejected the credential';
+}
+
 export interface GcpCredentialInfo {
   principal: string;
   projectId: string | null;
@@ -107,9 +121,9 @@ export class GcpCredentialsService {
       });
       return await Promise.race([work, timeout]);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`GCP live-check failed: ${msg}`);
-      return { ok: false, error: msg };
+      const raw = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`GCP live-check failed: ${raw}`);
+      return { ok: false, error: friendlyGcpError(raw) };
     } finally {
       if (timer) clearTimeout(timer);
     }
