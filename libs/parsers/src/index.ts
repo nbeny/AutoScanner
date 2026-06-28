@@ -78,4 +78,5 @@ export * from './graphql-cop-json';
 export * from './msftrecon-json';
 export * from './gcp-bucket-brute-text';
 export * from './mailspoof-json';
+export * from './spoofy-json';
 export * from './parsers.module';

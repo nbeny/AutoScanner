@@ -83,6 +83,7 @@ import { GraphqlCopJsonParser } from './graphql-cop-json';
 import { MsftreconJsonParser } from './msftrecon-json';
 import { GcpBucketBruteTextParser } from './gcp-bucket-brute-text';
 import { MailspoofJsonParser } from './mailspoof-json';
+import { SpoofyJsonParser } from './spoofy-json';
 
 @Global()
 @Module({
@@ -171,6 +172,7 @@ import { MailspoofJsonParser } from './mailspoof-json';
     MsftreconJsonParser,
     GcpBucketBruteTextParser,
     MailspoofJsonParser,
+    SpoofyJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -257,6 +259,7 @@ import { MailspoofJsonParser } from './mailspoof-json';
     MsftreconJsonParser,
     GcpBucketBruteTextParser,
     MailspoofJsonParser,
+    SpoofyJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -345,6 +348,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly msftreconJson: MsftreconJsonParser,
     private readonly gcpBucketBruteText: GcpBucketBruteTextParser,
     private readonly mailspoofJson: MailspoofJsonParser,
+    private readonly spoofyJson: SpoofyJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -431,5 +435,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.msftreconJson);
     this.registry.register(this.gcpBucketBruteText);
     this.registry.register(this.mailspoofJson);
+    this.registry.register(this.spoofyJson);
   }
 }
