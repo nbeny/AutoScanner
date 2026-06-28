@@ -1034,3 +1034,83 @@ export const COVERAGE_SUMMARY_QUERY = gql`
     }
   }
 `;
+
+export const SET_AWS_CREDENTIAL = gql`
+  mutation SetAwsCredential($input: AwsCredentialInput!) {
+    setAwsCredential(input: $input) {
+      ok
+      principal
+      error
+    }
+  }
+`;
+
+export const SET_AZURE_CREDENTIAL = gql`
+  mutation SetAzureCredential($input: AzureCredentialInput!) {
+    setAzureCredential(input: $input) {
+      ok
+      principal
+      error
+    }
+  }
+`;
+
+export const SET_GCP_CREDENTIAL = gql`
+  mutation SetGcpCredential($input: GcpCredentialInput!) {
+    setGcpCredential(input: $input) {
+      ok
+      principal
+      error
+    }
+  }
+`;
+
+export const DELETE_CLOUD_CREDENTIAL = gql`
+  mutation DeleteCloudCredential($provider: CloudProvider!) {
+    deleteCloudCredential(provider: $provider)
+  }
+`;
+
+export const CLOUD_CREDENTIAL_LIVE_CHECK = gql`
+  query CloudCredentialLiveCheck($provider: CloudProvider!) {
+    cloudCredentialLiveCheck(provider: $provider) {
+      ok
+      principal
+      error
+    }
+  }
+`;
+
+export const AWS_CREDENTIAL_QUERY = gql`
+  query AwsCredential {
+    awsCredential {
+      principal
+      accountId
+      region
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const AZURE_CREDENTIAL_QUERY = gql`
+  query AzureCredential {
+    azureCredential {
+      principal
+      subscriptionName
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const GCP_CREDENTIAL_QUERY = gql`
+  query GcpCredential {
+    gcpCredential {
+      principal
+      projectId
+      createdAt
+      updatedAt
+    }
+  }
+`;
