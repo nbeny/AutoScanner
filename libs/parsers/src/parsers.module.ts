@@ -86,6 +86,7 @@ import { MailspoofJsonParser } from './mailspoof-json';
 import { SpoofyJsonParser } from './spoofy-json';
 import { SwaksTextParser } from './swaks-text';
 import { EmailfinderJsonParser } from './emailfinder-json';
+import { EmailrepJsonlParser } from './emailrep-jsonl';
 
 @Global()
 @Module({
@@ -177,6 +178,7 @@ import { EmailfinderJsonParser } from './emailfinder-json';
     SpoofyJsonParser,
     SwaksTextParser,
     EmailfinderJsonParser,
+    EmailrepJsonlParser,
   ],
   exports: [
     ParserRegistry,
@@ -266,6 +268,7 @@ import { EmailfinderJsonParser } from './emailfinder-json';
     SpoofyJsonParser,
     SwaksTextParser,
     EmailfinderJsonParser,
+    EmailrepJsonlParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -357,6 +360,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly spoofyJson: SpoofyJsonParser,
     private readonly swaksText: SwaksTextParser,
     private readonly emailfinderJson: EmailfinderJsonParser,
+    private readonly emailrepJsonl: EmailrepJsonlParser,
   ) {}
 
   onModuleInit(): void {
@@ -446,5 +450,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.spoofyJson);
     this.registry.register(this.swaksText);
     this.registry.register(this.emailfinderJson);
+    this.registry.register(this.emailrepJsonl);
   }
 }

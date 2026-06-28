@@ -139,6 +139,7 @@
       "@autoscanner/scanners-spoofy": ["libs/scanners/spoofy/src/index.ts"],
       "@autoscanner/scanners-swaks": ["libs/scanners/swaks/src/index.ts"],
       "@autoscanner/scanners-emailfinder": ["libs/scanners/emailfinder/src/index.ts"],
+      "@autoscanner/scanners-emailrep": ["libs/scanners/emailrep/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }

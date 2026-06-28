@@ -81,4 +81,5 @@ export * from './mailspoof-json';
 export * from './spoofy-json';
 export * from './swaks-text';
 export * from './emailfinder-json';
+export * from './emailrep-jsonl';
 export * from './parsers.module';

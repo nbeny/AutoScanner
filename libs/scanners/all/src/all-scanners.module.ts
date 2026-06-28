@@ -98,6 +98,7 @@ import { MailspoofScannerModule } from '@autoscanner/scanners-mailspoof';
 import { SpoofyScannerModule } from '@autoscanner/scanners-spoofy';
 import { SwaksScannerModule } from '@autoscanner/scanners-swaks';
 import { EmailfinderScannerModule } from '@autoscanner/scanners-emailfinder';
+import { EmailrepScannerModule } from '@autoscanner/scanners-emailrep';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -206,6 +207,7 @@ const SCANNER_MODULES = [
   SpoofyScannerModule,
   SwaksScannerModule,
   EmailfinderScannerModule,
+  EmailrepScannerModule,
 ];
 
 @Module({
