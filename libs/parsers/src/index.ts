@@ -80,4 +80,5 @@ export * from './gcp-bucket-brute-text';
 export * from './mailspoof-json';
 export * from './spoofy-json';
 export * from './swaks-text';
+export * from './emailfinder-json';
 export * from './parsers.module';

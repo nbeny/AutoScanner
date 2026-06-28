@@ -97,6 +97,7 @@ import { GcpBucketBruteScannerModule } from '@autoscanner/scanners-gcp-bucket-br
 import { MailspoofScannerModule } from '@autoscanner/scanners-mailspoof';
 import { SpoofyScannerModule } from '@autoscanner/scanners-spoofy';
 import { SwaksScannerModule } from '@autoscanner/scanners-swaks';
+import { EmailfinderScannerModule } from '@autoscanner/scanners-emailfinder';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -204,6 +205,7 @@ const SCANNER_MODULES = [
   MailspoofScannerModule,
   SpoofyScannerModule,
   SwaksScannerModule,
+  EmailfinderScannerModule,
 ];
 
 @Module({

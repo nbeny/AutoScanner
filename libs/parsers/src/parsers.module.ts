@@ -85,6 +85,7 @@ import { GcpBucketBruteTextParser } from './gcp-bucket-brute-text';
 import { MailspoofJsonParser } from './mailspoof-json';
 import { SpoofyJsonParser } from './spoofy-json';
 import { SwaksTextParser } from './swaks-text';
+import { EmailfinderJsonParser } from './emailfinder-json';
 
 @Global()
 @Module({
@@ -175,6 +176,7 @@ import { SwaksTextParser } from './swaks-text';
     MailspoofJsonParser,
     SpoofyJsonParser,
     SwaksTextParser,
+    EmailfinderJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -263,6 +265,7 @@ import { SwaksTextParser } from './swaks-text';
     MailspoofJsonParser,
     SpoofyJsonParser,
     SwaksTextParser,
+    EmailfinderJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -353,6 +356,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly mailspoofJson: MailspoofJsonParser,
     private readonly spoofyJson: SpoofyJsonParser,
     private readonly swaksText: SwaksTextParser,
+    private readonly emailfinderJson: EmailfinderJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -441,5 +445,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.mailspoofJson);
     this.registry.register(this.spoofyJson);
     this.registry.register(this.swaksText);
+    this.registry.register(this.emailfinderJson);
   }
 }
