@@ -34,6 +34,9 @@ model User {
   reportsCreated       Report[]
   schedulesCreated     Schedule[]
   apiCredentials       ApiCredential[]
+  awsCredential        AwsCredential?
+  azureCredential      AzureCredential?
+  gcpCredential        GcpCredential?
   notificationChannels NotificationChannel[]
   agentsCreated        Agent[]
   findingStatusEvents  FindingStatusEvent[]
@@ -1056,4 +1059,43 @@ model TlsCertificate {
   @@unique([engagementId, fingerprintSha256, host])
   @@index([engagementId])
   @@index([subdomainId])
+}
+
+model AwsCredential {
+  id                    String   @id @default(cuid())
+  ownerId               String   @unique
+  accessKeyIdCipher     Bytes
+  secretAccessKeyCipher Bytes
+  sessionTokenCipher    Bytes?
+  region                String?
+  callerArn             String?
+  accountId             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  owner                 User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+}
+
+model AzureCredential {
+  id                   String   @id @default(cuid())
+  ownerId              String   @unique
+  tenantIdCipher       Bytes
+  clientIdCipher       Bytes
+  clientSecretCipher   Bytes
+  subscriptionIdCipher Bytes?
+  subscriptionName     String?
+  callerObjectId       String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  owner                User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+}
+
+model GcpCredential {
+  id                       String   @id @default(cuid())
+  ownerId                  String   @unique
+  serviceAccountJsonCipher Bytes
+  projectId                String?
+  serviceAccountEmail      String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  owner                    User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 }
