@@ -5,6 +5,7 @@ import type { TemplateDefinition } from '../types';
  * passive scanners after a crtsh+subfinder seed pass. gitleaks is opt-in:
  * the step only does useful work when the engagement scope includes one or
  * more GitHub orgs / repos (the scanner refuses the run otherwise).
+ * Phase 14B — adds emailrep reputation check on the harvested email set.
  */
 export const OsintMetaDeep: TemplateDefinition = {
   name: 'osint-meta-deep',
@@ -33,5 +34,6 @@ export const OsintMetaDeep: TemplateDefinition = {
     },
     { scannerName: 'urlfinder', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'gitleaks', inputs: {}, target: { kind: 'context', path: 'target' } },
+    { scannerName: 'emailrep', inputs: {}, target: { kind: 'context', path: 'emails' } },
   ],
 };
