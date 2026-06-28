@@ -75,4 +75,5 @@ export * from './linkfinder-text';
 export * from './jsluice-jsonl';
 export * from './graphw00f-json';
 export * from './graphql-cop-json';
+export * from './msftrecon-json';
 export * from './parsers.module';

@@ -133,6 +133,7 @@
       "@autoscanner/scanners-kiterunner": ["libs/scanners/kiterunner/src/index.ts"],
       "@autoscanner/scanners-graphw00f": ["libs/scanners/graphw00f/src/index.ts"],
       "@autoscanner/scanners-graphql-cop": ["libs/scanners/graphql-cop/src/index.ts"],
+      "@autoscanner/scanners-msftrecon": ["libs/scanners/msftrecon/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
