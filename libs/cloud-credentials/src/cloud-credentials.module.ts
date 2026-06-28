@@ -1,11 +1,8 @@
 import { Module } from '@nestjs/common';
+import { AwsCredentialsService } from './aws/aws-credentials.service';
 
-/**
- * CloudCredentialsModule — empty shell. Tasks 3-5 add the 3 services as
- * providers. Imported by api-gateway in Task 6.
- */
 @Module({
-  providers: [],
-  exports: [],
+  providers: [AwsCredentialsService],
+  exports: [AwsCredentialsService],
 })
 export class CloudCredentialsModule {}
