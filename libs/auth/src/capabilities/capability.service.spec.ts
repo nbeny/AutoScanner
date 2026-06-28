@@ -1,5 +1,5 @@
 import { CapabilityService } from './capability.service';
-import { ACTIVE_RECON_HOST_NET } from './capability.constants';
+import { ACTIVE_RECON_HOST_NET, ACTIVE_MAIL_PROBE, ALL_CAPABILITIES } from './capability.constants';
 
 type PrismaStub = {
   userCapability: {
@@ -60,5 +60,16 @@ describe('CapabilityService', () => {
     expect(spy).toHaveBeenCalledWith(
       expect.stringContaining(`revoke key=${ACTIVE_RECON_HOST_NET} userId=u1 by=admin1`),
     );
+  });
+});
+
+describe('Phase 14B capability constants', () => {
+  it('exposes ACTIVE_MAIL_PROBE = "active-mail-probe"', () => {
+    expect(ACTIVE_MAIL_PROBE).toBe('active-mail-probe');
+  });
+
+  it('includes ACTIVE_MAIL_PROBE in ALL_CAPABILITIES', () => {
+    expect(ALL_CAPABILITIES).toContain(ACTIVE_MAIL_PROBE);
+    expect(ALL_CAPABILITIES).toContain(ACTIVE_RECON_HOST_NET);
   });
 });

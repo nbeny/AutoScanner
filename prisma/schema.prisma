@@ -562,6 +562,7 @@ enum ApiProvider {
   CHAOS
   FOFA
   UNCOVER
+  EMAILREP
 }
 
 model Email {

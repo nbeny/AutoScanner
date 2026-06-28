@@ -149,6 +149,14 @@ export class ContextBuilder {
         resolved = resolved.filter((s) => s.length > 0);
         break;
       }
+      case 'emails': {
+        const rows = await this.prisma.email.findMany({
+          where: { engagementId: run.engagementId },
+          select: { address: true },
+        });
+        resolved = rows.map((r) => r.address);
+        break;
+      }
       default: {
         // Exhaustiveness: TemplateStep types prevent this, but keep a runtime
         // safety net for forward-compat.
