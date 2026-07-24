@@ -57,6 +57,7 @@ import { MasscanScannerModule } from '@autoscanner/scanners-masscan';
 import { SshAuditScannerModule } from '@autoscanner/scanners-ssh-audit';
 import { NbtscanScannerModule } from '@autoscanner/scanners-nbtscan';
 import { RdpSecCheckScannerModule } from '@autoscanner/scanners-rdp-sec-check';
+import { PwncatScannerModule } from '@autoscanner/scanners-pwncat';
 import { AbuseipdbScannerModule } from '@autoscanner/scanners-abuseipdb';
 import { GreynoiseScannerModule } from '@autoscanner/scanners-greynoise';
 import { SubzyScannerModule } from '@autoscanner/scanners-subzy';
@@ -166,6 +167,7 @@ const SCANNER_MODULES = [
   SshAuditScannerModule,
   NbtscanScannerModule,
   RdpSecCheckScannerModule,
+  PwncatScannerModule,
   AbuseipdbScannerModule,
   GreynoiseScannerModule,
   SubzyScannerModule,

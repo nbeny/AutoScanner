@@ -1,5 +1,6 @@
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { NmapScanner } from '@autoscanner/scanners-nmap';
+import { PwncatScanner } from '@autoscanner/scanners-pwncat';
 
 import { buildScannerCatalog, catalogToPromptText } from '../scanner-catalog';
 
@@ -34,5 +35,18 @@ describe('buildScannerCatalog', () => {
     expect(text.length).toBeGreaterThan(0);
     expect(text).toContain('nmap');
     expect(text).toContain('produces:{');
+  });
+
+  it('exposes the experimental pwncat scanner to the AI (catalog + prompt text)', () => {
+    const registry = new ScannerRegistry();
+    registry.register(PwncatScanner);
+
+    const catalog = buildScannerCatalog(registry);
+    const pwncat = catalog.find((e) => e.name === 'pwncat');
+    expect(pwncat).toBeDefined();
+    expect(pwncat?.produces).toEqual(expect.arrayContaining(['Finding']));
+
+    const text = catalogToPromptText(catalog);
+    expect(text).toContain('pwncat');
   });
 });
