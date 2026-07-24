@@ -54,6 +54,11 @@ export interface WebhookJobPayload {
   webhookEventId: string;
 }
 
+export interface AiRunPayload {
+  aiRunId: string;
+  engagementId: string;
+}
+
 export interface QueuePayloadMap {
   [QueueName.SCAN_JOBS]: ScanJobPayload;
   [QueueName.PARSE_JOBS]: ParseJobPayload;
@@ -64,6 +69,7 @@ export interface QueuePayloadMap {
   [QueueName.REPORT_JOBS]: ReportJobPayload;
   [QueueName.NOTIFICATION_JOBS]: NotificationJobPayload;
   [QueueName.WEBHOOK_JOBS]: WebhookJobPayload;
+  [QueueName.AI_RUNS]: AiRunPayload;
 }
 
 export type PayloadFor<Q extends QueueName> = QueuePayloadMap[Q];
