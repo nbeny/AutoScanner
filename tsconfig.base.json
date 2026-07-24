@@ -102,6 +102,7 @@
       "@autoscanner/scanners-ssh-audit": ["libs/scanners/ssh-audit/src/index.ts"],
       "@autoscanner/scanners-nbtscan": ["libs/scanners/nbtscan/src/index.ts"],
       "@autoscanner/scanners-rdp-sec-check": ["libs/scanners/rdp-sec-check/src/index.ts"],
+      "@autoscanner/scanners-pwncat": ["libs/scanners/pwncat/src/index.ts"],
       "@autoscanner/scanners-abuseipdb": ["libs/scanners/abuseipdb/src/index.ts"],
       "@autoscanner/scanners-greynoise": ["libs/scanners/greynoise/src/index.ts"],
       "@autoscanner/scanners-subzy": ["libs/scanners/subzy/src/index.ts"],
