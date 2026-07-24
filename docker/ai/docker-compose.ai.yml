@@ -1,0 +1,35 @@
+# AI orchestrator worker (containerized), reusing the operator's Claude
+# subscription via read-only mounts of the host Claude CLI credentials — the same
+# mechanism as ../BotTrading. In local dev the worker can instead run on the host
+# via `pnpm nx serve ai-orchestrator-worker` if you are already logged into the
+# `claude` CLI; this compose file is the isolated/production path.
+#
+# Requires the dev stack (postgres/redis/minio) to be up first: `pnpm dev:up`.
+# Run:   docker compose -f docker/ai/docker-compose.ai.yml up --build
+name: autoscanner-ai
+
+services:
+  ai-orchestrator-worker:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.ai-orchestrator
+    container_name: autoscanner-ai-orchestrator
+    network_mode: host # reach postgres/redis/minio published on localhost + scan targets
+    environment:
+      # --- Claude CLI (subscription) transport ---
+      ANTHROPIC_TRANSPORT: ${ANTHROPIC_TRANSPORT:-cli}
+      ANTHROPIC_CLI_PATH: ${ANTHROPIC_CLI_PATH:-claude}
+      ANTHROPIC_SONNET_MODEL: ${ANTHROPIC_SONNET_MODEL:-sonnet}
+      ANTHROPIC_CLI_TIMEOUT_MS: ${ANTHROPIC_CLI_TIMEOUT_MS:-120000}
+      ANTHROPIC_CLI_CONCURRENCY: ${ANTHROPIC_CLI_CONCURRENCY:-4}
+      # --- Shared infra (same values other workers use) ---
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      # Read-only mounts of the host's authenticated Claude CLI credentials.
+      # Set CLAUDE_DIR / CLAUDE_CONFIG in .env to your host paths.
+      - ${CLAUDE_DIR}:/home/appuser/.claude:ro
+      - ${CLAUDE_CONFIG}:/home/appuser/.claude.json:ro

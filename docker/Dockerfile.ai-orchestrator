@@ -1,0 +1,29 @@
+# AI orchestrator worker — runs the agentic scan-decision loop and invokes Claude
+# via the Claude Code CLI using the operator's SUBSCRIPTION (no API key), mirroring
+# the ../BotTrading pattern. The container installs the CLI; the compose service
+# mounts the host's authenticated ~/.claude credentials read-only.
+FROM node:22-slim AS base
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# Claude Code CLI — the worker invokes `claude -p` as a subprocess.
+RUN npm install -g @anthropic-ai/claude-code
+
+WORKDIR /app
+
+# Build the worker (monorepo build; simplest correct approach — a slimmer
+# multi-stage prune can come later if image size matters).
+COPY . .
+RUN corepack enable \
+  && pnpm install --frozen-lockfile \
+  && pnpm nx build ai-orchestrator-worker
+
+# Drop privileges. HOME must match the mount target for the Claude CLI creds.
+RUN useradd --create-home --uid 10001 appuser \
+  && chown -R appuser:appuser /app
+ENV HOME=/home/appuser
+USER appuser
+
+CMD ["node", "dist/apps/ai-orchestrator-worker/main.js"]
