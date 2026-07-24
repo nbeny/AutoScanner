@@ -1,0 +1,22 @@
+{
+  "name": "target-parser",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/target-parser/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/target-parser"],
+      "options": {
+        "jestConfig": "libs/target-parser/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/target-parser/tsconfig.lib.json"
+      }
+    }
+  }
+}
