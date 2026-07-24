@@ -37,6 +37,14 @@ runScan / runTemplate (api-gateway, GraphQL)
 
 Templates additionally flow through **orchestrator-worker** (`template-runs` queue), which builds each step's target set from the `ContextBuilder` (root `target`, discovered `subdomains`, `ipAddresses`, `urls`, `endpoints`, `emails`), dispatches child scan jobs, and waits for completion before advancing.
 
+### AutoHunt — AI-autonomous hunting
+
+Beyond single scans and static templates there's a third way in: the **AutoHunt** page (`/hunt`), a Google-style search box. Type an IP, range, or CIDR (IPv4 **and** IPv6) and the platform hunts _every_ vulnerability autonomously — **Claude Sonnet decides which scanner to run next after each result**, chaining recon → enumeration → web discovery → vuln scanning → active injection → opportunistic exploitation (up to an experimental `pwncat` probe). Every scan is stored and shown as a **live scan-graph** (the path), with an AI-written **audit** at the end.
+
+- The `ai-orchestrator-worker` runs the loop: build world state → ask Claude which scanner(s) next → validate against the registry → dispatch → repeat under configurable **guardrails** (`maxScans` / `maxDepth` / `timeBudgetMs` / `hostCap`, editable on the page) → audit. Ranges are auto-expanded to live hosts, each hunted per-host.
+- Claude runs **in a container via your Claude subscription** (no API key): the worker spawns the `claude` CLI and scrubs API-key env vars to force the subscription session (`libs/claude-agent`, mirroring `../BotTrading`). In local dev it uses the host `claude` if you're logged in; containerized via `docker/ai/docker-compose.ai.yml` with read-only mounts of `~/.claude` (set `CLAUDE_DIR` / `CLAUDE_CONFIG` + the `ANTHROPIC_*` vars in `.env`).
+- Run it: `pnpm nx serve ai-orchestrator-worker` alongside the usual workers, open `/hunt`, type a target. Live updates stream over the `aiRunEvents` GraphQL subscription.
+
 ### What happens for a bare IP
 
 Choose a template based on how aggressive you want to be:
@@ -92,6 +100,7 @@ pnpm nx serve api-gateway          # REST + GraphQL on :4000
 pnpm nx serve scan-worker          # consumes scan-jobs, runs scanners in Docker
 pnpm nx serve parser-worker        # consumes parse-jobs, persists entities + correlates
 pnpm nx serve orchestrator-worker  # consumes template-runs, drives multi-step templates
+pnpm nx serve ai-orchestrator-worker # consumes ai-runs, drives AutoHunt (needs Claude CLI logged in)
 pnpm nx serve frontend             # Vite dev server on :5173
 ```
 
