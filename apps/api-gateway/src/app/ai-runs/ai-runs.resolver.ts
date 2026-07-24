@@ -1,5 +1,15 @@
 import { UseGuards } from '@nestjs/common';
-import { Args, ID, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
+import {
+  Args,
+  ID,
+  Int,
+  Mutation,
+  Parent,
+  Query,
+  ResolveField,
+  Resolver,
+  Subscription,
+} from '@nestjs/graphql';
 import type { User } from '@prisma/client';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -8,12 +18,17 @@ import { RunAiScanInput } from './dto/run-ai-scan.input';
 import { AiRunObject } from './dto/ai-run.object';
 import { AiRunNodeObject } from './dto/ai-run-node.object';
 import { AiDecisionObject } from './dto/ai-decision.object';
+import { AiRunEventObject } from './dto/ai-run-event.object';
 import { AiRunsService } from './ai-runs.service';
+import { AiRunEventsSubscriber, type AiRunEventMessage } from './ai-run-events.subscriber';
 
 @Resolver(() => AiRunObject)
 @UseGuards(JwtAuthGuard)
 export class AiRunsResolver {
-  constructor(private readonly svc: AiRunsService) {}
+  constructor(
+    private readonly svc: AiRunsService,
+    private readonly eventsSubscriber: AiRunEventsSubscriber,
+  ) {}
 
   @Mutation(() => AiRunObject)
   runAiScan(@CurrentUser() user: User, @Args('input') input: RunAiScanInput): Promise<AiRunObject> {
@@ -52,5 +67,22 @@ export class AiRunsResolver {
   @ResolveField(() => [AiDecisionObject])
   decisions(@Parent() run: AiRunObject): Promise<AiDecisionObject[]> {
     return this.svc.decisionsFor(run.id) as Promise<AiDecisionObject[]>;
+  }
+
+  @Subscription(() => AiRunEventObject, {
+    name: 'aiRunEvents',
+    resolve: (msg: AiRunEventMessage): AiRunEventObject => ({
+      type: String(msg.type),
+      status: msg.status as string | undefined,
+      errorMessage: msg.errorMessage as string | undefined,
+      nodeId: msg.nodeId as string | undefined,
+      scannerName: msg.scannerName as string | undefined,
+      scanId: (msg.scanId ?? undefined) as string | undefined,
+      depth: msg.depth as number | undefined,
+      round: msg.round as number | undefined,
+    }),
+  })
+  aiRunEvents(@Args('id', { type: () => ID }) id: string): AsyncIterable<AiRunEventMessage> {
+    return this.eventsSubscriber.subscribe(id);
   }
 }
