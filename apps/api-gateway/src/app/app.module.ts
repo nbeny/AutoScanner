@@ -16,6 +16,7 @@ import { ApiCredentialsModule } from './api-credentials/api-credentials.module';
 import { CloudCredentialsApiModule } from './cloud-credentials/cloud-credentials.module';
 import { CapabilitiesModule } from './capabilities/capabilities.module';
 import { EngagementAuthModule } from './engagement-auth/engagement-auth.module';
+import { AiRunsModule } from './ai-runs/ai-runs.module';
 import { AssetsModule } from './assets/assets.module';
 import { AuthModule } from './auth/auth.module';
 import { CorrelatedFindingsModule } from './correlated-findings/correlated-findings.module';
@@ -97,6 +98,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     ReportsModule,
     TlsModule,
     ScansModule,
+    AiRunsModule,
     SchedulesModule,
     TemplatesModule,
     ToolsModule,
