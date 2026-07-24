@@ -17,6 +17,8 @@ import {
 import { EngagementEventsModule } from '@autoscanner/engagement-events';
 
 import { AiRunProcessor } from './ai-run.processor';
+import { AiRunEventsPublisher, AI_RUN_EVENTS_REDIS } from './ai-run-events.publisher';
+import { WorldStateService } from './world-state.service';
 
 /**
  * Dedicated Redis subscriber client for the {@link ScanDispatcher}. A pub/sub
@@ -28,6 +30,17 @@ const scanDispatchRedisSubscriber: Provider = {
   provide: SCAN_DISPATCH_REDIS_SUBSCRIBER,
   inject: [AppConfigService],
   useFactory: (cfg: AppConfigService): ScanDispatchRedisSubscriber =>
+    new IORedis(cfg.env.REDIS_URL, { lazyConnect: false }),
+};
+
+/**
+ * Publishing client for {@link AiRunEventsPublisher}. Separate from the
+ * dispatcher's subscriber connection (a subscriber cannot issue PUBLISH).
+ */
+const aiRunEventsRedis: Provider = {
+  provide: AI_RUN_EVENTS_REDIS,
+  inject: [AppConfigService],
+  useFactory: (cfg: AppConfigService): IORedis =>
     new IORedis(cfg.env.REDIS_URL, { lazyConnect: false }),
 };
 
@@ -47,6 +60,12 @@ const scanDispatchRedisSubscriber: Provider = {
     ScanDispatchModule,
     EngagementEventsModule.forRoot(),
   ],
-  providers: [scanDispatchRedisSubscriber, AiRunProcessor],
+  providers: [
+    scanDispatchRedisSubscriber,
+    aiRunEventsRedis,
+    WorldStateService,
+    AiRunEventsPublisher,
+    AiRunProcessor,
+  ],
 })
 export class AppModule {}
