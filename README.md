@@ -1,12 +1,69 @@
 # AutoScanner
 
-Single-operator pentest / red-team platform: asset discovery, sandboxed orchestration of Kali tools, finding correlation, reporting.
+Single-operator pentest / red-team platform: asset discovery, sandboxed orchestration of ~100 Kali/ProjectDiscovery tools, cross-scanner finding correlation, CVE enrichment, and reporting.
 
-> **Phase 1** delivers the first scan end-to-end: queue an `nmap` job from the CLI or the React UI, watch the logs stream live, see parsed assets/ports/services in the database, and download the raw XML output from MinIO. See `docs/superpowers/specs/` for the full design and `docs/superpowers/plans/` for phase plans.
+You point it at a target (IP, domain, URL, CIDR, cloud bucket…), it runs the relevant scanners in isolated Docker containers, normalises their output into a unified asset/finding model, correlates duplicate findings across tools into single vulnerabilities, enriches them with CVE data, and scores the risk.
 
 ## Stack
 
-Nx 20 monorepo · NestJS 11 · Prisma 6 · PostgreSQL 16 · Redis 7 · MongoDB 7 · MinIO · BullMQ 5 · Apollo GraphQL · React 18 + Vite + Tailwind · TypeScript 5.7 · Pino · Prometheus.
+Nx 20 monorepo · NestJS 11 · Prisma 6 · PostgreSQL 16 · Redis 7 · MongoDB 7 (optional) · MinIO · BullMQ 5 · Apollo GraphQL · React 18 + Vite + Tailwind · TypeScript 5.7 · Pino · Prometheus.
+
+## How a scan works (the pipeline)
+
+There are two ways to launch work against a target:
+
+- **Single scan** — run one scanner (e.g. `nmap`) on one target via the `runScan` GraphQL mutation / CLI.
+- **Template** — run a curated multi-step chain (e.g. `ip-active-audit`) via `runTemplate`. The orchestrator resolves each step's targets from what previous steps discovered and fans out scans in order.
+
+Both feed the same asynchronous, queue-driven pipeline:
+
+```
+runScan / runTemplate (api-gateway, GraphQL)
+        │
+        ▼
+  [BullMQ scan-jobs] ── scan-worker ── runs scanner in a sandboxed Docker container
+        │                                  (mem/CPU/network/timeout limits, caps dropped,
+        │                                   credentials + OAST injected at runtime)
+        │                                  raw output ─► MinIO (raw-outputs bucket)
+        ▼
+  [BullMQ parse-jobs] ── parser-worker ── normalises raw output (per-scanner parser)
+        │                                  ─► persists Assets / Ports / Services /
+        │                                     Technologies / Findings / DNS / Endpoints / OSINT
+        │                                  ─► dedup + correlation → CorrelatedFinding
+        │                                  ─► recompute asset risk score
+        ▼
+  [cve-discovery / cve-enrichment] ── match services (CPE) to CVEs, pull CVSS from NVD
+```
+
+Templates additionally flow through **orchestrator-worker** (`template-runs` queue), which builds each step's target set from the `ContextBuilder` (root `target`, discovered `subdomains`, `ipAddresses`, `urls`, `endpoints`, `emails`), dispatches child scan jobs, and waits for completion before advancing.
+
+### What happens for a bare IP
+
+Choose a template based on how aggressive you want to be:
+
+| Template           | Behaviour                                                                                                                                                       |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ip-passive-intel` | Passive only: reputation (`abuseipdb`, `greynoise`) + CIDR expansion (`mapcidr`).                                                                               |
+| `ip-active-audit`  | Full active audit: `masscan` → `nmap -sV` → per-protocol audits (ssh/smb/rdp/snmp/smtp/tls) → web probe (`httpx` → `nikto` → `nuclei` → `wafw00f` → `whatweb`). |
+| `ip-recon-full`    | `ip-passive-intel` + `ip-active-audit` combined.                                                                                                                |
+
+Vulnerabilities surface mainly from `nuclei` (template engine), `nikto`, the per-protocol audits, and automatic **CPE→CVE** matching on detected services. Active injection scanners (`sqli-scan`, `xss-scan`, `ssti-scan`, `cmdi-scan`, `web-dast`) require discovered URLs/endpoints, so they only apply to web targets (e.g. `web-deep-active-injection`), not a bare IP.
+
+## Scanners & templates
+
+**~98 scanners** across 24 categories (network discovery, port scan, service detection, DNS, subdomain enum, web fingerprint/enum, vuln scan, SSL/TLS, SMB/Windows, Active Directory, cloud, k8s, OSINT, identity OSINT, passive recon, API security, SMTP, SNMP, password/protocol audits, …). Each is a self-contained module under `libs/scanners/<name>/` declaring its Docker image, input schema (Zod), `build()` command, output parser, and the entities it produces. All are registered in `libs/scanners/all/src/all-scanners.module.ts` and looked up at runtime via the `ScannerRegistry` (`libs/scanner-sdk`).
+
+**~27 built-in templates** live in `libs/templates/src/builtins/` — including `recon-passive` / `recon-passive-deep` / `recon-active` / `recon-active-deep-v2`, `web-fingerprint` / `web-content` / `web-app-audit` / `web-deep-active-injection`, `osint-passive` / `osint-passive-deep` / `osint-meta-deep`, `identity-osint`, `email-surface-recon`, `service-recon`, `network-vuln`, `vuln-active`, `active-directory-recon`, `cloud-exposure`, `k8s-recon`, and the `ip-*` templates above.
+
+Some scanners are **key-gated** (Shodan, Censys, SecurityTrails, AbuseIPDB, GreyNoise, …). Their API keys are stored **AES-256-GCM encrypted** via the `SecretBox` utility (keyed from `MASTER_ENCRYPTION_KEY`), decrypted in-memory at scan time, injected as env vars into the container, and never persisted in plaintext or logged. Manage them on the `/settings` page or via `setApiCredential`. Cloud provider credentials (AWS/Azure/GCP) are managed similarly through the `libs/cloud-credentials` surface.
+
+### Build custom scanner images
+
+Scanners that ship a custom image (rather than a public registry image) must be built before use. Docker must be running:
+
+```bash
+pnpm scanners:build   # runs tools/scanners/build-images.sh
+```
 
 ## Quickstart
 
@@ -20,99 +77,54 @@ cp .env.example .env
 node -e "console.log('JWT_SECRET=' + require('crypto').randomBytes(32).toString('hex'))"
 node -e "console.log('MASTER_ENCRYPTION_KEY=' + require('crypto').randomBytes(32).toString('base64'))"
 
-# Bring up dev dependencies:
-pnpm dev:up                  # postgres + redis + mongo + minio
-pnpm prisma migrate deploy
+# Bring up dev dependencies (postgres + redis + minio; add mongo with dev:up:mongo):
+pnpm dev:up
+pnpm prisma:migrate:deploy
 pnpm seed                    # creates operator user from OPERATOR_EMAIL/PASSWORD
 ```
 
-## Phase 1 — first scan end-to-end
+## Running the stack
 
-Open four terminals (or use `nx run-many` / a process manager):
+Serve the apps you need (a process manager or `nx run-many` works too):
 
 ```bash
-pnpm nx serve api-gateway    # REST + GraphQL on :4000
-pnpm nx serve scan-worker    # consumes scan queue, runs scanners in Docker
-pnpm nx serve parser-worker  # consumes parse queue, persists Asset/Port/Service
-pnpm nx serve frontend       # Vite dev server on :5173
+pnpm nx serve api-gateway          # REST + GraphQL on :4000
+pnpm nx serve scan-worker          # consumes scan-jobs, runs scanners in Docker
+pnpm nx serve parser-worker        # consumes parse-jobs, persists entities + correlates
+pnpm nx serve orchestrator-worker  # consumes template-runs, drives multi-step templates
+pnpm nx serve frontend             # Vite dev server on :5173
 ```
+
+Optional workers, each backed by its own BullMQ queue: `cve-enricher-worker`, `nvd-sync-worker` (offline CVE mirror), `report-worker`, `notification-worker`, `scheduler` (scheduled/recurring runs).
 
 ### Run a scan from the UI
 
 1. Open <http://localhost:5173>, sign in with the operator credentials (`OPERATOR_EMAIL` / `OPERATOR_PASSWORD`) — point "API URL" at `http://localhost:4000`.
 2. Create an engagement.
-3. Open the engagement → fill the **Run a scan** form (default scanner `nmap`, target `127.0.0.1`, optional JSON like `{"ports":"1-1024"}`).
-4. The scan status section appears and tails stdout/stderr live via the GraphQL `scanJobLogs` subscription. The assets table refreshes when the scan completes; the "download raw output" link follows a 1h-TTL presigned URL to MinIO.
+3. Open the engagement → **Run a scan** (single scanner) or launch a **template**. Scan status tails stdout/stderr live via the `scanJobLogs` GraphQL subscription; the assets / findings tables refresh on completion.
 
 ### Run a scan from the CLI
 
 ```bash
 pnpm nx run cli:build
-node dist/apps/cli/main.js login \
-  --api-url http://localhost:4000 \
-  --email admin@autoscanner.local \
-  --password changeme
+node dist/apps/cli/main.js login --api-url http://localhost:4000 --email <op-email> --password <op-pass>
 
 node dist/apps/cli/main.js engagement create --name "Demo" --client "Acme"
-node dist/apps/cli/main.js engagement list
 
-node dist/apps/cli/main.js scan run \
-  -e <engagementId> -s nmap -t 127.0.0.1 \
+# Single scanner:
+node dist/apps/cli/main.js scan run -e <engagementId> -s nmap -t 127.0.0.1 \
   -o '{"ports":"22,80,443","serviceDetection":true}'
 
 node dist/apps/cli/main.js scan status <scanId>
-node dist/apps/cli/main.js scan raw <scanJobId>   # prints a 1h presigned URL
+node dist/apps/cli/main.js scan raw <scanJobId>   # prints a 1h presigned MinIO URL
 ```
 
-### Verify
-
-- **GraphQL**: query `assets(engagementId: ...)` → expect at least the scanned host with the open ports listed.
-- **MinIO** (UI on <http://localhost:9001>, login `autoscanner` / `devpassword`): the `raw-outputs` bucket has the XML under `engagements/<id>/scans/<id>/jobs/<id>/nmap.xml`.
-
-### Automated acceptance
-
-`apps/api-gateway-e2e/src/scenarios/first-scan-e2e.spec.ts` runs the full flow against a live stack. It is opt-in:
-
-```bash
-E2E_API_URL=http://localhost:4000 \
-E2E_EMAIL=admin@autoscanner.local \
-E2E_PASSWORD=changeme \
-E2E_TARGET=127.0.0.1 \
-pnpm nx e2e api-gateway-e2e
-```
-
-Without those env vars the suite skips, so CI stays green when no live stack is available.
-
-## Phase 6.1 — broad passive recon
-
-Four new scanners join the passive discovery stack:
-
-| Scanner       | Image                                        | Notes                                    |
-| ------------- | -------------------------------------------- | ---------------------------------------- |
-| `findomain`   | `edu4rdshl/findomain:9.0.4` (registry)       | Passive subdomain enumeration            |
-| `amass`       | `caffix/amass:v4.2.0` (registry)             | Passive mode only (`-passive`)           |
-| `assetfinder` | `autoscanner/assetfinder:1.0` (custom build) | Subdomain enumeration via public sources |
-| `puredns`     | `autoscanner/puredns:1.0` (custom build)     | DNS bruteforce with a bundled wordlist   |
-
-A new `recon-passive-deep` template chains all five passive discovery scanners through resolution and probing:
-**subfinder → assetfinder → findomain → amass → puredns → dnsx → httpx**
-
-### Build the custom scanner images
-
-The two custom images must be built before running `assetfinder` or `puredns` locally or in CI. Docker must be running.
-
-```bash
-pnpm scanners:build
-```
-
-This builds `autoscanner/assetfinder:1.0` and `autoscanner/puredns:1.0` via `tools/scanners/build-images.sh`.
-
-### Run the template
+### Run a template via GraphQL
 
 ```graphql
 mutation {
   runTemplate(
-    input: { engagementId: "<id>", templateName: "recon-passive-deep", target: "client.com" }
+    input: { engagementId: "<id>", templateName: "ip-active-audit", target: "203.0.113.10" }
   ) {
     id
     status
@@ -120,219 +132,25 @@ mutation {
 }
 ```
 
-Input type: `RunTemplateInput { engagementId: ID!, templateName: String!, target: String! }`.
+`RunTemplateInput { engagementId: ID!, templateName: String!, target: String! }`. `runTemplate` takes no per-scanner options — run a scanner standalone via `runScan` to override its input.
 
-> **amass** runs passive-only (no active DNS requests).  
-> **puredns** brute-forces using a small bundled wordlist. `runTemplate` takes no per-scanner options, so to override the wordlist run `puredns` standalone via `runScan` with a `{ "wordlist": "/path/in/image" }` input (or `{ "mode": "resolve" }` to validate a host list instead of brute-forcing).
+## Correlation v2, risk & triage
 
-### Phase 6.2 — web content / endpoints
+Findings for the same issue reported by multiple scanners are grouped into a single **CorrelatedFinding** with _N_ source references. A deterministic **structural signature** (CVE id → curated category → per-scanner title fallback) makes `nuclei`, `tlsx`, `sslscan`, CPE→CVE matches, etc. converge on one row instead of cluttering the list.
 
-Four web-content scanners discover URLs served by in-scope hosts:
+Triage statuses: `OPEN` → `TRIAGED` → `CONFIRMED` / `FALSE_POSITIVE` / `RESOLVED`. Operator triage is never overwritten by re-scans.
 
-| Scanner    | Image                                       | Notes                                                               |
-| ---------- | ------------------------------------------- | ------------------------------------------------------------------- |
-| `katana`   | `projectdiscovery/katana:latest` (registry) | Active crawl; pull before running the suite                         |
-| `gau`      | `autoscanner/gau:1.0` (custom build)        | Passive URL discovery via public archives                           |
-| `ffuf`     | `autoscanner/ffuf:1.0` (custom build)       | Directory brute-force with bundled wordlist                         |
-| `gobuster` | `autoscanner/gobuster:1.0` (custom build)   | Directory brute-force via gobuster — results stored as **Endpoint** |
-
-Custom images are built by `pnpm scanners:build` alongside the Phase 6.1 images.
-
-Discovered URLs are stored as **Endpoint** entities (`id`, `url`, `method`, `source`, `lastSeenAt`), surfaced in the UI as an **Endpoints** tab per engagement. All four scanners reuse this existing surface; no new entity types are introduced.
-
-#### Run the template
-
-```graphql
-mutation {
-  runTemplate(input: { engagementId: "<id>", templateName: "web-content", target: "client.com" }) {
-    id
-    status
-  }
-}
-```
-
-#### Query endpoints
+**Risk score v2**: each distinct structural signature counts once (duplicates don't inflate the score); CVSS v3 base score is pulled from the CVE cache when a `cveId` is present, otherwise a severity-to-weight mapping is used; `FALSE_POSITIVE` / `RESOLVED` findings are excluded.
 
 ```graphql
 query {
-  endpoints(engagementId: "<id>") {
-    id
-    url
-    method
-    source
-    lastSeenAt
-  }
-}
-```
-
-### Phase 6.3 — OSINT / external surface
-
-Five OSINT scanners extend the passive discovery stack with certificate transparency, WHOIS, banner-grab intelligence, email harvesting, and Censys host search:
-
-| Scanner        | Image                                         | Notes                                                                    |
-| -------------- | --------------------------------------------- | ------------------------------------------------------------------------ |
-| `whois`        | `autoscanner/whois:1.0` (custom build)        | WHOIS registry lookups — registrar, org, name-server data                |
-| `crtsh`        | `autoscanner/crtsh:1.0` (custom build)        | Certificate-transparency subdomain enumeration via crt.sh                |
-| `shodan`       | `autoscanner/shodan:1.0` (custom build)       | Banner-grab / port data from Shodan (**key-gated**)                      |
-| `censys`       | `autoscanner/censys:1.0` (custom build)       | Host/service metadata from the Censys search API (**key-gated**)         |
-| `theharvester` | `autoscanner/theharvester:1.0` (custom build) | OSINT email harvesting from public sources — results stored as **Email** |
-
-Custom images are built by `pnpm scanners:build` alongside the earlier custom scanner images.
-
-Discovered data surfaces as two entity types (no new entities in 6.5):
-
-- **OrgMetadata** (`id`, `kind`, `source`) — registrar / org / name-server records produced by the whois scanner.
-- **Email** (`id`, `address`, `source`) — email addresses extracted from public sources (crtsh + theHarvester).
-
-Both are surfaced in the UI as an **OSINT** tab per engagement.
-
-#### Run the key-free template (`osint-passive` — crtsh + whois)
-
-```graphql
-mutation {
-  runTemplate(
-    input: { engagementId: "<id>", templateName: "osint-passive", target: "client.com" }
-  ) {
-    id
-    status
-  }
-}
-```
-
-#### Query OSINT results
-
-```graphql
-query {
-  orgMetadata(engagementId: "<id>") {
-    id
-    kind
-    source
-  }
-  emails(engagementId: "<id>") {
-    id
-    address
-    source
-  }
-}
-```
-
-#### Key-free vs key-gated scanners
-
-The `osint-passive` template (crtsh + whois) requires no credentials and can run immediately. The `shodan` and `censys` scanners are **key-gated** and must be run standalone via `runScan` after their credentials have been stored. They are intentionally excluded from `osint-passive` so the template stays fully key-free.
-
-#### API Keys
-
-API keys for key-gated scanners are stored **AES-256-GCM encrypted** using the platform's `SecretBox` utility (keyed from `MASTER_ENCRYPTION_KEY`). Keys are never returned in API responses or written to logs. They can be managed from the `/settings` page in the UI or via the GraphQL mutation:
-
-**Shodan** (single API key):
-
-```graphql
-mutation {
-  setApiCredential(provider: SHODAN, secret: "<your-shodan-api-key>")
-}
-```
-
-**Censys** (two-part credential — API ID and API secret stored colon-joined):
-
-```graphql
-mutation {
-  setApiCredential(provider: CENSYS, secret: "<api_id>:<api_secret>")
-}
-```
-
-The `scan-worker` splits the colon-joined value at runtime using shell parameter expansion (`CENSYS_API_ID="${CENSYS_API_CRED%%:*}"`, `CENSYS_API_SECRET="${CENSYS_API_CRED#*:}"`), then exports both env vars into the container. The plaintext credential is never persisted after the container exits.
-
-At scan time the `scan-worker` decrypts the stored credential entirely in-memory and injects it as a single environment variable into the scanner container. The plaintext key is never persisted after the container exits.
-
-### Phase 6.4 — fingerprint / TLS
-
-Three scanners add TLS certificate intelligence, web technology fingerprinting, and weak protocol detection:
-
-| Scanner   | Image                                     | Notes                                                                    |
-| --------- | ----------------------------------------- | ------------------------------------------------------------------------ |
-| `tlsx`    | `projectdiscovery/tlsx:latest` (registry) | TLS handshake / certificate enumeration — pull before the suite          |
-| `whatweb` | `autoscanner/whatweb:1.0` (custom build)  | Web technology fingerprinting via WhatWeb                                |
-| `sslscan` | `autoscanner/sslscan:1.0` (custom build)  | Weak SSL/TLS protocol + cipher detection — results stored as **Finding** |
-
-Custom images are built by `pnpm scanners:build`. Pull `tlsx` separately:
-
-```bash
-docker pull projectdiscovery/tlsx:latest
-pnpm scanners:build   # builds autoscanner/whatweb:1.0 and autoscanner/sslscan:1.0
-```
-
-Discovered data surfaces as entity types and findings (sslscan reuses the existing **Finding** surface — no new entities):
-
-- **TlsCertificate** (`id`, `host`, `subject`, `issuer`, `SANs`, `validFrom`, `validTo`, `fingerprint`, `tlsVersion`) — one record per host/cert pair.
-- Weak-cert **Finding**s automatically raised for expired certificates, self-signed certificates, weak TLS versions, and weak ciphers (sslscan).
-- **Technology** entries (already modelled) populated by whatweb alongside httpx.
-
-All are surfaced in the UI as a **TLS** tab per engagement.
-
-#### Run the template (`web-fingerprint` — httpx → tlsx → whatweb)
-
-```graphql
-mutation {
-  runTemplate(
-    input: { engagementId: "<id>", templateName: "web-fingerprint", target: "client.com" }
-  ) {
-    id
-    status
-  }
-}
-```
-
-#### Query TLS certificates
-
-```graphql
-query {
-  tlsCertificates(engagementId: "<id>") {
-    id
-    host
-    selfSigned
-    expired
-  }
-}
-```
-
-## Correlation v2
-
-Cross-scanner correlated findings group the same issue reported by multiple scanners into a single **CorrelatedFinding** with _N_ source references. A deterministic **structural signature** (CVE id → curated category → per-scanner title fallback) ensures that `nuclei`, `tlsx`, `sslscan`, and any other scanner detecting the same vulnerability converge on one row instead of cluttering the findings list with duplicates.
-
-### Triage statuses
-
-| Status           | Meaning                           |
-| ---------------- | --------------------------------- |
-| `OPEN`           | Detected, not yet reviewed        |
-| `TRIAGED`        | Acknowledged, under investigation |
-| `CONFIRMED`      | Confirmed exploitable / in scope  |
-| `FALSE_POSITIVE` | Noise; excluded from risk score   |
-| `RESOLVED`       | Remediated or accepted            |
-
-### Risk score v2
-
-- Each distinct structural signature is counted **once** — duplicates across scanners do not inflate the score.
-- CVSS v3 base score is pulled from the CVE cache when a `cveId` is present; falls back to a severity-to-weight mapping otherwise.
-- Findings in `FALSE_POSITIVE` or `RESOLVED` status are **excluded** from the score.
-
-### GraphQL surface
-
-```graphql
-query {
-  correlatedFindings(
-    engagementId: "eng_…"
-    severity: HIGH
-    status: OPEN
-    search: "tls"
-    limit: 100
-    offset: 0
-  ) {
+  correlatedFindings(engagementId: "eng_…", severity: HIGH, status: OPEN, limit: 100) {
     id
     title
-    severity # INFO | LOW | MEDIUM | HIGH | CRITICAL
-    status # OPEN | TRIAGED | CONFIRMED | FALSE_POSITIVE | RESOLVED
-    sourceCount # how many scanner findings were merged
-    sources # scanner names, e.g. ["nuclei", "tlsx"]
+    severity
+    status
+    sourceCount
+    sources
     cveId
     firstSeenAt
     lastSeenAt
@@ -349,51 +167,62 @@ mutation {
 
 ## Routes
 
-| Verb   | Path                              | Notes                                                                                                   |
-| ------ | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `POST` | `/auth/login`                     | `{email, password}` → `{accessToken, refreshToken, expiresIn}`                                          |
-| `POST` | `/auth/refresh`                   | `{refreshToken}` → new tokens (rotation)                                                                |
-| `POST` | `/auth/logout`                    | guarded; revokes current session                                                                        |
-| `POST` | `/graphql`                        | GraphQL Apollo: `me`, `engagements`, `createEngagement`, `runScan`, `scan`, `assets`, sub `scanJobLogs` |
-| `GET`  | `/scan-jobs/:id/raw`              | guarded; 302 redirect to 1h presigned MinIO URL                                                         |
-| `GET`  | `/health` · `/ready` · `/metrics` | liveness / readiness / Prometheus                                                                       |
+| Verb   | Path                              | Notes                                                          |
+| ------ | --------------------------------- | -------------------------------------------------------------- |
+| `POST` | `/auth/login`                     | `{email, password}` → `{accessToken, refreshToken, expiresIn}` |
+| `POST` | `/auth/refresh`                   | `{refreshToken}` → new tokens (rotation)                       |
+| `POST` | `/auth/logout`                    | guarded; revokes current session                               |
+| `POST` | `/graphql`                        | Apollo GraphQL (engagements, scans, templates, findings, …)    |
+| `GET`  | `/scan-jobs/:id/raw`              | guarded; 302 redirect to 1h presigned MinIO URL                |
+| `GET`  | `/health` · `/ready` · `/metrics` | liveness / readiness / Prometheus                              |
 
 ## Scripts
 
-| Command                       | Purpose                                                        |
-| ----------------------------- | -------------------------------------------------------------- |
-| `pnpm dev:up` / `dev:down`    | bring up / tear down the dev stack                             |
-| `pnpm prisma:migrate:dev`     | create + apply new migration                                   |
-| `pnpm prisma:migrate:deploy`  | apply pending migrations                                       |
-| `pnpm prisma:studio`          | open Prisma Studio                                             |
-| `pnpm seed`                   | seed operator user (idempotent)                                |
-| `pnpm nx serve <app>`         | run an app (api-gateway, scan-worker, parser-worker, frontend) |
-| `pnpm nx test <project>`      | unit tests                                                     |
-| `pnpm nx e2e api-gateway-e2e` | acceptance suite (env-gated; see above)                        |
-| `pnpm format` · `pnpm lint`   | Prettier / ESLint across projects                              |
+| Command                                       | Purpose                                              |
+| --------------------------------------------- | ---------------------------------------------------- |
+| `pnpm dev:up` / `dev:up:mongo` / `dev:down`   | bring up / tear down the dev stack (mongo is opt-in) |
+| `pnpm oast:up` / `oast:down`                  | self-hosted OAST/interactsh server for OOB testing   |
+| `pnpm scanners:build`                         | build custom scanner Docker images                   |
+| `pnpm prisma:migrate:dev` / `:deploy`         | create+apply / apply migrations                      |
+| `pnpm prisma:studio`                          | open Prisma Studio                                   |
+| `pnpm seed`                                   | seed operator user (idempotent)                      |
+| `pnpm recompute:risk-scores`                  | recompute all asset risk scores                      |
+| `pnpm nx serve <app>`                         | run an app                                           |
+| `pnpm test` · `lint` · `type-check` · `build` | Nx `run-many` across projects                        |
+| `pnpm format` · `format:check`                | Prettier                                             |
 
 ## Layout
 
 ```
-apps/api-gateway/       NestJS HTTP + GraphQL
-apps/scan-worker/       BullMQ consumer, runs scanners in Docker
-apps/parser-worker/     BullMQ consumer, parses outputs → DB
-apps/frontend/          React + Vite + Tailwind + Apollo
-apps/cli/               commander-based CLI (autoscanner)
-libs/auth/              Password, JWT, TOTP helpers
-libs/common/            Domain errors + AES-GCM SecretBox
-libs/config/            Zod-validated env config
-libs/database/          PrismaService + PrismaModule
-libs/docker-runner/     Sandboxed container exec
-libs/log-stream/        Redis pub/sub for live scan logs
-libs/parsers/           Output parsers (NmapXmlParser)
-libs/queues/            BullMQ queue names + helpers
-libs/scanner-sdk/       Scanner contract + registry
-libs/scanners/nmap/     Nmap adapter
-libs/storage/           MinIO/S3 client + presigner
-prisma/                 Schema + migrations + seed
-docker/                 docker-compose dev stack
-docs/superpowers/       Specs and phase plans
+apps/
+  api-gateway/          NestJS HTTP + GraphQL entry point
+  scan-worker/          runs scanners in sandboxed Docker (scan-jobs queue)
+  parser-worker/        parses raw output → DB, dedup + correlation (parse-jobs)
+  orchestrator-worker/  drives multi-step templates (template-runs)
+  cve-enricher-worker/  enriches findings with CVE/CVSS data (cve-enrichment)
+  nvd-sync-worker/      maintains an offline NVD mirror (nvd-sync)
+  report-worker/        generates reports (report-jobs)
+  notification-worker/  notifications + webhooks (notification-jobs / webhook-jobs)
+  scheduler/            scheduled / recurring scans
+  frontend/             React + Vite + Tailwind + Apollo
+  cli/                  commander-based CLI (autoscanner)
+libs/
+  scanner-sdk/          scanner contract + ScannerRegistry
+  scanners/             ~98 scanner adapters (one module each) + all/ aggregator
+  templates/            ~27 built-in multi-step templates + ContextBuilder types
+  parsers/              per-scanner output → normalized entity parsers
+  correlation/          finding dedup, CorrelatedFinding clustering, risk scoring
+  cve/                  CVE cache, CPE→CVE matching, NVD client
+  docker-runner/        sandboxed container exec (limits, caps, binds)
+  queues/               BullMQ queue names + helpers
+  database/             PrismaService + PrismaModule
+  storage/              MinIO/S3 client + presigner
+  log-stream/           Redis pub/sub for live scan logs
+  engagement-events/    engagement event stream (asset added, risk changed, …)
+  auth/ common/ config/ logging/ notifications/ reporting/ insight/ cloud-credentials/
+prisma/                 schema + migrations + seed + scripts
+docker/                 dev compose stack, OAST server, greenbone/openvas
+docs/superpowers/       design specs and phase plans (historical record)
 ```
 
 ## CI
