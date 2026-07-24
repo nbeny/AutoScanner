@@ -17,6 +17,7 @@ import { ScansSectionPage } from './features/scans/scans-section-page';
 import { VulnerabilitiesSectionPage } from './features/findings/vulnerabilities-section-page';
 import { ToolsSectionPage } from './features/tools/tools-section-page';
 import { HuntSearchPage } from './features/hunt/hunt-search-page';
+import { HuntRunPage } from './features/hunt/hunt-run-page';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session } = useAuth();
@@ -153,7 +154,14 @@ function AppShell() {
             </RequireAuth>
           }
         />
-        {/* TODO(hunt-run): add /hunt/:aiRunId route in task 5.3 */}
+        <Route
+          path="/hunt/:aiRunId"
+          element={
+            <RequireAuth>
+              <HuntRunPage />
+            </RequireAuth>
+          }
+        />
         <Route path="*" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />
       </Routes>
     </ApolloProvider>
