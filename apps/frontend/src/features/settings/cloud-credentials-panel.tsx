@@ -63,7 +63,7 @@ export function CloudCredentialsPanel(): JSX.Element {
   );
 }
 
-function AwsForm({ onResult }: { onResult: (r: LiveCheckResult) => void }): JSX.Element {
+function AwsForm({ onResult }: { onResult: (r: LiveCheckResult | null) => void }): JSX.Element {
   const [accessKeyId, setAccessKeyId] = useState('');
   const [secretAccessKey, setSecretAccessKey] = useState('');
   const [sessionToken, setSessionToken] = useState('');
@@ -103,7 +103,7 @@ function AwsForm({ onResult }: { onResult: (r: LiveCheckResult) => void }): JSX.
   );
 }
 
-function AzureForm({ onResult }: { onResult: (r: LiveCheckResult) => void }): JSX.Element {
+function AzureForm({ onResult }: { onResult: (r: LiveCheckResult | null) => void }): JSX.Element {
   const [tenantId, setTenantId] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
@@ -142,7 +142,7 @@ function AzureForm({ onResult }: { onResult: (r: LiveCheckResult) => void }): JS
   );
 }
 
-function GcpForm({ onResult }: { onResult: (r: LiveCheckResult) => void }): JSX.Element {
+function GcpForm({ onResult }: { onResult: (r: LiveCheckResult | null) => void }): JSX.Element {
   const [serviceAccountJson, setServiceAccountJson] = useState('');
   const [save, { loading }] = useMutation(SET_GCP_CREDENTIAL, {
     refetchQueries: [{ query: GCP_CREDENTIAL_QUERY }],
