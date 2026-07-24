@@ -41,6 +41,7 @@ model User {
   agentsCreated        Agent[]
   findingStatusEvents  FindingStatusEvent[]
   capabilities         UserCapability[]
+  aiRuns               AiRun[]
 
   @@index([deletedAt])
 }
@@ -118,6 +119,7 @@ model Engagement {
   tlsCertificates    TlsCertificate[]
   correlatedFindings CorrelatedFinding[]
   authProfile        EngagementAuthProfile?
+  aiRuns             AiRun[]
 
   @@index([ownerId])
   @@index([status])
@@ -224,16 +226,20 @@ model Scan {
   completedAt   DateTime?
   templateRunId String?
   stepIndex     Int?
+  aiRunId       String?
+  aiRunNodeId   String?
 
   engagement  Engagement   @relation(fields: [engagementId], references: [id], onDelete: Cascade)
   createdBy   User         @relation(fields: [createdById], references: [id])
   jobs        ScanJob[]
   templateRun TemplateRun? @relation(fields: [templateRunId], references: [id], onDelete: Cascade)
   reports     Report[]
+  aiRun       AiRun?       @relation(fields: [aiRunId], references: [id])
 
   @@index([engagementId])
   @@index([status])
   @@index([createdById])
+  @@index([aiRunId])
 }
 
 model ScanJob {
@@ -1098,4 +1104,85 @@ model GcpCredential {
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
   owner                    User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+}
+
+// =====================================================================
+// AUTOHUNT — AI-DRIVEN AUTONOMOUS SCANNING
+// =====================================================================
+
+enum AiRunStatus {
+  PENDING
+  DISCOVERING
+  RUNNING
+  AUDITING
+  COMPLETED
+  FAILED
+  CANCELLED
+  STOPPED_CAP
+}
+
+enum AiRunStrategy {
+  SINGLE_HOST
+  RANGE_PER_HOST
+  RANGE_AGGREGATE
+}
+
+model AiRun {
+  id           String        @id @default(cuid())
+  engagementId String
+  createdById  String
+  target       String
+  strategy     AiRunStrategy
+  status       AiRunStatus   @default(PENDING)
+  guardrails   Json
+  scanCount    Int           @default(0)
+  currentDepth Int           @default(0)
+  degraded     Boolean       @default(false)
+  auditText    String?
+  errorMessage String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  engagement Engagement   @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  createdBy  User         @relation(fields: [createdById], references: [id])
+  nodes      AiRunNode[]
+  decisions  AiDecision[]
+  scans      Scan[]
+
+  @@index([engagementId])
+}
+
+model AiRunNode {
+  id           String     @id @default(cuid())
+  aiRunId      String
+  parentNodeId String?
+  scanId       String?
+  scannerName  String
+  target       String
+  depth        Int
+  rationale    String?
+  status       ScanStatus @default(PENDING)
+  createdAt    DateTime   @default(now())
+
+  aiRun    AiRun       @relation(fields: [aiRunId], references: [id], onDelete: Cascade)
+  parent   AiRunNode?  @relation("NodeTree", fields: [parentNodeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children AiRunNode[] @relation("NodeTree")
+
+  @@index([aiRunId])
+}
+
+model AiDecision {
+  id                 String   @id @default(cuid())
+  aiRunId            String
+  round              Int
+  worldStateSnapshot Json
+  responseJson       Json
+  degraded           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  aiRun AiRun @relation(fields: [aiRunId], references: [id], onDelete: Cascade)
+
+  @@index([aiRunId])
 }

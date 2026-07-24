@@ -48,6 +48,7 @@ import { MasscanJsonParser } from './masscan-json/masscan-json.parser';
 import { SshAuditJsonParser } from './ssh-audit-json';
 import { NbtscanTextParser } from './nbtscan-text/nbtscan-text.parser';
 import { RdpSecCheckTextParser } from './rdp-sec-check-text/rdp-sec-check-text.parser';
+import { PwncatTextParser } from './pwncat-text/pwncat-text.parser';
 import { AbuseipdbJsonParser } from './abuseipdb-json/abuseipdb-json.parser';
 import { GreynoiseJsonParser } from './greynoise-json/greynoise-json.parser';
 import { WebDastJsonParser } from './web-dast-json';
@@ -140,6 +141,7 @@ import { EmailrepJsonlParser } from './emailrep-jsonl';
     SshAuditJsonParser,
     NbtscanTextParser,
     RdpSecCheckTextParser,
+    PwncatTextParser,
     AbuseipdbJsonParser,
     GreynoiseJsonParser,
     WebDastJsonParser,
@@ -230,6 +232,7 @@ import { EmailrepJsonlParser } from './emailrep-jsonl';
     SshAuditJsonParser,
     NbtscanTextParser,
     RdpSecCheckTextParser,
+    PwncatTextParser,
     AbuseipdbJsonParser,
     GreynoiseJsonParser,
     WebDastJsonParser,
@@ -322,6 +325,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly sshAuditJson: SshAuditJsonParser,
     private readonly nbtscanText: NbtscanTextParser,
     private readonly rdpSecCheckText: RdpSecCheckTextParser,
+    private readonly pwncatText: PwncatTextParser,
     private readonly abuseipdbJson: AbuseipdbJsonParser,
     private readonly greynoise: GreynoiseJsonParser,
     private readonly webDastJson: WebDastJsonParser,
@@ -412,6 +416,7 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.sshAuditJson);
     this.registry.register(this.nbtscanText);
     this.registry.register(this.rdpSecCheckText);
+    this.registry.register(this.pwncatText);
     this.registry.register(this.abuseipdbJson);
     this.registry.register(this.greynoise);
     this.registry.register(this.webDastJson);

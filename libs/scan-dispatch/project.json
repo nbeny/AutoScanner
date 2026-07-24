@@ -1,0 +1,22 @@
+{
+  "name": "scan-dispatch",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scan-dispatch/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scan-dispatch"],
+      "options": {
+        "jestConfig": "libs/scan-dispatch/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scan-dispatch/tsconfig.lib.json"
+      }
+    }
+  }
+}

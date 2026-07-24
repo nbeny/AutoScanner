@@ -14,26 +14,41 @@ A run flows through queue-driven workers — nothing runs inline in the API:
 2. **scan-worker** (`scan-jobs`) — resolves credentials/OAST, calls the scanner's `build()` to construct the Docker command, runs it in a sandboxed container (`libs/docker-runner`), streams logs to Redis, stores raw output to MinIO, enqueues a parse job.
 3. **parser-worker** (`parse-jobs`) — runs the scanner's parser to normalise output into entities, persists them, then dedups + correlates findings and recomputes risk score.
 4. **orchestrator-worker** (`template-runs`) — for templates only: resolves each step's targets via `ContextBuilder` (root `target`, discovered `subdomains`, `ipAddresses`, `urls`, `endpoints`, `emails`), dispatches child scan jobs step by step.
-5. Support workers: `cve-enricher-worker`, `nvd-sync-worker`, `report-worker`, `notification-worker`, `scheduler`.
+5. **ai-orchestrator-worker** (`ai-runs`) — AutoHunt: an _AI-driven_ alternative to static templates. Instead of a fixed step list, Claude Sonnet decides the next scanner(s) after each parsed result. See below.
+6. Support workers: `cve-enricher-worker`, `nvd-sync-worker`, `report-worker`, `notification-worker`, `scheduler`.
 
 Queue names: `libs/queues/src/queue-names.ts`. The target string (IP/domain/URL/CIDR/bucket) is **not** validated against a type at the API — each scanner's `build()` decides how to use it.
 
+## AutoHunt (AI-autonomous hunting)
+
+A Google-style page (`/hunt`) where the operator types an IP / range / CIDR (IPv4 **and** IPv6) and the platform autonomously hunts every vulnerability, with **Claude Sonnet deciding the next scanner from each result**. The run is shown as a live scan-graph and ends with an AI-written audit.
+
+- **`runAiScan` mutation** (`apps/api-gateway/src/app/ai-runs/`) auto-provisions a "Quick Scans" engagement, grants all capabilities, scopes the target, creates an `AiRun`, and enqueues `ai-runs`.
+- **`ai-orchestrator-worker`** runs the agentic loop per host: build world state (DB entities) → ask Claude (via `libs/claude-agent`) which scanner(s) to run next → validate against the registry + Zod schema → dispatch via `libs/scan-dispatch` (`ScanDispatcher`, the proven subscribe-before-create + poll/push completion pattern) → repeat under **guardrails** (`maxScans`/`maxDepth`/`timeBudgetMs`/`hostCap`, editable from the page) → write an audit. A **degraded fallback** (deterministic methodology) keeps the run progressing when Claude is empty/quota-limited.
+- **Claude runs in a container via the operator's subscription** (no API key): `libs/claude-agent` spawns `claude -p --output-format json` and scrubs `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` from the child env (ported from `../BotTrading`). Container + read-only credential mounts: `docker/Dockerfile.ai-orchestrator` + `docker/ai/docker-compose.ai.yml`; env in `.env.example` (`ANTHROPIC_*`, `CLAUDE_DIR`, `CLAUDE_CONFIG`). In local dev the worker uses the host `claude` binary if you're logged in.
+- **Live view** (`apps/frontend/src/features/hunt/`) subscribes to `aiRunEvents` (Redis channel `airun:events:<id>`) and renders an SVG scan-graph (`AiRunNode` tree via `parentNodeId`), decision timeline, and audit panel.
+- Data model: `AiRun` / `AiRunNode` / `AiDecision` in `prisma/schema.prisma`; `Scan.aiRunId`/`aiRunNodeId` link child scans back to the run/graph. `pwncat` (`libs/scanners/pwncat/`) is an experimental best-effort exploit probe the AI may select.
+
 ## Key locations
 
-| Concern                     | Path                                                                            |
-| --------------------------- | ------------------------------------------------------------------------------- |
-| Scanner contract + registry | `libs/scanner-sdk/src/` (`types.ts`, `registry.ts`)                             |
-| A scanner adapter           | `libs/scanners/<name>/src/<name>.scanner.ts`                                    |
-| Scanner registration        | `libs/scanners/all/src/all-scanners.module.ts`                                  |
-| Templates                   | `libs/templates/src/builtins/*.ts`, types in `../types.ts`                      |
-| Output parsers              | `libs/parsers/src/`                                                             |
-| Correlation + risk          | `libs/correlation/src/`                                                         |
-| CVE / CPE matching          | `libs/cve/src/`                                                                 |
-| Scan entry point            | `apps/api-gateway/src/app/scans/` (resolver + service)                          |
-| Scan execution              | `apps/scan-worker/src/app/scan-job.processor.ts`                                |
-| Parse + persist             | `apps/parser-worker/src/app/parse-job.processor.ts`                             |
-| Template orchestration      | `apps/orchestrator-worker/src/app/` (processor, step-executor, context-builder) |
-| Prisma schema               | `prisma/schema.prisma`                                                          |
+| Concern                     | Path                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Scanner contract + registry | `libs/scanner-sdk/src/` (`types.ts`, `registry.ts`)                                                           |
+| A scanner adapter           | `libs/scanners/<name>/src/<name>.scanner.ts`                                                                  |
+| Scanner registration        | `libs/scanners/all/src/all-scanners.module.ts`                                                                |
+| Templates                   | `libs/templates/src/builtins/*.ts`, types in `../types.ts`                                                    |
+| Output parsers              | `libs/parsers/src/`                                                                                           |
+| Correlation + risk          | `libs/correlation/src/`                                                                                       |
+| CVE / CPE matching          | `libs/cve/src/`                                                                                               |
+| Scan entry point            | `apps/api-gateway/src/app/scans/` (resolver + service)                                                        |
+| Scan execution              | `apps/scan-worker/src/app/scan-job.processor.ts`                                                              |
+| Parse + persist             | `apps/parser-worker/src/app/parse-job.processor.ts`                                                           |
+| Template orchestration      | `apps/orchestrator-worker/src/app/` (processor, step-executor, context-builder)                               |
+| AutoHunt AI loop            | `apps/ai-orchestrator-worker/src/app/` (ai-run.processor, world-state, decision-prompt/validator, guardrails) |
+| Claude subscription bridge  | `libs/claude-agent/src/` (CLI transport, env scrub, stub transport)                                           |
+| AI scan dispatch            | `libs/scan-dispatch/src/` (`ScanDispatcher`)                                                                  |
+| AutoHunt API + UI           | `apps/api-gateway/src/app/ai-runs/`, `apps/frontend/src/features/hunt/`                                       |
+| Prisma schema               | `prisma/schema.prisma`                                                                                        |
 
 ## Adding a scanner (the common task)
 

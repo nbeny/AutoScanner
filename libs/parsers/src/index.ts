@@ -48,6 +48,7 @@ export * from './masscan-json';
 export * from './ssh-audit-json';
 export * from './nbtscan-text';
 export * from './rdp-sec-check-text';
+export * from './pwncat-text';
 export * from './abuseipdb-json';
 export * from './greynoise-json';
 export * from './web-dast-json';

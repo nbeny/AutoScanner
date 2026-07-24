@@ -1114,3 +1114,74 @@ export const GCP_CREDENTIAL_QUERY = gql`
     }
   }
 `;
+
+export const RUN_AI_SCAN = gql`
+  mutation RunAiScan($input: RunAiScanInput!) {
+    runAiScan(input: $input) {
+      id
+      status
+      target
+      strategy
+    }
+  }
+`;
+
+export const AI_RUN_QUERY = gql`
+  query AiRun($id: ID!) {
+    aiRun(id: $id) {
+      id
+      target
+      strategy
+      status
+      scanCount
+      currentDepth
+      degraded
+      auditText
+      errorMessage
+      createdAt
+      startedAt
+      completedAt
+      nodes {
+        id
+        parentNodeId
+        scanId
+        scannerName
+        target
+        depth
+        rationale
+        status
+        createdAt
+      }
+      decisions {
+        id
+        round
+        degraded
+        createdAt
+      }
+    }
+  }
+`;
+
+export const AI_RUN_EVENTS_SUBSCRIPTION = gql`
+  subscription AiRunEvents($id: ID!) {
+    aiRunEvents(id: $id) {
+      type
+      status
+      errorMessage
+      nodeId
+      scannerName
+      scanId
+      depth
+      round
+    }
+  }
+`;
+
+export const CANCEL_AI_RUN = gql`
+  mutation CancelAiRun($id: ID!) {
+    cancelAiRun(id: $id) {
+      id
+      status
+    }
+  }
+`;

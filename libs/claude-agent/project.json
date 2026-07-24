@@ -1,0 +1,22 @@
+{
+  "name": "claude-agent",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/claude-agent/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/claude-agent"],
+      "options": {
+        "jestConfig": "libs/claude-agent/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/claude-agent/tsconfig.lib.json"
+      }
+    }
+  }
+}

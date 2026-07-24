@@ -16,6 +16,8 @@ import { MainNav } from './components/main-nav';
 import { ScansSectionPage } from './features/scans/scans-section-page';
 import { VulnerabilitiesSectionPage } from './features/findings/vulnerabilities-section-page';
 import { ToolsSectionPage } from './features/tools/tools-section-page';
+import { HuntSearchPage } from './features/hunt/hunt-search-page';
+import { HuntRunPage } from './features/hunt/hunt-run-page';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session } = useAuth();
@@ -141,6 +143,22 @@ function AppShell() {
           element={
             <RequireAuth>
               <ToolsSectionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/hunt"
+          element={
+            <RequireAuth>
+              <HuntSearchPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/hunt/:aiRunId"
+          element={
+            <RequireAuth>
+              <HuntRunPage />
             </RequireAuth>
           }
         />

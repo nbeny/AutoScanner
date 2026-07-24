@@ -8,6 +8,7 @@ export const QueueName = {
   REPORT_JOBS: 'report-jobs',
   NOTIFICATION_JOBS: 'notification-jobs',
   WEBHOOK_JOBS: 'webhook-jobs',
+  AI_RUNS: 'ai-runs',
 } as const;
 
 export type QueueName = (typeof QueueName)[keyof typeof QueueName];
