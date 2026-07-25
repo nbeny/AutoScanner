@@ -177,7 +177,8 @@ export class ScansService {
     const where: Prisma.ScanWhereInput = {
       engagement: { ownerId: userId, deletedAt: null },
     };
-    if (filter?.status) where.status = filter.status;
+    if (filter?.statusIn?.length) where.status = { in: filter.statusIn };
+    else if (filter?.status) where.status = filter.status;
     if (filter?.engagementId) where.engagementId = filter.engagementId;
     if (filter?.scannerName) where.jobs = { some: { scannerName: filter.scannerName } };
     return this.prisma.scan.findMany({

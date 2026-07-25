@@ -6,7 +6,7 @@ import { ActiveScannersList } from '../active-scanners-list';
 
 const mocks = [
   {
-    request: { query: ALL_SCANS_QUERY, variables: { filter: {} } },
+    request: { query: ALL_SCANS_QUERY, variables: { filter: { statusIn: ['RUNNING', 'QUEUED'] } } },
     result: {
       data: {
         allScans: [

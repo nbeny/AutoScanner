@@ -26,8 +26,13 @@ interface RawScan {
 const ACTIVE = new Set(['RUNNING', 'QUEUED']);
 
 export function useActiveScanners(engagementId?: string) {
-  const filter: Record<string, string> = {};
-  if (engagementId) filter['engagementId'] = engagementId;
+  // Filter to non-terminal scans server-side (statusIn) so history isn't
+  // transmitted; the client-side ACTIVE check below stays as a defensive
+  // guard against stale cache entries.
+  const filter: { engagementId?: string; statusIn: string[] } = {
+    statusIn: ['RUNNING', 'QUEUED'],
+  };
+  if (engagementId) filter.engagementId = engagementId;
 
   const { data, loading, error } = useQuery<{ allScans: RawScan[] }>(ALL_SCANS_QUERY, {
     variables: { filter },

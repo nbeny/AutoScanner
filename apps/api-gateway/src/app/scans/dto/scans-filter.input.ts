@@ -4,6 +4,7 @@ import { ScanStatus } from './scan-status.enum';
 @InputType()
 export class ScansFilterInput {
   @Field(() => ScanStatus, { nullable: true }) status?: ScanStatus;
+  @Field(() => [ScanStatus], { nullable: true }) statusIn?: ScanStatus[];
   @Field(() => ID, { nullable: true }) engagementId?: string;
   @Field({ nullable: true }) scannerName?: string;
   @Field(() => Int, { nullable: true }) limit?: number;
