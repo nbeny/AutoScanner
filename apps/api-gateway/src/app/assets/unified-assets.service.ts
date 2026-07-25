@@ -102,14 +102,20 @@ export class UnifiedAssetsService {
 
   async list(
     userId: string,
-    engagementId: string,
+    engagementId: string | null,
     opts: UnifiedAssetsListOptions,
   ): Promise<UnifiedAssetObject[]> {
-    const engagement = await this.prisma.engagement.findFirst({
-      where: { id: engagementId, ownerId: userId, deletedAt: null },
-      select: { id: true },
-    });
-    if (!engagement) throw new NotFoundError('Engagement', engagementId);
+    let engagementClause: Prisma.Sql;
+    if (engagementId) {
+      const engagement = await this.prisma.engagement.findFirst({
+        where: { id: engagementId, ownerId: userId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!engagement) throw new NotFoundError('Engagement', engagementId);
+      engagementClause = Prisma.sql`"engagementId" = ${engagementId}`;
+    } else {
+      engagementClause = Prisma.sql`"engagementId" IN (SELECT id FROM "Engagement" WHERE "ownerId" = ${userId} AND "deletedAt" IS NULL)`;
+    }
 
     const { limit, offset } = clampPagination(opts.limit, opts.offset);
 
@@ -188,7 +194,7 @@ export class UnifiedAssetsService {
       SELECT id, "engagementId", kind, "canonicalValue", "displayName",
              "firstSeenAt", "lastSeenAt", "riskScore", attrs
       FROM asset_unified_view
-      WHERE "engagementId" = ${engagementId}
+      WHERE ${engagementClause}
         ${kindsClause}
         ${searchClause}
         ${severityClause}
@@ -203,35 +209,44 @@ export class UnifiedAssetsService {
 
   async facets(
     userId: string,
-    engagementId: string,
+    engagementId: string | null,
     _filters: AssetFilters | null,
   ): Promise<AssetFacetsObject> {
-    const engagement = await this.prisma.engagement.findFirst({
-      where: { id: engagementId, ownerId: userId, deletedAt: null },
-      select: { id: true },
-    });
-    if (!engagement) throw new NotFoundError('Engagement', engagementId);
+    if (engagementId) {
+      const engagement = await this.prisma.engagement.findFirst({
+        where: { id: engagementId, ownerId: userId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!engagement) throw new NotFoundError('Engagement', engagementId);
+    }
+
+    const assetWhere: Prisma.AssetWhereInput = engagementId
+      ? { engagementId, deletedAt: null }
+      : { engagement: { ownerId: userId, deletedAt: null }, deletedAt: null };
+    const scanJobWhere: Prisma.ScanJobWhereInput = engagementId
+      ? { scan: { engagementId } }
+      : { scan: { engagement: { ownerId: userId } } };
 
     const [kindRows, sevRows, techRows, scanners] = await Promise.all([
       this.prisma.asset.groupBy({
         by: ['type'],
-        where: { engagementId, deletedAt: null },
+        where: assetWhere,
         _count: { _all: true },
       }),
       this.prisma.finding.groupBy({
         by: ['severity'],
-        where: { asset: { engagementId, deletedAt: null } },
+        where: { asset: assetWhere },
         _count: { _all: true },
       }),
       this.prisma.technology.groupBy({
         by: ['name'],
-        where: { asset: { engagementId, deletedAt: null } },
+        where: { asset: assetWhere },
         _count: { _all: true },
         orderBy: { _count: { name: 'desc' } },
         take: 20,
       }),
       this.prisma.scanJob.findMany({
-        where: { scan: { engagementId } },
+        where: scanJobWhere,
         select: { scannerName: true },
         distinct: ['scannerName'],
       }),

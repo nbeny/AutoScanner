@@ -29,7 +29,7 @@ export class UnifiedAssetsResolver {
   @Query(() => [UnifiedAssetObject])
   unifiedAssets(
     @CurrentUser() user: User,
-    @Args('engagementId', { type: () => ID }) engagementId: string,
+    @Args('engagementId', { type: () => ID, nullable: true }) engagementId: string | null,
     @Args('kinds', { type: () => [AssetType], nullable: true })
     kinds?: AssetType[] | null,
     @Args('search', { type: () => String, nullable: true })
@@ -47,7 +47,7 @@ export class UnifiedAssetsResolver {
   @Query(() => AssetFacetsObject)
   assetFacets(
     @CurrentUser() user: User,
-    @Args('engagementId', { type: () => ID }) engagementId: string,
+    @Args('engagementId', { type: () => ID, nullable: true }) engagementId: string | null,
     @Args('filters', { type: () => AssetFilters, nullable: true })
     filters?: AssetFilters | null,
   ): Promise<AssetFacetsObject> {
