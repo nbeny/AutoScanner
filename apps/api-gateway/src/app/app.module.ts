@@ -32,6 +32,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TlsModule } from './tls/tls.module';
 import { ReportsModule } from './reports/reports.module';
+import { QueueHealthModule } from './queue-health/queue-health.module';
 import { ScansModule } from './scans/scans.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { TemplatesModule } from './templates/templates.module';
@@ -97,6 +98,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     OsintModule,
     ReportsModule,
     TlsModule,
+    QueueHealthModule,
     ScansModule,
     AiRunsModule,
     SchedulesModule,
