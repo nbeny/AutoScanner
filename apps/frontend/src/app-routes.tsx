@@ -4,7 +4,6 @@ import { useScope } from './lib/scope-context';
 import { AppShell } from './components/app-shell';
 import { Panel } from './components/ui/panel';
 import { LoginPage } from './features/auth/login-page';
-import { ScansSectionPage } from './features/scans/scans-section-page';
 import { ScanDetailPage } from './features/scans/scan-detail-page';
 import { VulnerabilitiesSectionPage } from './features/findings/vulnerabilities-section-page';
 import { ToolsSectionPage } from './features/tools/tools-section-page';
@@ -16,16 +15,12 @@ import { EngagementsListPage } from './features/engagements/engagements-list-pag
 import { EngagementPage } from './features/engagements/engagement-page';
 import { ScanRunPage } from './features/scans/scan-run-page';
 import { TemplateRunPage } from './features/template-runs/template-run-page';
+import { CockpitPage } from './features/cockpit/cockpit-page';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session } = useAuth();
   if (!session) return <Navigate to="/login" replace />;
   return children;
-}
-
-function CockpitInterim() {
-  const { engagementId } = useScope();
-  return <ScansSectionPage engagementId={engagementId ?? undefined} />;
 }
 
 function AuditInterim() {
@@ -71,7 +66,7 @@ export function AppRoutes({ email, onLogout }: AppRoutesProps) {
         }
       >
         {/* Target IA */}
-        <Route path="/" element={<CockpitInterim />} />
+        <Route path="/" element={<CockpitPage />} />
         <Route path="/targets" element={<TargetsPlaceholder />} />
         <Route path="/targets/:assetId" element={<AssetDetailPage />} />
         <Route path="/audit" element={<AuditInterim />} />

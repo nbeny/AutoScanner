@@ -61,17 +61,17 @@ describe('app routing (target IA)', () => {
 
   it('renders the Cockpit-interim (scans) at /', () => {
     renderAt('/', session);
-    expect(screen.getByLabelText('scans-section')).toBeInTheDocument();
+    expect(screen.getByLabelText('cockpit-command-bar')).toBeInTheDocument();
   });
 
   it('redirects /dashboard to the Cockpit', () => {
     renderAt('/dashboard', session);
-    expect(screen.getByLabelText('scans-section')).toBeInTheDocument();
+    expect(screen.getByLabelText('cockpit-command-bar')).toBeInTheDocument();
   });
 
   it('redirects /scans to the Cockpit', () => {
     renderAt('/scans', session);
-    expect(screen.getByLabelText('scans-section')).toBeInTheDocument();
+    expect(screen.getByLabelText('cockpit-command-bar')).toBeInTheDocument();
   });
 
   it('renders the Audit page at /audit and redirects /vulnerabilities to it', () => {
