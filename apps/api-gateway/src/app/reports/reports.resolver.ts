@@ -28,7 +28,7 @@ export class ReportsResolver {
   @Query(() => [ReportObject])
   reports(
     @CurrentUser() user: User,
-    @Args('engagementId', { type: () => ID }) engagementId: string,
+    @Args('engagementId', { type: () => ID, nullable: true }) engagementId: string | null,
   ): Promise<ReportObject[]> {
     return this.svc.listForOwner(user.id, engagementId) as Promise<ReportObject[]>;
   }

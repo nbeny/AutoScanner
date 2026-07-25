@@ -91,12 +91,11 @@ export class ReportsService {
     return report;
   }
 
-  listForOwner(userId: string, engagementId: string): Promise<ReportWithTemplate[]> {
+  listForOwner(userId: string, engagementId: string | null): Promise<ReportWithTemplate[]> {
     return this.prisma.report.findMany({
-      where: {
-        engagementId,
-        engagement: { ownerId: userId, deletedAt: null },
-      },
+      where: engagementId
+        ? { engagementId, engagement: { ownerId: userId, deletedAt: null } }
+        : { engagement: { ownerId: userId, deletedAt: null } },
       include: { template: true },
       orderBy: { createdAt: 'desc' },
     }) as Promise<ReportWithTemplate[]>;
