@@ -1,105 +1,86 @@
-import { MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { describe, expect, it } from 'vitest';
+import { MockedProvider } from '@apollo/client/testing';
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
-import { AuthProvider, useAuth } from '../lib/auth-context';
+import { AuthProvider } from '../lib/auth-context';
+import { ScopeProvider, type ScopeStorage } from '../lib/scope-context';
 import type { AuthSession, AuthStorage } from '../lib/auth';
+import { AppRoutes } from '../app-routes';
 
-function makeMemoryStorage(initial: AuthSession | null = null): AuthStorage {
-  let value: AuthSession | null = initial;
+const session: AuthSession = {
+  apiUrl: 'http://api',
+  accessToken: 'a',
+  refreshToken: 'r',
+  email: 'op@example.com',
+};
+
+function authStorage(initial: AuthSession | null): AuthStorage {
+  let v = initial;
   return {
-    read: () => value,
+    read: () => v,
     write: (s) => {
-      value = s;
+      v = s;
     },
     clear: () => {
-      value = null;
+      v = null;
+    },
+  };
+}
+function scopeStorage(): ScopeStorage {
+  let v: string | null = null;
+  return {
+    read: () => v,
+    write: (id) => {
+      v = id;
+    },
+    clear: () => {
+      v = null;
     },
   };
 }
 
-function RequireAuth({ children }: { children: JSX.Element }) {
-  const { session } = useAuth();
-  if (!session) return <Navigate to="/login" replace />;
-  return children;
-}
-
-function renderAt(path: string, storage: AuthStorage) {
+function renderAt(path: string, sess: AuthSession | null) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <AuthProvider storage={storage}>
-        <Routes>
-          <Route path="/login" element={<div>login screen</div>} />
-          <Route
-            path="/engagements"
-            element={
-              <RequireAuth>
-                <div>engagements screen</div>
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/scans"
-            element={
-              <RequireAuth>
-                <div>scans screen</div>
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/vulnerabilities"
-            element={
-              <RequireAuth>
-                <div>vulns screen</div>
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/tools"
-            element={
-              <RequireAuth>
-                <div>tools screen</div>
-              </RequireAuth>
-            }
-          />
-        </Routes>
+    <MockedProvider mocks={[]} addTypename={false}>
+      <AuthProvider storage={authStorage(sess)}>
+        <ScopeProvider storage={scopeStorage()}>
+          <MemoryRouter initialEntries={[path]}>
+            <AppRoutes email={sess?.email ?? ''} onLogout={() => undefined} />
+          </MemoryRouter>
+        </ScopeProvider>
       </AuthProvider>
-    </MemoryRouter>,
+    </MockedProvider>,
   );
 }
 
-describe('app routing', () => {
-  it('redirects unauthenticated users from protected route to /login', () => {
-    renderAt('/engagements', makeMemoryStorage(null));
-    expect(screen.getByText('login screen')).toBeInTheDocument();
+describe('app routing (target IA)', () => {
+  it('sends unauthenticated users to the login screen', () => {
+    renderAt('/', null);
+    expect(screen.getByLabelText('login-page')).toBeInTheDocument();
   });
 
-  it('renders protected route when session exists', () => {
-    renderAt(
-      '/engagements',
-      makeMemoryStorage({
-        apiUrl: 'http://api',
-        accessToken: 'a',
-        refreshToken: 'r',
-        email: 'op@example.com',
-      }),
-    );
-    expect(screen.getByText('engagements screen')).toBeInTheDocument();
+  it('renders the Cockpit-interim (scans) at /', () => {
+    renderAt('/', session);
+    expect(screen.getByLabelText('scans-section')).toBeInTheDocument();
   });
 
-  it('renders the scans section for an authenticated user', () => {
-    renderAt(
-      '/scans',
-      makeMemoryStorage({
-        apiUrl: 'http://api',
-        accessToken: 'a',
-        refreshToken: 'r',
-        email: 'op@example.com',
-      }),
-    );
-    expect(screen.getByText('scans screen')).toBeInTheDocument();
+  it('redirects /dashboard to the Cockpit', () => {
+    renderAt('/dashboard', session);
+    expect(screen.getByLabelText('scans-section')).toBeInTheDocument();
   });
 
-  it('redirects unauthenticated users from /vulnerabilities to /login', () => {
-    renderAt('/vulnerabilities', makeMemoryStorage(null));
-    expect(screen.getByText('login screen')).toBeInTheDocument();
+  it('redirects /scans to the Cockpit', () => {
+    renderAt('/scans', session);
+    expect(screen.getByLabelText('scans-section')).toBeInTheDocument();
+  });
+
+  it('renders the Audit page at /audit and redirects /vulnerabilities to it', () => {
+    renderAt('/vulnerabilities', session);
+    expect(screen.getByLabelText('vulnerabilities-section')).toBeInTheDocument();
+  });
+
+  it('renders the Cibles placeholder at /targets', () => {
+    renderAt('/targets', session);
+    expect(screen.getByLabelText('targets-placeholder')).toBeInTheDocument();
   });
 });
