@@ -21,7 +21,7 @@ export function EngagementAssetsFacets({
   state,
   onChange,
 }: {
-  engagementId: string;
+  engagementId?: string;
   state: AssetFiltersState;
   onChange: (next: AssetFiltersState) => void;
 }) {

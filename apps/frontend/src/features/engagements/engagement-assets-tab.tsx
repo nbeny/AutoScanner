@@ -187,7 +187,7 @@ interface ScoredRow {
   riskScore: number;
 }
 
-export function ScoredAssetsPanel({ engagementId }: { engagementId: string }) {
+export function ScoredAssetsPanel({ engagementId }: { engagementId?: string }) {
   const navigate = useNavigate();
   const [sort, setSort] = useState<AssetSort>('RISK_SCORE');
   const [filters, setFilters] = useState<AssetFiltersState>({
@@ -242,7 +242,7 @@ export function ScoredAssetsPanel({ engagementId }: { engagementId: string }) {
             {(data?.unifiedAssets ?? []).map((r) => (
               <tr
                 key={r.id}
-                onClick={() => navigate(`/engagements/${engagementId}/assets/${r.id}`)}
+                onClick={() => navigate(`/targets/${r.id}`)}
                 className="border-t border-slate-800 hover:bg-slate-900 cursor-pointer"
               >
                 <td className="py-2 text-[10px] uppercase">{r.kind}</td>
