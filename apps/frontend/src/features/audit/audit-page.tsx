@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useScope } from '../../lib/scope-context';
+import { useEngagementName } from '../../lib/use-engagement-name';
 import { VulnerabilitiesView } from '../findings/vulnerabilities-view';
 import { VulnerabilityDetailDrawer } from '../findings/vulnerability-detail-drawer';
 import { SeveritySparklinePanel } from '../cockpit/severity-sparkline-panel';
@@ -13,6 +14,7 @@ export function AuditPage({ engagementId: engagementIdProp }: { engagementId?: s
   // reading the id from the URL) overrides the ambient scope selector.
   const engagementId = engagementIdProp ?? scoped;
   const scope = engagementId ?? undefined;
+  const name = useEngagementName(scope);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
@@ -20,7 +22,7 @@ export function AuditPage({ engagementId: engagementIdProp }: { engagementId?: s
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Audit / Bilan sécurité</h1>
         <code className="text-xs text-slate-400">
-          {engagementId ? `périmètre ${engagementId.slice(0, 8)}` : 'Tous les périmètres'}
+          {engagementId ? `périmètre ${name ?? engagementId.slice(0, 8)}` : 'Tous les périmètres'}
         </code>
       </header>
 

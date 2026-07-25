@@ -30,7 +30,7 @@ describe('ScansService.cancelAllScans', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           engagementId: 'eng-1',
-          status: { notIn: ['COMPLETED', 'FAILED', 'CANCELLED'] },
+          status: { notIn: ['COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT'] },
         }),
       }),
     );

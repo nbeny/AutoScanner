@@ -22,6 +22,10 @@ import { ScanControlPublisher } from './scan-control.publisher';
 
 const RAW_OUTPUT_PRESIGN_TTL_SECONDS = 3600;
 
+// Scan/job statuses that are already final — shared by isTerminal() and the
+// cancelAllScans() filter so the two can't drift apart.
+const TERMINAL_SCAN_STATUSES = ['COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT'] as const;
+
 export interface RawOutputPresignedUrl {
   url: string;
   key: string;
@@ -320,7 +324,7 @@ export class ScansService {
       where: {
         engagementId,
         engagement: { ownerId: userId, deletedAt: null },
-        status: { notIn: ['COMPLETED', 'FAILED', 'CANCELLED'] },
+        status: { notIn: [...TERMINAL_SCAN_STATUSES] },
       },
       select: { id: true },
     });
@@ -338,7 +342,7 @@ export class ScansService {
   }
 
   private isTerminal(status: string): boolean {
-    return ['COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT'].includes(status);
+    return (TERMINAL_SCAN_STATUSES as readonly string[]).includes(status);
   }
 
   private parseOptions(optionsJson: string | undefined): unknown {
