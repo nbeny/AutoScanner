@@ -4,7 +4,6 @@ import { useScope } from './lib/scope-context';
 import { AppShell } from './components/app-shell';
 import { LoginPage } from './features/auth/login-page';
 import { ScanDetailPage } from './features/scans/scan-detail-page';
-import { VulnerabilitiesSectionPage } from './features/findings/vulnerabilities-section-page';
 import { ToolsSectionPage } from './features/tools/tools-section-page';
 import { AssetDetailPage } from './features/assets/asset-detail-page';
 import { SettingsPage } from './features/settings/settings-page';
@@ -16,16 +15,12 @@ import { ScanRunPage } from './features/scans/scan-run-page';
 import { TemplateRunPage } from './features/template-runs/template-run-page';
 import { CockpitPage } from './features/cockpit/cockpit-page';
 import { TargetsLibraryPage } from './features/targets/targets-library-page';
+import { AuditPage } from './features/audit/audit-page';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session } = useAuth();
   if (!session) return <Navigate to="/login" replace />;
   return children;
-}
-
-function AuditInterim() {
-  const { engagementId } = useScope();
-  return <VulnerabilitiesSectionPage engagementId={engagementId ?? undefined} />;
 }
 
 function ToolsScoped() {
@@ -55,7 +50,7 @@ export function AppRoutes({ email, onLogout }: AppRoutesProps) {
         <Route path="/" element={<CockpitPage />} />
         <Route path="/targets" element={<TargetsLibraryPage />} />
         <Route path="/targets/:assetId" element={<AssetDetailPage />} />
-        <Route path="/audit" element={<AuditInterim />} />
+        <Route path="/audit" element={<AuditPage />} />
         <Route path="/tools" element={<ToolsScoped />} />
         <Route path="/hunt" element={<HuntSearchPage />} />
         <Route path="/hunt/:aiRunId" element={<HuntRunPage />} />
@@ -72,7 +67,7 @@ export function AppRoutes({ email, onLogout }: AppRoutesProps) {
         <Route path="/engagements/:engagementId" element={<EngagementPage />} />
         <Route path="/engagements/:engagementId/scans" element={<ScanRunPage />} />
         <Route path="/engagements/:engagementId/scans/:scanId" element={<ScanDetailPage />} />
-        <Route path="/engagements/:engagementId/vulnerabilities" element={<AuditInterim />} />
+        <Route path="/engagements/:engagementId/vulnerabilities" element={<AuditPage />} />
         <Route path="/engagements/:engagementId/tools" element={<ToolsScoped />} />
         <Route
           path="/engagements/:engagementId/template-runs/:templateRunId"

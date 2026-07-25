@@ -44,7 +44,7 @@ function formatSize(n: number | null): string {
   return `${(n / MB).toFixed(2)} MB`;
 }
 
-export function RecentReportsPanel({ engagementId }: { engagementId: string }) {
+export function RecentReportsPanel({ engagementId }: { engagementId?: string }) {
   const { data, loading, error, startPolling, stopPolling } = useQuery<{ reports: ReportRow[] }>(
     REPORTS_QUERY,
     { variables: { engagementId } },
@@ -75,7 +75,7 @@ export function RecentReportsPanel({ engagementId }: { engagementId: string }) {
     return (
       <section className="bg-slate-900 rounded p-4" aria-label="recent-reports">
         <h3 className="text-lg font-semibold mb-2">Rapports récents</h3>
-        <p className="text-slate-500 text-sm">Aucun rapport pour cet engagement.</p>
+        <p className="text-slate-500 text-sm">Aucun rapport.</p>
       </section>
     );
   }

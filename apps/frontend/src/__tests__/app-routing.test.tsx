@@ -76,7 +76,7 @@ describe('app routing (target IA)', () => {
 
   it('renders the Audit page at /audit and redirects /vulnerabilities to it', () => {
     renderAt('/vulnerabilities', session);
-    expect(screen.getByLabelText('vulnerabilities-section')).toBeInTheDocument();
+    expect(screen.getByLabelText('audit-page')).toBeInTheDocument();
   });
 
   it('renders the IP Library at /targets', () => {

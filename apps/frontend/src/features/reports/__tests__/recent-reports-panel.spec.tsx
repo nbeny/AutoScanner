@@ -88,8 +88,6 @@ describe('<RecentReportsPanel />', () => {
         <RecentReportsPanel engagementId={engagementId} />
       </MockedProvider>,
     );
-    await waitFor(() =>
-      expect(screen.getByText(/aucun rapport pour cet engagement/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/aucun rapport\./i)).toBeInTheDocument());
   });
 });
