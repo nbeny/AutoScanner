@@ -7,8 +7,11 @@ import { RecentReportsPanel } from '../reports/recent-reports-panel';
 import { GenerateReportButton } from '../reports/generate-report-button';
 import { AuditPostureSummary } from './audit-posture-summary';
 
-export function AuditPage() {
-  const { engagementId } = useScope();
+export function AuditPage({ engagementId: engagementIdProp }: { engagementId?: string } = {}) {
+  const { engagementId: scoped } = useScope();
+  // An explicit prop (e.g. the legacy `/engagements/:id/vulnerabilities` route
+  // reading the id from the URL) overrides the ambient scope selector.
+  const engagementId = engagementIdProp ?? scoped;
   const scope = engagementId ?? undefined;
   const [selectedId, setSelectedId] = useState<string | null>(null);
 

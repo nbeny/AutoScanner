@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { useAuth } from './lib/auth-context';
 import { useScope } from './lib/scope-context';
 import { AppShell } from './components/app-shell';
@@ -26,6 +26,13 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 function ToolsScoped() {
   const { engagementId } = useScope();
   return <ToolsSectionPage engagementId={engagementId ?? undefined} />;
+}
+
+// Legacy engagement-scoped audit URL: scope the audit page to the id in the
+// path rather than the ambient scope selector.
+function LegacyEngagementAudit() {
+  const { engagementId } = useParams<{ engagementId: string }>();
+  return <AuditPage engagementId={engagementId} />;
 }
 
 export interface AppRoutesProps {
@@ -67,7 +74,10 @@ export function AppRoutes({ email, onLogout }: AppRoutesProps) {
         <Route path="/engagements/:engagementId" element={<EngagementPage />} />
         <Route path="/engagements/:engagementId/scans" element={<ScanRunPage />} />
         <Route path="/engagements/:engagementId/scans/:scanId" element={<ScanDetailPage />} />
-        <Route path="/engagements/:engagementId/vulnerabilities" element={<AuditPage />} />
+        <Route
+          path="/engagements/:engagementId/vulnerabilities"
+          element={<LegacyEngagementAudit />}
+        />
         <Route path="/engagements/:engagementId/tools" element={<ToolsScoped />} />
         <Route
           path="/engagements/:engagementId/template-runs/:templateRunId"
