@@ -349,7 +349,7 @@ export const RECENT_TEMPLATE_RUNS_QUERY = gql`
 
 export const UNIFIED_ASSETS_SCORED_QUERY = gql`
   query UnifiedAssetsScored(
-    $engagementId: ID!
+    $engagementId: ID
     $kinds: [AssetType!]
     $search: String
     $limit: Int = 100
@@ -378,7 +378,7 @@ export const UNIFIED_ASSETS_SCORED_QUERY = gql`
 `;
 
 export const ASSET_FACETS_QUERY = gql`
-  query AssetFacets($engagementId: ID!, $filters: AssetFilters) {
+  query AssetFacets($engagementId: ID, $filters: AssetFilters) {
     assetFacets(engagementId: $engagementId, filters: $filters) {
       kindCounts {
         kind
