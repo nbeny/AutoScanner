@@ -79,8 +79,8 @@ describe('app routing (target IA)', () => {
     expect(screen.getByLabelText('vulnerabilities-section')).toBeInTheDocument();
   });
 
-  it('renders the Cibles placeholder at /targets', () => {
+  it('renders the IP Library at /targets', () => {
     renderAt('/targets', session);
-    expect(screen.getByLabelText('targets-placeholder')).toBeInTheDocument();
+    expect(screen.getByLabelText('targets-library')).toBeInTheDocument();
   });
 });

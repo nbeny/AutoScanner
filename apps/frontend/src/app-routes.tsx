@@ -2,7 +2,6 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './lib/auth-context';
 import { useScope } from './lib/scope-context';
 import { AppShell } from './components/app-shell';
-import { Panel } from './components/ui/panel';
 import { LoginPage } from './features/auth/login-page';
 import { ScanDetailPage } from './features/scans/scan-detail-page';
 import { VulnerabilitiesSectionPage } from './features/findings/vulnerabilities-section-page';
@@ -16,6 +15,7 @@ import { EngagementPage } from './features/engagements/engagement-page';
 import { ScanRunPage } from './features/scans/scan-run-page';
 import { TemplateRunPage } from './features/template-runs/template-run-page';
 import { CockpitPage } from './features/cockpit/cockpit-page';
+import { TargetsLibraryPage } from './features/targets/targets-library-page';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session } = useAuth();
@@ -31,20 +31,6 @@ function AuditInterim() {
 function ToolsScoped() {
   const { engagementId } = useScope();
   return <ToolsSectionPage engagementId={engagementId ?? undefined} />;
-}
-
-function TargetsPlaceholder() {
-  return (
-    <div className="p-8">
-      <Panel aria-label="targets-placeholder">
-        <h1 className="text-lg font-semibold text-slate-100">Bibliothèque de cibles</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          La bibliothèque IP arrive en Phase 3. Les fiches par cible sont déjà accessibles via un
-          lien direct (<code>/targets/:id</code>).
-        </p>
-      </Panel>
-    </div>
-  );
 }
 
 export interface AppRoutesProps {
@@ -67,7 +53,7 @@ export function AppRoutes({ email, onLogout }: AppRoutesProps) {
       >
         {/* Target IA */}
         <Route path="/" element={<CockpitPage />} />
-        <Route path="/targets" element={<TargetsPlaceholder />} />
+        <Route path="/targets" element={<TargetsLibraryPage />} />
         <Route path="/targets/:assetId" element={<AssetDetailPage />} />
         <Route path="/audit" element={<AuditInterim />} />
         <Route path="/tools" element={<ToolsScoped />} />
