@@ -77,6 +77,14 @@ export class ScansResolver {
     return this.svc.cancelScan(user.id, id) as Promise<ScanObject>;
   }
 
+  @Mutation(() => Int, { name: 'cancelAllScans' })
+  async cancelAllScans(
+    @CurrentUser() user: User,
+    @Args('engagementId', { type: () => ID }) engagementId: string,
+  ): Promise<number> {
+    return this.svc.cancelAllScans(user.id, engagementId);
+  }
+
   @Mutation(() => ScanObject)
   async retryScanJob(
     @CurrentUser() user: User,

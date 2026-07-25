@@ -314,6 +314,28 @@ export class ScansService {
     return updated as Scan;
   }
 
+  async cancelAllScans(userId: string, engagementId: string): Promise<number> {
+    const scans = await this.prisma.scan.findMany({
+      where: {
+        engagementId,
+        engagement: { ownerId: userId, deletedAt: null },
+        status: { notIn: ['COMPLETED', 'FAILED', 'CANCELLED'] },
+      },
+      select: { id: true },
+    });
+
+    let cancelled = 0;
+    for (const scan of scans) {
+      try {
+        await this.cancelScan(userId, scan.id);
+        cancelled++;
+      } catch (err) {
+        this.logger.warn(`cancelAllScans: failed to cancel ${scan.id}: ${(err as Error).message}`);
+      }
+    }
+    return cancelled;
+  }
+
   private isTerminal(status: string): boolean {
     return ['COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT'].includes(status);
   }
