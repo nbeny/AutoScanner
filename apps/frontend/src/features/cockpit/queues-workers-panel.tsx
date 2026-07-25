@@ -2,7 +2,7 @@ import { useQuery } from '@apollo/client';
 import { Panel } from '../../components/ui/panel';
 import { QUEUE_HEALTH_QUERY } from '../../lib/graphql/queries';
 
-interface QueueHealth {
+export interface QueueHealth {
   name: string;
   waiting: number;
   active: number;
@@ -12,12 +12,16 @@ interface QueueHealth {
   workers: number;
 }
 
-export function QueuesWorkersPanel() {
+// When `queues` is provided (by the cockpit page, which already polls
+// queueHealth for its pills), the panel renders from it and skips its own
+// poll — avoiding a duplicate 4s poller. Standalone, it self-fetches.
+export function QueuesWorkersPanel({ queues: queuesProp }: { queues?: QueueHealth[] } = {}) {
   const { data } = useQuery<{ queueHealth: QueueHealth[] }>(QUEUE_HEALTH_QUERY, {
     pollInterval: 4000,
     fetchPolicy: 'cache-and-network',
+    skip: queuesProp !== undefined,
   });
-  const queues = data?.queueHealth ?? [];
+  const queues = queuesProp ?? data?.queueHealth ?? [];
 
   return (
     <Panel aria-label="queues-workers" className="space-y-2">

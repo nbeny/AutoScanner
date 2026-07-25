@@ -5,19 +5,12 @@ import { QUEUE_HEALTH_QUERY } from '../../lib/graphql/queries';
 import { ScansList } from '../scans/scans-list';
 import { ActiveScannersList } from './active-scanners-list';
 import { ScannerFocusPanel, type CockpitFocus } from './scanner-focus-panel';
-import { QueuesWorkersPanel } from './queues-workers-panel';
+import { QueuesWorkersPanel, type QueueHealth } from './queues-workers-panel';
 import { SeveritySparklinePanel } from './severity-sparkline-panel';
 import { FindingsFluxFeed } from './findings-flux-feed';
 import { CockpitCommandBar } from './cockpit-command-bar';
 import type { HealthPillData } from './health-pill';
 import { useActiveScanners } from './use-active-scanners';
-
-interface QueueHealth {
-  name: string;
-  waiting: number;
-  active: number;
-  workers: number;
-}
 
 export function CockpitPage() {
   const { engagementId } = useScope();
@@ -64,7 +57,7 @@ export function CockpitPage() {
           <ScannerFocusPanel focus={focus} />
         </div>
         <div className="space-y-4">
-          <QueuesWorkersPanel />
+          <QueuesWorkersPanel queues={data?.queueHealth ?? []} />
           <SeveritySparklinePanel engagementId={scope} />
           <FindingsFluxFeed engagementId={scope} />
         </div>
