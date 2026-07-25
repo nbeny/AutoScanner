@@ -20,7 +20,7 @@ export const browserScopeStorage: ScopeStorage = {
 
 interface ScopeContextValue {
   engagementId: string | null;
-  setScope: (id: string) => void;
+  setScope: (id: string | null) => void;
 }
 
 const ScopeContext = createContext<ScopeContextValue | null>(null);
@@ -37,8 +37,13 @@ export function ScopeProvider({
     () => ({
       engagementId,
       setScope: (id) => {
-        storage.write(id);
-        setEngagementId(id);
+        if (id) {
+          storage.write(id);
+          setEngagementId(id);
+        } else {
+          storage.clear();
+          setEngagementId(null);
+        }
       },
     }),
     [engagementId, storage],

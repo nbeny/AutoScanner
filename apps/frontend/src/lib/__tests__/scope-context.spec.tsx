@@ -21,6 +21,7 @@ function Probe() {
     <div>
       <span data-testid="value">{engagementId ?? 'none'}</span>
       <button onClick={() => setScope('eng-2')}>switch</button>
+      <button onClick={() => setScope(null)}>clear</button>
     </div>
   );
 }
@@ -45,5 +46,17 @@ describe('ScopeProvider', () => {
     fireEvent.click(screen.getByText('switch'));
     expect(screen.getByTestId('value')).toHaveTextContent('eng-2');
     expect(storage.read()).toBe('eng-2');
+  });
+
+  it('clears the scope back to null when setScope is called with null', () => {
+    const storage = makeMemoryStorage('eng-1');
+    render(
+      <ScopeProvider storage={storage}>
+        <Probe />
+      </ScopeProvider>,
+    );
+    fireEvent.click(screen.getByText('clear'));
+    expect(screen.getByTestId('value')).toHaveTextContent('none');
+    expect(storage.read()).toBeNull();
   });
 });

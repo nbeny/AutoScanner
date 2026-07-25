@@ -22,7 +22,7 @@ export function ScopeSelector() {
       <select
         aria-label="scope-selector"
         value={engagementId ?? ''}
-        onChange={(e) => setScope(e.target.value)}
+        onChange={(e) => setScope(e.target.value || null)}
         className="rounded-md border border-space-800 bg-space-900 px-2 py-1 text-slate-100"
       >
         <option value="">Tous les périmètres</option>
