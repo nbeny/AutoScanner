@@ -61,7 +61,7 @@ export function TopAssetsList({
         {items.map((a) => (
           <li
             key={a.id}
-            onClick={() => navigate(`/engagements/${engagementId}/assets/${a.id}`)}
+            onClick={() => navigate(`/targets/${a.id}`)}
             className="border-t border-slate-800 pt-2 first:border-t-0 first:pt-0 flex items-center gap-3 cursor-pointer hover:bg-slate-800/40 rounded px-1"
           >
             <span className="text-[10px] uppercase tracking-wide bg-slate-800 text-slate-300 rounded px-1.5 py-0.5">

@@ -37,7 +37,7 @@ describe('<TriageDetail />', () => {
     render(
       <MemoryRouter>
         <MockedProvider mocks={[]}>
-          <TriageDetail id={null} engagementId="eng_1" onStatusChange={vi.fn()} />
+          <TriageDetail id={null} onStatusChange={vi.fn()} />
         </MockedProvider>
       </MemoryRouter>,
     );
@@ -48,7 +48,7 @@ describe('<TriageDetail />', () => {
     render(
       <MemoryRouter>
         <MockedProvider mocks={[detailMock]}>
-          <TriageDetail id={id} engagementId="eng_1" onStatusChange={vi.fn()} />
+          <TriageDetail id={id} onStatusChange={vi.fn()} />
         </MockedProvider>
       </MemoryRouter>,
     );
@@ -62,7 +62,7 @@ describe('<TriageDetail />', () => {
     render(
       <MemoryRouter>
         <MockedProvider mocks={[detailMock]}>
-          <TriageDetail id={id} engagementId="eng_1" onStatusChange={vi.fn()} />
+          <TriageDetail id={id} onStatusChange={vi.fn()} />
         </MockedProvider>
       </MemoryRouter>,
     );
@@ -71,17 +71,14 @@ describe('<TriageDetail />', () => {
       'href',
       'https://nvd.nist.gov/vuln/detail/CVE-2017-5638',
     );
-    expect(screen.getByText('10.0.0.4').closest('a')).toHaveAttribute(
-      'href',
-      '/engagements/eng_1/assets/a1',
-    );
+    expect(screen.getByText('10.0.0.4').closest('a')).toHaveAttribute('href', '/targets/a1');
   });
 
   it('renders the four status action buttons', async () => {
     render(
       <MemoryRouter>
         <MockedProvider mocks={[detailMock]}>
-          <TriageDetail id={id} engagementId="eng_1" onStatusChange={vi.fn()} />
+          <TriageDetail id={id} onStatusChange={vi.fn()} />
         </MockedProvider>
       </MemoryRouter>,
     );

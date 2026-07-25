@@ -55,12 +55,10 @@ const STATUS_ACTIONS: { label: string; status: string }[] = [
 
 export function TriageDetail({
   id,
-  engagementId,
   onStatusChange,
   noteRef,
 }: {
   id: string | null;
-  engagementId: string;
   onStatusChange: (id: string, status: string) => void;
   noteRef?: RefObject<HTMLTextAreaElement>;
 }) {
@@ -122,10 +120,7 @@ export function TriageDetail({
 
       <section className="text-sm">
         <h3 className="text-slate-400 text-xs uppercase mb-1">Affected asset</h3>
-        <Link
-          to={`/engagements/${engagementId}/assets/${d.assetId}`}
-          className="font-mono underline hover:text-slate-200"
-        >
+        <Link to={`/targets/${d.assetId}`} className="font-mono underline hover:text-slate-200">
           {d.assetValue}
         </Link>
       </section>

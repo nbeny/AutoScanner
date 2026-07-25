@@ -110,12 +110,7 @@ export function TriageWorkspace({ engagementId }: { engagementId: string }) {
       ) : (
         <div className="grid grid-cols-[minmax(260px,360px)_1fr] h-[70vh] border border-slate-800 rounded overflow-hidden">
           <TriageQueue items={items} selectedId={selectedId} onSelect={setSelectedId} />
-          <TriageDetail
-            id={selectedId}
-            engagementId={engagementId}
-            onStatusChange={handleStatus}
-            noteRef={noteRef}
-          />
+          <TriageDetail id={selectedId} onStatusChange={handleStatus} noteRef={noteRef} />
         </div>
       )}
     </div>
