@@ -48,3 +48,6 @@ docker/data/
 
 # Local worktrees for parallel work
 .worktrees/
+
+# Visual brainstorming companion
+.superpowers/
