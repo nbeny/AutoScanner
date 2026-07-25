@@ -501,7 +501,7 @@ export const CVE_INFO_QUERY = gql`
 `;
 
 export const REPORTS_QUERY = gql`
-  query Reports($engagementId: ID!) {
+  query Reports($engagementId: ID) {
     reports(engagementId: $engagementId) {
       id
       format
