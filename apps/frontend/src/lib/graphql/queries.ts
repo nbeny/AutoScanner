@@ -479,6 +479,8 @@ export const ENGAGEMENT_UPDATED_SUBSCRIPTION = gql`
       engagementId
       assetId
       templateRunId
+      severity
+      title
       ts
     }
   }
@@ -1183,5 +1185,25 @@ export const CANCEL_AI_RUN = gql`
       id
       status
     }
+  }
+`;
+
+export const QUEUE_HEALTH_QUERY = gql`
+  query QueueHealth {
+    queueHealth {
+      name
+      waiting
+      active
+      completed
+      failed
+      delayed
+      workers
+    }
+  }
+`;
+
+export const CANCEL_ALL_SCANS_MUTATION = gql`
+  mutation CancelAllScans($engagementId: ID!) {
+    cancelAllScans(engagementId: $engagementId)
   }
 `;
