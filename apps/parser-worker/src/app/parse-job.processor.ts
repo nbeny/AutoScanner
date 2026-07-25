@@ -95,13 +95,15 @@ export class ParseJobProcessor extends WorkerHost {
   private publish(
     engagementId: string,
     kind: EngagementUpdateKind,
-    extra: { assetId?: string } = {},
+    extra: { assetId?: string; severity?: string; title?: string } = {},
   ): void {
     this.events
       .publish({
         kind,
         engagementId,
         assetId: extra.assetId,
+        severity: extra.severity,
+        title: extra.title,
         ts: new Date().toISOString(),
       })
       .catch((err: unknown) => {
@@ -631,7 +633,11 @@ export class ParseJobProcessor extends WorkerHost {
         }),
       );
       findingsPersisted++;
-      this.publish(payload.engagementId, EngagementUpdateKind.FINDING_RAISED, { assetId });
+      this.publish(payload.engagementId, EngagementUpdateKind.FINDING_RAISED, {
+        assetId,
+        severity: finding.severity,
+        title: finding.title,
+      });
       this.publish(payload.engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, { assetId });
       this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId });
     }

@@ -14,6 +14,8 @@ export interface EngagementUpdateEvent {
   assetId?: string;
   templateRunId?: string;
   scanJobId?: string;
+  severity?: string;
+  title?: string;
   ts: string;
 }
 

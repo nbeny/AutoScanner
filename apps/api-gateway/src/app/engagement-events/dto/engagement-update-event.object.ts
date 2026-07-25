@@ -18,6 +18,12 @@ export class EngagementUpdateEventObject {
   @Field(() => ID, { nullable: true })
   templateRunId?: string;
 
+  @Field(() => String, { nullable: true })
+  severity?: string;
+
+  @Field(() => String, { nullable: true })
+  title?: string;
+
   @Field(() => String)
   ts!: string;
 }

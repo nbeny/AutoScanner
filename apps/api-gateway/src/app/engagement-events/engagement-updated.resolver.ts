@@ -25,6 +25,8 @@ export class EngagementUpdatedResolver {
       engagementId: ev.engagementId,
       assetId: ev.assetId,
       templateRunId: ev.templateRunId,
+      severity: ev.severity,
+      title: ev.title,
       ts: ev.ts,
     }),
   })
