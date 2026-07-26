@@ -13,6 +13,7 @@ import { IdentitiesPanel } from './identities-panel';
 import { EmailsPanel } from './emails-panel';
 import { SpoofabilityPanel } from './spoofability-panel';
 import { PhishingExposurePanel } from './phishing-exposure-panel';
+import { OsintGraphPanel } from './osint-graph-panel';
 import type { InvestigationFocus } from './seed-match';
 
 const sameFocus = (a: InvestigationFocus, b: InvestigationFocus) =>
@@ -91,6 +92,8 @@ export function OsintCockpitPage() {
           <QueuesWorkersPanel queues={data?.queueHealth ?? []} />
         </div>
       </div>
+
+      <OsintGraphPanel engagementId={scope} focus={focus} />
     </div>
   );
 }
