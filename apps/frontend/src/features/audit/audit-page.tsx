@@ -6,6 +6,7 @@ import { VulnerabilityDetailDrawer } from '../findings/vulnerability-detail-draw
 import { SeveritySparklinePanel } from '../cockpit/severity-sparkline-panel';
 import { RecentReportsPanel } from '../reports/recent-reports-panel';
 import { GenerateReportButton } from '../reports/generate-report-button';
+import { PhishingExposurePanel } from '../osint/phishing-exposure-panel';
 import { AuditPostureSummary } from './audit-posture-summary';
 
 export function AuditPage({ engagementId: engagementIdProp }: { engagementId?: string } = {}) {
@@ -30,6 +31,11 @@ export function AuditPage({ engagementId: engagementIdProp }: { engagementId?: s
         <AuditPostureSummary engagementId={scope} />
         <SeveritySparklinePanel engagementId={scope} />
       </div>
+
+      <section aria-label="audit-osint" className="space-y-2">
+        <h2 className="text-lg font-semibold text-slate-200">Exposition OSINT</h2>
+        <PhishingExposurePanel engagementId={scope} />
+      </section>
 
       <section aria-label="audit-findings" className="space-y-2">
         <h2 className="text-lg font-semibold text-slate-200">Findings corrélés</h2>

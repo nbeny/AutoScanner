@@ -31,6 +31,7 @@ describe('<AuditPage />', () => {
     );
     expect(screen.getByLabelText('audit-page')).toBeInTheDocument();
     expect(screen.getByLabelText('posture-summary')).toBeInTheDocument();
+    expect(screen.getByLabelText('audit-osint')).toBeInTheDocument();
     expect(screen.getByLabelText('audit-findings')).toBeInTheDocument();
     expect(screen.getByLabelText('audit-reports')).toBeInTheDocument();
     expect(screen.queryByLabelText('report-generate')).not.toBeInTheDocument();
