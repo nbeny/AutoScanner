@@ -46,7 +46,11 @@ describe('<OsintCommandBar />', () => {
     expect((screen.getByLabelText('osint-seed-type') as HTMLSelectElement).value).toBe('EMAIL');
     fireEvent.click(screen.getByRole('button', { name: 'Investiguer' }));
     await waitFor(() =>
-      expect(onLaunched).toHaveBeenCalledWith({ count: 3, seed: 'alice@corp.com' }),
+      expect(onLaunched).toHaveBeenCalledWith({
+        count: 3,
+        seed: 'alice@corp.com',
+        seedType: 'EMAIL',
+      }),
     );
   });
 
@@ -73,6 +77,8 @@ describe('<OsintCommandBar />', () => {
     fireEvent.change(screen.getByLabelText('osint-seed'), { target: { value: 'corp.com' } });
     fireEvent.change(screen.getByLabelText('osint-seed-type'), { target: { value: 'DOMAIN' } });
     fireEvent.click(screen.getByRole('button', { name: 'Investiguer' }));
-    await waitFor(() => expect(onLaunched).toHaveBeenCalledWith({ count: 7, seed: 'corp.com' }));
+    await waitFor(() =>
+      expect(onLaunched).toHaveBeenCalledWith({ count: 7, seed: 'corp.com', seedType: 'DOMAIN' }),
+    );
   });
 });

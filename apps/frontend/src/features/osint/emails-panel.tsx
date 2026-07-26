@@ -1,6 +1,7 @@
 import { useQuery } from '@apollo/client';
 import { Panel } from '../../components/ui/panel';
 import { EMAILS_QUERY } from '../../lib/graphql/queries';
+import { emailMatchesFocus, type InvestigationFocus } from './seed-match';
 
 interface EmailRow {
   id: string;
@@ -9,7 +10,13 @@ interface EmailRow {
   lastSeenAt: string;
 }
 
-export function EmailsPanel({ engagementId }: { engagementId?: string }) {
+export function EmailsPanel({
+  engagementId,
+  focus = null,
+}: {
+  engagementId?: string;
+  focus?: InvestigationFocus | null;
+}) {
   const { data, loading } = useQuery<{ emails: EmailRow[] }>(EMAILS_QUERY, {
     variables: { engagementId },
     skip: !engagementId,
@@ -17,7 +24,7 @@ export function EmailsPanel({ engagementId }: { engagementId?: string }) {
     fetchPolicy: 'cache-and-network',
   });
 
-  const rows = data?.emails ?? [];
+  const rows = (data?.emails ?? []).filter((e) => emailMatchesFocus(focus, e));
 
   return (
     <Panel aria-label="osint-emails" className="space-y-2">

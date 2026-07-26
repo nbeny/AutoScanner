@@ -12,7 +12,7 @@ import {
 export interface OsintCommandBarProps {
   engagementId?: string;
   pills: HealthPillData[];
-  onLaunched?: (result: { count: number; seed: string }) => void;
+  onLaunched?: (result: { count: number; seed: string; seedType: OsintSeedType }) => void;
 }
 
 export function OsintCommandBar({ engagementId, pills, onLaunched }: OsintCommandBarProps) {
@@ -35,7 +35,7 @@ export function OsintCommandBar({ engagementId, pills, onLaunched }: OsintComman
     const result = res.data?.runOsintScan;
     setSeed('');
     setManualType(null);
-    if (result) onLaunched?.({ count: result.count, seed: result.seed });
+    if (result) onLaunched?.({ count: result.count, seed: result.seed, seedType: result.seedType });
   }
 
   async function killSwitch() {

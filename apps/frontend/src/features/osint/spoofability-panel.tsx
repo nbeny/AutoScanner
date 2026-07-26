@@ -1,6 +1,7 @@
 import { useQuery } from '@apollo/client';
 import { Panel } from '../../components/ui/panel';
 import { ORG_METADATA_QUERY } from '../../lib/graphql/queries';
+import { orgMetaMatchesFocus, type InvestigationFocus } from './seed-match';
 
 interface OrgMetadataRow {
   id: string;
@@ -23,7 +24,13 @@ function summarize(data: unknown): string {
   return parts.join(' · ');
 }
 
-export function SpoofabilityPanel({ engagementId }: { engagementId?: string }) {
+export function SpoofabilityPanel({
+  engagementId,
+  focus = null,
+}: {
+  engagementId?: string;
+  focus?: InvestigationFocus | null;
+}) {
   const { data, loading } = useQuery<{ orgMetadata: OrgMetadataRow[] }>(ORG_METADATA_QUERY, {
     variables: { engagementId },
     skip: !engagementId,
@@ -31,7 +38,7 @@ export function SpoofabilityPanel({ engagementId }: { engagementId?: string }) {
     fetchPolicy: 'cache-and-network',
   });
 
-  const rows = data?.orgMetadata ?? [];
+  const rows = (data?.orgMetadata ?? []).filter((r) => orgMetaMatchesFocus(focus, r));
 
   return (
     <Panel aria-label="osint-spoofability" className="space-y-2">

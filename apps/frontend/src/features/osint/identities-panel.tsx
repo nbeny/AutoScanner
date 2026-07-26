@@ -1,6 +1,7 @@
 import { useQuery } from '@apollo/client';
 import { Panel } from '../../components/ui/panel';
 import { IDENTITIES_QUERY } from '../../lib/graphql/queries';
+import { identityMatchesFocus, type InvestigationFocus } from './seed-match';
 
 interface IdentityRow {
   id: string;
@@ -12,7 +13,13 @@ interface IdentityRow {
   lastSeenAt: string;
 }
 
-export function IdentitiesPanel({ engagementId }: { engagementId?: string }) {
+export function IdentitiesPanel({
+  engagementId,
+  focus = null,
+}: {
+  engagementId?: string;
+  focus?: InvestigationFocus | null;
+}) {
   const { data, loading } = useQuery<{ identities: IdentityRow[] }>(IDENTITIES_QUERY, {
     variables: { engagementId, seed: undefined },
     skip: !engagementId,
@@ -20,7 +27,7 @@ export function IdentitiesPanel({ engagementId }: { engagementId?: string }) {
     fetchPolicy: 'cache-and-network',
   });
 
-  const rows = data?.identities ?? [];
+  const rows = (data?.identities ?? []).filter((r) => identityMatchesFocus(focus, r));
 
   return (
     <Panel aria-label="osint-identities" className="space-y-2">
