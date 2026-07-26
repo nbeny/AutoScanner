@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { emailMatchesFocus, identityMatchesFocus, orgMetaMatchesFocus } from '../seed-match';
+import {
+  emailMatchesFocus,
+  findingMatchesFocus,
+  identityMatchesFocus,
+  orgMetaMatchesFocus,
+} from '../seed-match';
 
 describe('seed-match', () => {
   it('passes everything through when there is no focus', () => {
@@ -40,6 +45,20 @@ describe('seed-match', () => {
     it('hides emails for a USERNAME focus', () => {
       const focus = { seed: 'neo', seedType: 'USERNAME' as const };
       expect(emailMatchesFocus(focus, { address: 'neo@corp.com' })).toBe(false);
+    });
+  });
+
+  describe('findingMatchesFocus', () => {
+    it('matches a DOMAIN focus against the finding location', () => {
+      const focus = { seed: 'corp.com', seedType: 'DOMAIN' as const };
+      expect(findingMatchesFocus(focus, { location: 'corp.com' })).toBe(true);
+      expect(findingMatchesFocus(focus, { location: 'other.com' })).toBe(false);
+      expect(findingMatchesFocus(focus, { location: null })).toBe(false);
+    });
+
+    it('hides findings for a USERNAME focus', () => {
+      const focus = { seed: 'neo', seedType: 'USERNAME' as const };
+      expect(findingMatchesFocus(focus, { location: 'corp.com' })).toBe(false);
     });
   });
 

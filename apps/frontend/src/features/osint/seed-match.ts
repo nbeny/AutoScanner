@@ -44,6 +44,17 @@ export function emailMatchesFocus(
   return eq(domainPart(email.address), domain);
 }
 
+/** Whether a finding (whose `location` is a domain) is in focus. */
+export function findingMatchesFocus(
+  focus: InvestigationFocus | null,
+  finding: { location?: string | null },
+): boolean {
+  if (!focus) return true;
+  const domain = focusDomain(focus);
+  if (!domain || !finding.location) return false;
+  return eq(finding.location, domain);
+}
+
 /** Whether an org-metadata row (with an optional `data.domain`) is in focus. */
 export function orgMetaMatchesFocus(
   focus: InvestigationFocus | null,

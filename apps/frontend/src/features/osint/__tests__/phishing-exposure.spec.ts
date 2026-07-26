@@ -53,6 +53,40 @@ describe('computePhishingExposure', () => {
     expect(computePhishingExposure([{ address: 'a@corp.com' }], org)).toEqual([]);
   });
 
+  it('captures a spoofy finding as a spoofable domain', () => {
+    const findings = [{ title: 'SPOOFY_SPOOFABLE', location: 'corp.com' }];
+
+    const [exposure] = computePhishingExposure([{ address: 'a@corp.com' }], [], findings);
+
+    expect(exposure.domain).toBe('corp.com');
+    expect(exposure.emailCount).toBe(1);
+    expect(exposure.severity).toBe('HIGH');
+    expect(exposure.weaknesses).toContain('Domaine spoofable');
+  });
+
+  it('merges org-metadata and finding weaknesses for the same domain without duplicates', () => {
+    const org = [
+      { data: { domain: 'corp.com', spf: {}, dmarc: { record: 'v=DMARC1; p=reject' } } },
+    ];
+    const findings = [
+      { title: 'MAILSPOOF_SPF_MISSING', location: 'corp.com' },
+      { title: 'SPOOFY_DMARC_SPOOFABLE', location: 'corp.com' },
+    ];
+
+    const [exposure] = computePhishingExposure([], org, findings);
+
+    expect(exposure.weaknesses.filter((w) => w === 'SPF manquant')).toHaveLength(1);
+    expect(exposure.weaknesses).toContain('DMARC spoofable');
+  });
+
+  it('ignores findings without a location or with an unrelated title', () => {
+    const findings = [
+      { title: 'SPOOFY_SPOOFABLE', location: null },
+      { title: 'SOME_OTHER_FINDING', location: 'corp.com' },
+    ];
+    expect(computePhishingExposure([{ address: 'a@corp.com' }], [], findings)).toEqual([]);
+  });
+
   it('sorts HIGH before MEDIUM', () => {
     const org = [
       { data: { domain: 'low.com', spf: {}, dmarc: { record: 'v=DMARC1; p=reject' } } },

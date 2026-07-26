@@ -1,8 +1,13 @@
 import { useQuery } from '@apollo/client';
 import { Panel } from '../../components/ui/panel';
-import { EMAILS_QUERY, ORG_METADATA_QUERY } from '../../lib/graphql/queries';
+import { EMAILS_QUERY, ORG_METADATA_QUERY, FINDINGS_QUERY } from '../../lib/graphql/queries';
 import { computePhishingExposure } from './phishing-exposure';
-import { emailMatchesFocus, orgMetaMatchesFocus, type InvestigationFocus } from './seed-match';
+import {
+  emailMatchesFocus,
+  findingMatchesFocus,
+  orgMetaMatchesFocus,
+  type InvestigationFocus,
+} from './seed-match';
 
 interface EmailRow {
   id: string;
@@ -11,6 +16,11 @@ interface EmailRow {
 interface OrgMetaRow {
   id: string;
   data: unknown;
+}
+interface FindingRow {
+  id: string;
+  title: string;
+  location: string | null;
 }
 
 const SEV_COLOR: Record<string, string> = {
@@ -37,10 +47,17 @@ export function PhishingExposurePanel({
     pollInterval: 4000,
     fetchPolicy: 'cache-and-network',
   });
+  const findings = useQuery<{ findings: FindingRow[] }>(FINDINGS_QUERY, {
+    variables: { engagementId },
+    skip: !engagementId,
+    pollInterval: 4000,
+    fetchPolicy: 'cache-and-network',
+  });
 
   const emailRows = (emails.data?.emails ?? []).filter((e) => emailMatchesFocus(focus, e));
   const orgRows = (orgMeta.data?.orgMetadata ?? []).filter((r) => orgMetaMatchesFocus(focus, r));
-  const exposures = computePhishingExposure(emailRows, orgRows);
+  const findingRows = (findings.data?.findings ?? []).filter((f) => findingMatchesFocus(focus, f));
+  const exposures = computePhishingExposure(emailRows, orgRows, findingRows);
 
   return (
     <Panel aria-label="osint-phishing-exposure" className="space-y-2">
