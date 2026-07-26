@@ -55,6 +55,8 @@ describe('ReportProcessor', () => {
     finding: { findMany: jest.Mock };
     scan: { findMany: jest.Mock };
     cveCache: { findMany: jest.Mock };
+    email: { findMany: jest.Mock };
+    orgMetadata: { findMany: jest.Mock };
   };
   let storage: { putObject: jest.Mock };
   let pdf: { renderHtml: jest.Mock };
@@ -71,6 +73,8 @@ describe('ReportProcessor', () => {
       finding: { findMany: jest.fn().mockResolvedValue([]) },
       scan: { findMany: jest.fn().mockResolvedValue([]) },
       cveCache: { findMany: jest.fn().mockResolvedValue([]) },
+      email: { findMany: jest.fn().mockResolvedValue([]) },
+      orgMetadata: { findMany: jest.fn().mockResolvedValue([]) },
     };
     storage = { putObject: jest.fn().mockResolvedValue({ etag: 'etag-1' }) };
     pdf = { renderHtml: jest.fn().mockResolvedValue(Buffer.from('%PDF-mock')) };
@@ -200,6 +204,35 @@ describe('ReportProcessor', () => {
     const putArgs = storage.putObject.mock.calls[0][0];
     expect(putArgs.contentType).toBe('application/pdf');
     expect(putArgs.key).toBe('eng-1/r-1.pdf');
+  });
+
+  it('renders the OSINT phishing-exposure section into the PDF template', async () => {
+    prisma.report.findUnique.mockResolvedValueOnce(
+      makeReport({
+        format: ReportFormat.PDF,
+        templateSource:
+          '{{#each phishingExposure}}<tr><td>{{severity}}</td><td>{{domain}}</td><td>{{emailCount}}</td><td>{{join weaknesses}}</td></tr>{{/each}}',
+      }),
+    );
+    prisma.email.findMany.mockResolvedValueOnce([
+      { id: 'e-1', address: 'admin@corp.com' },
+      { id: 'e-2', address: 'ceo@corp.com' },
+    ]);
+    prisma.orgMetadata.findMany.mockResolvedValueOnce([
+      {
+        id: 'o-1',
+        data: { domain: 'corp.com', spf: {}, dmarc: { record: 'v=DMARC1', policy: 'none' } },
+      },
+    ]);
+
+    await processor.process(makeJob('r-1'));
+
+    const html = pdf.renderHtml.mock.calls[0][0] as string;
+    expect(html).toContain('HIGH');
+    expect(html).toContain('corp.com');
+    expect(html).toContain('SPF manquant');
+    // Handlebars HTML-escapes the '=' in "DMARC p=none" → assert the stable prefix.
+    expect(html).toContain('DMARC p');
   });
 
   it('marks Report FAILED and rethrows when render throws', async () => {

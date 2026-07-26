@@ -79,6 +79,11 @@ export class TemplateEngine {
       Array.isArray(arr) ? arr.length : 0,
     );
 
+    this.handlebars.registerHelper('join', (arr: unknown, sep: unknown) => {
+      const separator = typeof sep === 'string' ? sep : ', ';
+      return Array.isArray(arr) ? arr.join(separator) : '';
+    });
+
     this.handlebars.registerHelper('eq', (a: unknown, b: unknown) => a === b);
     this.handlebars.registerHelper('gt', (a: unknown, b: unknown) => Number(a) > Number(b));
     this.handlebars.registerHelper('lt', (a: unknown, b: unknown) => Number(a) < Number(b));

@@ -64,6 +64,34 @@
       </tbody>
     </table>
 
+    {{#if phishingExposure.length}}
+      <h2>Exposition phishing (OSINT)</h2>
+      <p class="meta">
+        Domaines dont l'authentification e-mail est faible (SPF/DMARC/DKIM), corrélés aux e-mails
+        exposés. Sévérité HIGH quand des e-mails exposés existent pour le domaine.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Sévérité</th>
+            <th>Domaine</th>
+            <th>E-mails exposés</th>
+            <th>Faiblesses</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each phishingExposure}}
+            <tr>
+              <td>{{severityBadge severity}}</td>
+              <td>{{domain}}</td>
+              <td>{{emailCount}}</td>
+              <td>{{join weaknesses}}</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    {{/if}}
+
     <h2>Recommandations</h2>
     <ol>
       {{#each recommendations}}

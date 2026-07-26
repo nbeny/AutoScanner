@@ -4,3 +4,4 @@ export * from './sarif-builder';
 export * from './json-exporter';
 export * from './pdf-renderer';
 export * from './template-sources';
+export * from './phishing-exposure';

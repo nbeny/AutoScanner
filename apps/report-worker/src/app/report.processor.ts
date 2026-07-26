@@ -22,6 +22,7 @@ import {
   SarifBuilder,
   type SarifFindingInput,
   TemplateEngine,
+  computePhishingExposure,
 } from '@autoscanner/reporting';
 
 const FORMAT_META: Record<ReportFormat, { ext: string; contentType: string }> = {
@@ -160,11 +161,21 @@ export class ReportProcessor extends WorkerHost {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+
+    // OSINT phishing exposure: correlate discovered emails with weak mail
+    // authentication (mailspoof org-metadata + mailspoof/spoofy findings).
+    const [emails, orgMetadata] = await Promise.all([
+      this.prisma.email.findMany({ where: { engagementId: report.engagementId } }),
+      this.prisma.orgMetadata.findMany({ where: { engagementId: report.engagementId } }),
+    ]);
+    const phishingExposure = computePhishingExposure(emails, orgMetadata, findings);
+
     return {
       engagement: engagement as unknown as Record<string, unknown>,
       assets,
       findings: findingsWithCvss,
       scans,
+      phishingExposure,
       generatedAt: new Date().toISOString(),
     };
   }
