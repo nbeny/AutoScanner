@@ -14,6 +14,7 @@ import { EngagementPage } from './features/engagements/engagement-page';
 import { ScanRunPage } from './features/scans/scan-run-page';
 import { TemplateRunPage } from './features/template-runs/template-run-page';
 import { CockpitPage } from './features/cockpit/cockpit-page';
+import { OsintCockpitPage } from './features/osint/osint-cockpit-page';
 import { TargetsLibraryPage } from './features/targets/targets-library-page';
 import { AuditPage } from './features/audit/audit-page';
 
@@ -55,6 +56,7 @@ export function AppRoutes({ email, onLogout }: AppRoutesProps) {
       >
         {/* Target IA */}
         <Route path="/" element={<CockpitPage />} />
+        <Route path="/osint" element={<OsintCockpitPage />} />
         <Route path="/targets" element={<TargetsLibraryPage />} />
         <Route path="/targets/:assetId" element={<AssetDetailPage />} />
         <Route path="/audit" element={<AuditPage />} />

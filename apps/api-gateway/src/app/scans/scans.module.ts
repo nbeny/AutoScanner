@@ -43,5 +43,6 @@ import './dto/scan-log-chunk.object';
       useFactory: (cfg: AppConfigService) => new IORedis(cfg.env.REDIS_URL, { lazyConnect: false }),
     },
   ],
+  exports: [ScansService],
 })
 export class ScansModule {}

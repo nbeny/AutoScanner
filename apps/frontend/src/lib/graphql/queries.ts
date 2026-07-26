@@ -607,6 +607,34 @@ export const ORG_METADATA_QUERY = gql`
   }
 `;
 
+export const IDENTITIES_QUERY = gql`
+  query Identities($engagementId: ID!, $seed: String) {
+    identities(engagementId: $engagementId, seed: $seed) {
+      id
+      kind
+      seed
+      service
+      url
+      source
+      lastSeenAt
+    }
+  }
+`;
+
+export const RUN_OSINT_SCAN_MUTATION = gql`
+  mutation RunOsintScan($input: RunOsintScanInput!) {
+    runOsintScan(input: $input) {
+      seed
+      seedType
+      count
+      launches {
+        scannerName
+        scanId
+      }
+    }
+  }
+`;
+
 export const API_CREDENTIALS_QUERY = gql`
   query ApiCredentials {
     apiCredentials {

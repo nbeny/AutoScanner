@@ -5,7 +5,7 @@ export default {
     extend: {
       colors: {
         space: { 950: '#05060d', 900: '#0b1020', 800: '#141e3c' },
-        neon: { cyan: '#22d3ee', violet: '#6366f1' },
+        neon: { cyan: '#22d3ee', violet: '#6366f1', magenta: '#e879f9' },
       },
       boxShadow: {
         glow: '0 0 24px rgba(40,120,255,0.15)',

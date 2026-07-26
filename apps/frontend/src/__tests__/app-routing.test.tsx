@@ -83,4 +83,9 @@ describe('app routing (target IA)', () => {
     renderAt('/targets', session);
     expect(screen.getByLabelText('targets-library')).toBeInTheDocument();
   });
+
+  it('renders the OSINT cockpit at /osint', () => {
+    renderAt('/osint', session);
+    expect(screen.getByLabelText('osint-command-bar')).toBeInTheDocument();
+  });
 });
