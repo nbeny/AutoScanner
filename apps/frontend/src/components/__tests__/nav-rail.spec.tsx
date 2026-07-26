@@ -4,14 +4,15 @@ import { render, screen } from '@testing-library/react';
 import { NavRail } from '../nav-rail';
 
 describe('<NavRail />', () => {
-  it('renders the six primary destinations with their routes', () => {
+  it('renders the primary destinations with their routes', () => {
     render(
       <MemoryRouter>
         <NavRail />
       </MemoryRouter>,
     );
     const links: Array<[string, string]> = [
-      ['Cockpit', '/'],
+      ['Recon', '/'],
+      ['OSINT', '/osint'],
       ['Cibles', '/targets'],
       ['Audit', '/audit'],
       ['Outils', '/tools'],

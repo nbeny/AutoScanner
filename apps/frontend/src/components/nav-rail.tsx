@@ -7,7 +7,8 @@ export interface NavRailItem {
 }
 
 export const NAV_ITEMS: NavRailItem[] = [
-  { to: '/', label: 'Cockpit', icon: '◎' },
+  { to: '/', label: 'Recon', icon: '◎' },
+  { to: '/osint', label: 'OSINT', icon: '☌' },
   { to: '/targets', label: 'Cibles', icon: '⌖' },
   { to: '/audit', label: 'Audit', icon: '❖' },
   { to: '/tools', label: 'Outils', icon: '⚙' },

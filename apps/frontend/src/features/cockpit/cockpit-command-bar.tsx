@@ -9,6 +9,20 @@ export interface CockpitCommandBarProps {
   onLaunched?: () => void;
 }
 
+/** Common recon scanners surfaced in the quick-launch selector. */
+export const RECON_SCANNERS = [
+  'nmap',
+  'naabu',
+  'rustscan',
+  'masscan',
+  'httpx',
+  'whatweb',
+  'nuclei',
+  'ffuf',
+  'katana',
+  'subfinder',
+] as const;
+
 export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCommandBarProps) {
   const [target, setTarget] = useState('');
   const [scanner, setScanner] = useState('nmap');
@@ -50,12 +64,18 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
         placeholder="IP / domaine / URL"
         className="w-56 rounded-md border border-space-800 bg-space-900 px-2 py-1 text-sm text-slate-100"
       />
-      <input
+      <select
         aria-label="quick-scanner"
         value={scanner}
         onChange={(e) => setScanner(e.target.value)}
-        className="w-28 rounded-md border border-space-800 bg-space-900 px-2 py-1 text-sm text-slate-100"
-      />
+        className="w-32 rounded-md border border-space-800 bg-space-900 px-2 py-1 text-sm text-slate-100"
+      >
+        {RECON_SCANNERS.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
       <button
         type="button"
         onClick={() => void launch()}
