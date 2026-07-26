@@ -1,0 +1,18 @@
+{
+  "name": "scanners-smuggler",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/smuggler/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/smuggler"],
+      "options": { "jestConfig": "libs/scanners/smuggler/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/smuggler/tsconfig.lib.json" }
+    }
+  }
+}

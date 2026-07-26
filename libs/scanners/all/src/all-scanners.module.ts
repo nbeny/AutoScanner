@@ -100,6 +100,15 @@ import { SpoofyScannerModule } from '@autoscanner/scanners-spoofy';
 import { SwaksScannerModule } from '@autoscanner/scanners-swaks';
 import { EmailfinderScannerModule } from '@autoscanner/scanners-emailfinder';
 import { EmailrepScannerModule } from '@autoscanner/scanners-emailrep';
+import { PhoneinfogaScannerModule } from '@autoscanner/scanners-phoneinfoga';
+import { SherlockScannerModule } from '@autoscanner/scanners-sherlock';
+import { SocialscanScannerModule } from '@autoscanner/scanners-socialscan';
+import { InternetdbScannerModule } from '@autoscanner/scanners-internetdb';
+import { CrlfuzzScannerModule } from '@autoscanner/scanners-crlfuzz';
+import { TrivyScannerModule } from '@autoscanner/scanners-trivy';
+import { OralyzerScannerModule } from '@autoscanner/scanners-oralyzer';
+import { SmugglerScannerModule } from '@autoscanner/scanners-smuggler';
+import { TestsslScannerModule } from '@autoscanner/scanners-testssl';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -210,6 +219,15 @@ const SCANNER_MODULES = [
   SwaksScannerModule,
   EmailfinderScannerModule,
   EmailrepScannerModule,
+  PhoneinfogaScannerModule,
+  SherlockScannerModule,
+  SocialscanScannerModule,
+  InternetdbScannerModule,
+  CrlfuzzScannerModule,
+  TrivyScannerModule,
+  OralyzerScannerModule,
+  SmugglerScannerModule,
+  TestsslScannerModule,
 ];
 
 @Module({

@@ -145,6 +145,15 @@
       "@autoscanner/scanners-swaks": ["libs/scanners/swaks/src/index.ts"],
       "@autoscanner/scanners-emailfinder": ["libs/scanners/emailfinder/src/index.ts"],
       "@autoscanner/scanners-emailrep": ["libs/scanners/emailrep/src/index.ts"],
+      "@autoscanner/scanners-phoneinfoga": ["libs/scanners/phoneinfoga/src/index.ts"],
+      "@autoscanner/scanners-sherlock": ["libs/scanners/sherlock/src/index.ts"],
+      "@autoscanner/scanners-socialscan": ["libs/scanners/socialscan/src/index.ts"],
+      "@autoscanner/scanners-internetdb": ["libs/scanners/internetdb/src/index.ts"],
+      "@autoscanner/scanners-crlfuzz": ["libs/scanners/crlfuzz/src/index.ts"],
+      "@autoscanner/scanners-trivy": ["libs/scanners/trivy/src/index.ts"],
+      "@autoscanner/scanners-oralyzer": ["libs/scanners/oralyzer/src/index.ts"],
+      "@autoscanner/scanners-smuggler": ["libs/scanners/smuggler/src/index.ts"],
+      "@autoscanner/scanners-testssl": ["libs/scanners/testssl/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }

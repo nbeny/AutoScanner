@@ -88,6 +88,15 @@ import { SpoofyJsonParser } from './spoofy-json';
 import { SwaksTextParser } from './swaks-text';
 import { EmailfinderJsonParser } from './emailfinder-json';
 import { EmailrepJsonlParser } from './emailrep-jsonl';
+import { PhoneinfogaTextParser } from './phoneinfoga-text';
+import { SherlockTextParser } from './sherlock-text';
+import { SocialscanJsonParser } from './socialscan-json';
+import { InternetdbJsonParser } from './internetdb-json';
+import { CrlfuzzTextParser } from './crlfuzz-text';
+import { TrivyJsonParser } from './trivy-json';
+import { OralyzerTextParser } from './oralyzer-text';
+import { SmugglerTextParser } from './smuggler-text';
+import { TestsslJsonParser } from './testssl-json';
 
 @Global()
 @Module({
@@ -181,6 +190,15 @@ import { EmailrepJsonlParser } from './emailrep-jsonl';
     SwaksTextParser,
     EmailfinderJsonParser,
     EmailrepJsonlParser,
+    PhoneinfogaTextParser,
+    SherlockTextParser,
+    SocialscanJsonParser,
+    InternetdbJsonParser,
+    CrlfuzzTextParser,
+    TrivyJsonParser,
+    OralyzerTextParser,
+    SmugglerTextParser,
+    TestsslJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -272,6 +290,15 @@ import { EmailrepJsonlParser } from './emailrep-jsonl';
     SwaksTextParser,
     EmailfinderJsonParser,
     EmailrepJsonlParser,
+    PhoneinfogaTextParser,
+    SherlockTextParser,
+    SocialscanJsonParser,
+    InternetdbJsonParser,
+    CrlfuzzTextParser,
+    TrivyJsonParser,
+    OralyzerTextParser,
+    SmugglerTextParser,
+    TestsslJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -365,6 +392,15 @@ export class ParsersModule implements OnModuleInit {
     private readonly swaksText: SwaksTextParser,
     private readonly emailfinderJson: EmailfinderJsonParser,
     private readonly emailrepJsonl: EmailrepJsonlParser,
+    private readonly phoneinfogaText: PhoneinfogaTextParser,
+    private readonly sherlockText: SherlockTextParser,
+    private readonly socialscanJson: SocialscanJsonParser,
+    private readonly internetdbJson: InternetdbJsonParser,
+    private readonly crlfuzzText: CrlfuzzTextParser,
+    private readonly trivyJson: TrivyJsonParser,
+    private readonly oralyzerText: OralyzerTextParser,
+    private readonly smugglerText: SmugglerTextParser,
+    private readonly testsslJson: TestsslJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -456,5 +492,14 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.swaksText);
     this.registry.register(this.emailfinderJson);
     this.registry.register(this.emailrepJsonl);
+    this.registry.register(this.phoneinfogaText);
+    this.registry.register(this.sherlockText);
+    this.registry.register(this.socialscanJson);
+    this.registry.register(this.internetdbJson);
+    this.registry.register(this.crlfuzzText);
+    this.registry.register(this.trivyJson);
+    this.registry.register(this.oralyzerText);
+    this.registry.register(this.smugglerText);
+    this.registry.register(this.testsslJson);
   }
 }
