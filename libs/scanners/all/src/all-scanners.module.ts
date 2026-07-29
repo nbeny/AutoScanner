@@ -116,6 +116,7 @@ import { GitDumperScannerModule } from '@autoscanner/scanners-git-dumper';
 import { ExposedConfigScannerModule } from '@autoscanner/scanners-exposed-config';
 import { MantraScannerModule } from '@autoscanner/scanners-mantra';
 import { LlmReconScannerModule } from '@autoscanner/scanners-llm-recon';
+import { LlmAttackScannerModule } from '@autoscanner/scanners-llm-attack';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -242,6 +243,7 @@ const SCANNER_MODULES = [
   ExposedConfigScannerModule,
   MantraScannerModule,
   LlmReconScannerModule,
+  LlmAttackScannerModule,
 ];
 
 @Module({
