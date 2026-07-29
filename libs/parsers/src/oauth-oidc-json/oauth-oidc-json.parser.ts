@@ -27,6 +27,7 @@ export class OauthOidcJsonParser implements Parser {
     } catch {
       return out;
     }
+    if (!report || typeof report !== 'object') return out;
     const location = report.metadataUrl ?? ctx.target;
     for (const f of report.findings ?? []) {
       const item = f as { title?: string; severity?: unknown; detail?: string };

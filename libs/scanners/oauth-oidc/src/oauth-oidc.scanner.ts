@@ -15,8 +15,9 @@ export const OauthOidcScanner: ScannerDefinition<OauthOidcInputType> = {
   displayName: 'OAuth/OIDC misconfig',
   category: [ScannerCategory.API_SECURITY],
   description:
-    'Probes an OAuth 2.0 / OpenID Connect issuer for misconfiguration: implicit flow enabled, ' +
-    'missing PKCE support, and loose redirect_uri handling, via its .well-known metadata.',
+    'Probes an OAuth 2.0 / OpenID Connect issuer for misconfiguration via its .well-known ' +
+    'metadata: implicit/hybrid flow enabled, missing PKCE support, and id_token signing that ' +
+    'permits "none".',
   inputSchema: OauthOidcInput,
   docker: {
     image: 'autoscanner/oauth-oidc:1.0',

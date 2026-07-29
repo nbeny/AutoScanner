@@ -35,7 +35,7 @@ def main():
         return
 
     rt = [str(x).lower() for x in meta.get("response_types_supported", [])]
-    if any("token" in t and "code" != t for t in rt):
+    if any("token" in t for t in rt):
         report["findings"].append({
             "id": "implicit-flow", "severity": "MEDIUM",
             "title": "Implicit flow enabled",

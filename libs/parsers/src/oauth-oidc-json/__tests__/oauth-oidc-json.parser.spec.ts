@@ -53,6 +53,11 @@ describe('OauthOidcJsonParser', () => {
     expect(out.findings).toEqual([]);
   });
 
+  it('returns empty output when the JSON is null', async () => {
+    const out = await parser.parse('null', ctx);
+    expect(out.findings).toEqual([]);
+  });
+
   it('clamps an unknown severity to INFO', async () => {
     const report = JSON.stringify({
       metadataUrl: 'u',
