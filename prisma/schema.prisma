@@ -115,6 +115,7 @@ model Engagement {
   endpoints          Endpoint[]
   emails             Email[]
   identities         Identity[]
+  breachExposures    BreachExposure[]
   orgMetadata        OrgMetadata[]
   tlsCertificates    TlsCertificate[]
   correlatedFindings CorrelatedFinding[]
@@ -572,6 +573,8 @@ enum ApiProvider {
   FOFA
   UNCOVER
   EMAILREP
+  INTELX
+  LEAKIX
 }
 
 model Email {
@@ -583,7 +586,8 @@ model Email {
   lastSeenAt   DateTime @default(now())
   metadata     Json?
 
-  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  engagement      Engagement       @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  breachExposures BreachExposure[]
 
   @@unique([engagementId, address])
   @@index([engagementId])
@@ -601,10 +605,37 @@ model Identity {
   lastSeenAt   DateTime @default(now())
   metadata     Json?
 
-  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  engagement      Engagement       @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  breachExposures BreachExposure[]
 
   @@unique([engagementId, kind, seed, service])
   @@index([engagementId])
+}
+
+model BreachExposure {
+  id              String    @id @default(cuid())
+  engagementId    String
+  emailId         String?
+  identityId      String?
+  seed            String
+  breachName      String
+  breachDate      DateTime?
+  dataClasses     String[]
+  passwordExposed Boolean   @default(false)
+  severity        Severity
+  source          String
+  raw             Json?
+  firstSeenAt     DateTime  @default(now())
+  lastSeenAt      DateTime  @default(now())
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  email      Email?     @relation(fields: [emailId], references: [id], onDelete: SetNull)
+  identity   Identity?  @relation(fields: [identityId], references: [id], onDelete: SetNull)
+
+  @@unique([engagementId, seed, breachName, source])
+  @@index([engagementId])
+  @@index([emailId])
+  @@index([identityId])
 }
 
 model OrgMetadata {
