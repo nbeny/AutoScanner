@@ -154,6 +154,7 @@
       "@autoscanner/scanners-oralyzer": ["libs/scanners/oralyzer/src/index.ts"],
       "@autoscanner/scanners-smuggler": ["libs/scanners/smuggler/src/index.ts"],
       "@autoscanner/scanners-testssl": ["libs/scanners/testssl/src/index.ts"],
+      "@autoscanner/scanners-jwt-tool": ["libs/scanners/jwt-tool/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
