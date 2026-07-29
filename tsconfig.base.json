@@ -164,6 +164,7 @@
       "@autoscanner/scanners-llm-attack": ["libs/scanners/llm-attack/src/index.ts"],
       "@autoscanner/scanners-garak": ["libs/scanners/garak/src/index.ts"],
       "@autoscanner/scanners-h8mail": ["libs/scanners/h8mail/src/index.ts"],
+      "@autoscanner/scanners-leakix": ["libs/scanners/leakix/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }

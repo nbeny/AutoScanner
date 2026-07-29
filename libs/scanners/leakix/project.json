@@ -1,0 +1,18 @@
+{
+  "name": "scanners-leakix",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/leakix/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/leakix"],
+      "options": { "jestConfig": "libs/scanners/leakix/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/leakix/tsconfig.lib.json" }
+    }
+  }
+}
