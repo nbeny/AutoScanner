@@ -155,6 +155,7 @@
       "@autoscanner/scanners-smuggler": ["libs/scanners/smuggler/src/index.ts"],
       "@autoscanner/scanners-testssl": ["libs/scanners/testssl/src/index.ts"],
       "@autoscanner/scanners-jwt-tool": ["libs/scanners/jwt-tool/src/index.ts"],
+      "@autoscanner/scanners-oauth-oidc": ["libs/scanners/oauth-oidc/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
