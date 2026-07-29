@@ -105,6 +105,7 @@ import { MantraTextParser } from './mantra-text';
 import { LlmReconJsonParser } from './llm-recon-json';
 import { LlmAttackJsonParser } from './llm-attack-json';
 import { GarakJsonlParser } from './garak-jsonl';
+import { H8mailJsonParser } from './h8mail-json';
 
 @Global()
 @Module({
@@ -215,6 +216,7 @@ import { GarakJsonlParser } from './garak-jsonl';
     LlmReconJsonParser,
     LlmAttackJsonParser,
     GarakJsonlParser,
+    H8mailJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -323,6 +325,7 @@ import { GarakJsonlParser } from './garak-jsonl';
     LlmReconJsonParser,
     LlmAttackJsonParser,
     GarakJsonlParser,
+    H8mailJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -433,6 +436,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly llmReconJson: LlmReconJsonParser,
     private readonly llmAttackJson: LlmAttackJsonParser,
     private readonly garakJsonl: GarakJsonlParser,
+    private readonly h8mailJson: H8mailJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -541,5 +545,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.llmReconJson);
     this.registry.register(this.llmAttackJson);
     this.registry.register(this.garakJsonl);
+    this.registry.register(this.h8mailJson);
   }
 }
