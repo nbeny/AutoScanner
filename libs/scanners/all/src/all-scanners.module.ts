@@ -110,6 +110,7 @@ import { OralyzerScannerModule } from '@autoscanner/scanners-oralyzer';
 import { SmugglerScannerModule } from '@autoscanner/scanners-smuggler';
 import { TestsslScannerModule } from '@autoscanner/scanners-testssl';
 import { JwtToolScannerModule } from '@autoscanner/scanners-jwt-tool';
+import { OauthOidcScannerModule } from '@autoscanner/scanners-oauth-oidc';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -230,6 +231,7 @@ const SCANNER_MODULES = [
   SmugglerScannerModule,
   TestsslScannerModule,
   JwtToolScannerModule,
+  OauthOidcScannerModule,
 ];
 
 @Module({
