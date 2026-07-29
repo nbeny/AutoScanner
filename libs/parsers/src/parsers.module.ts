@@ -104,6 +104,7 @@ import { GitDumperJsonParser } from './git-dumper-json';
 import { MantraTextParser } from './mantra-text';
 import { LlmReconJsonParser } from './llm-recon-json';
 import { LlmAttackJsonParser } from './llm-attack-json';
+import { GarakJsonlParser } from './garak-jsonl';
 
 @Global()
 @Module({
@@ -213,6 +214,7 @@ import { LlmAttackJsonParser } from './llm-attack-json';
     MantraTextParser,
     LlmReconJsonParser,
     LlmAttackJsonParser,
+    GarakJsonlParser,
   ],
   exports: [
     ParserRegistry,
@@ -320,6 +322,7 @@ import { LlmAttackJsonParser } from './llm-attack-json';
     MantraTextParser,
     LlmReconJsonParser,
     LlmAttackJsonParser,
+    GarakJsonlParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -429,6 +432,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly mantraText: MantraTextParser,
     private readonly llmReconJson: LlmReconJsonParser,
     private readonly llmAttackJson: LlmAttackJsonParser,
+    private readonly garakJsonl: GarakJsonlParser,
   ) {}
 
   onModuleInit(): void {
@@ -536,5 +540,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.mantraText);
     this.registry.register(this.llmReconJson);
     this.registry.register(this.llmAttackJson);
+    this.registry.register(this.garakJsonl);
   }
 }
