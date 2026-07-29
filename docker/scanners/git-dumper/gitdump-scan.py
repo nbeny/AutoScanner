@@ -36,9 +36,9 @@ def is_exposed(git_url):
 
 def sweep(root):
     findings = []
-    for dirpath, _dirs, files in os.walk(root):
-        if os.path.basename(dirpath) == ".git":
-            continue  # skip git internals; scan the recovered working tree
+    for dirpath, dirs, files in os.walk(root):
+        if ".git" in dirs:
+            dirs.remove(".git")  # prune the whole .git subtree; scan only the working tree
         for name in files:
             path = os.path.join(dirpath, name)
             try:
