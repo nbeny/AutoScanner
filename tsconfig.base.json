@@ -161,6 +161,7 @@
       "@autoscanner/scanners-exposed-config": ["libs/scanners/exposed-config/src/index.ts"],
       "@autoscanner/scanners-mantra": ["libs/scanners/mantra/src/index.ts"],
       "@autoscanner/scanners-llm-recon": ["libs/scanners/llm-recon/src/index.ts"],
+      "@autoscanner/scanners-llm-attack": ["libs/scanners/llm-attack/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
