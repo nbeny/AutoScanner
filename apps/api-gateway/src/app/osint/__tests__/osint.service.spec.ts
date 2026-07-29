@@ -17,6 +17,7 @@ describe('OsintService', () => {
       email: { findMany: jest.fn() },
       orgMetadata: { findMany: jest.fn() },
       identity: { findMany: jest.fn() },
+      breachExposure: { findMany: jest.fn() },
     } as unknown as jest.Mocked<PrismaService>;
     scans = { runScan: jest.fn() };
     svc = new OsintService(prisma, scans as unknown as ScansService);
@@ -121,6 +122,64 @@ describe('OsintService', () => {
         where: { engagementId, seed: 'alice' },
         orderBy: { lastSeenAt: 'desc' },
       });
+    });
+  });
+
+  describe('breachExposures', () => {
+    it('throws NotFoundError when the engagement is not owned by the user', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(svc.breachExposures(userId, engagementId)).rejects.toBeInstanceOf(NotFoundError);
+      expect(prisma.breachExposure.findMany).not.toHaveBeenCalled();
+    });
+
+    it('filters by engagement only when no seed is given, ordered by severity then lastSeenAt desc', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (prisma.breachExposure.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.breachExposures(userId, engagementId);
+
+      expect(prisma.breachExposure.findMany).toHaveBeenCalledWith({
+        where: { engagementId },
+        orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }],
+      });
+    });
+
+    it('adds the seed filter when a seed is given', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      (prisma.breachExposure.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await svc.breachExposures(userId, engagementId, 'alice@corp.com');
+
+      expect(prisma.breachExposure.findMany).toHaveBeenCalledWith({
+        where: { engagementId, seed: 'alice@corp.com' },
+        orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }],
+      });
+    });
+
+    it('returns the rows from findMany', async () => {
+      (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
+      const fixture = [
+        {
+          id: 'be_1',
+          engagementId,
+          emailId: 'em_1',
+          seed: 'alice@corp.com',
+          breachName: 'linkedin.com',
+          breachDate: null,
+          dataClasses: ['Passwords'],
+          passwordExposed: true,
+          severity: 'HIGH',
+          source: 'H8MAIL',
+          firstSeenAt: new Date('2026-05-01'),
+          lastSeenAt: new Date('2026-05-02'),
+        },
+      ];
+      (prisma.breachExposure.findMany as jest.Mock).mockResolvedValueOnce(fixture);
+
+      const result = await svc.breachExposures(userId, engagementId);
+
+      expect(result).toBe(fixture);
     });
   });
 

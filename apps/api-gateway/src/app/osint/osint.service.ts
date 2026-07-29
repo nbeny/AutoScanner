@@ -3,6 +3,7 @@ import { NotFoundError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 
 import { ScansService } from '../scans/scans.service';
+import { BreachExposureObject } from './dto/breach-exposure.object';
 import { EmailObject } from './dto/email.object';
 import { IdentityObject } from './dto/identity.object';
 import { OrgMetadataObject } from './dto/org-metadata.object';
@@ -48,6 +49,18 @@ export class OsintService {
     return this.prisma.identity.findMany({
       where: { engagementId, ...(seed ? { seed } : {}) },
       orderBy: { lastSeenAt: 'desc' },
+    });
+  }
+
+  async breachExposures(
+    userId: string,
+    engagementId: string,
+    seed?: string,
+  ): Promise<BreachExposureObject[]> {
+    await this.assertOwnedEngagement(userId, engagementId);
+    return this.prisma.breachExposure.findMany({
+      where: { engagementId, ...(seed ? { seed } : {}) },
+      orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }],
     });
   }
 
