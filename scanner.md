@@ -1,6 +1,6 @@
 # Scanner inventory
 
-Full list of the **109** scanners registered in
+Full list of the **110** scanners registered in
 [`libs/scanners/all/src/all-scanners.module.ts`](libs/scanners/all/src/all-scanners.module.ts).
 Each adapter lives at `libs/scanners/<name>/src/<name>.scanner.ts` and exports a
 `ScannerDefinition` (name, `category[]`, `inputSchema`, `docker` spec, `build()`, `outputs[]`).
@@ -57,7 +57,7 @@ The two groups below split on the scanner's declared `ScannerCategory`:
 
 ---
 
-## IP / active-scanning scanners (79)
+## IP / active-scanning scanners (80)
 
 ### Subdomain / DNS discovery (14)
 
@@ -187,11 +187,12 @@ The two groups below split on the scanner's declared `ScannerCategory`:
 | `smtp-recon` | `smtp-recon/`            | `instrumentisto/nmap:7.98-r2` | nmap NSE (SMTP scripts) | SMTP       |
 | `swaks`      | `swaks/`                 | `autoscanner/swaks:1.0`       | swaks                   | SMTP       |
 
-### Auth / token (1)
+### Auth / token (2)
 
-| Scanner    | Path (`libs/scanners/…`) | Docker image               | Underlying tool | Categories              |
-| ---------- | ------------------------ | -------------------------- | --------------- | ----------------------- |
-| `jwt-tool` | `jwt-tool/`              | `autoscanner/jwt-tool:1.0` | jwt_tool        | API_SECURITY, VULN_SCAN |
+| Scanner      | Path (`libs/scanners/…`) | Docker image                 | Underlying tool | Categories              |
+| ------------ | ------------------------ | ---------------------------- | --------------- | ----------------------- |
+| `jwt-tool`   | `jwt-tool/`              | `autoscanner/jwt-tool:1.0`   | jwt_tool        | API_SECURITY, VULN_SCAN |
+| `oauth-oidc` | `oauth-oidc/`            | `autoscanner/oauth-oidc:1.0` | custom probe    | API_SECURITY            |
 
 ---
 
