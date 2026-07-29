@@ -119,6 +119,7 @@ import { LlmReconScannerModule } from '@autoscanner/scanners-llm-recon';
 import { LlmAttackScannerModule } from '@autoscanner/scanners-llm-attack';
 import { GarakScannerModule } from '@autoscanner/scanners-garak';
 import { H8mailScannerModule } from '@autoscanner/scanners-h8mail';
+import { LeakixScannerModule } from '@autoscanner/scanners-leakix';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -248,6 +249,7 @@ const SCANNER_MODULES = [
   LlmAttackScannerModule,
   GarakScannerModule,
   H8mailScannerModule,
+  LeakixScannerModule,
 ];
 
 @Module({
