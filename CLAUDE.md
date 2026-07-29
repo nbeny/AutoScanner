@@ -4,7 +4,7 @@ Guidance for Claude Code (and other AI agents) working in this repository. See `
 
 ## What this is
 
-AutoScanner is a single-operator pentest/red-team platform. It runs **111 security scanners** (Kali/ProjectDiscovery tools) in sandboxed Docker containers, normalises their output into a unified asset/finding model, correlates duplicate findings across tools, enriches with CVE data, and scores risk. Nx 20 monorepo, NestJS 11, Prisma 6 (PostgreSQL), Redis/BullMQ, MinIO, Apollo GraphQL, React frontend.
+AutoScanner is a single-operator pentest/red-team platform. It runs **114 security scanners** (Kali/ProjectDiscovery tools) in sandboxed Docker containers, normalises their output into a unified asset/finding model, correlates duplicate findings across tools, enriches with CVE data, and scores risk. Nx 20 monorepo, NestJS 11, Prisma 6 (PostgreSQL), Redis/BullMQ, MinIO, Apollo GraphQL, React frontend.
 
 The full per-scanner inventory (name, path, Docker image, underlying CLI tool, categories) — split into the OSINT / passive group and the IP / active-scanning group — lives in [`scanner.md`](scanner.md). Regenerate it from `libs/scanners/all/src/all-scanners.module.ts` whenever scanners are added or removed.
 
