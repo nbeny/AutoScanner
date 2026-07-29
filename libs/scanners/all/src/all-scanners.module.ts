@@ -114,6 +114,7 @@ import { OauthOidcScannerModule } from '@autoscanner/scanners-oauth-oidc';
 import { SamlReconScannerModule } from '@autoscanner/scanners-saml-recon';
 import { GitDumperScannerModule } from '@autoscanner/scanners-git-dumper';
 import { ExposedConfigScannerModule } from '@autoscanner/scanners-exposed-config';
+import { MantraScannerModule } from '@autoscanner/scanners-mantra';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -238,6 +239,7 @@ const SCANNER_MODULES = [
   SamlReconScannerModule,
   GitDumperScannerModule,
   ExposedConfigScannerModule,
+  MantraScannerModule,
 ];
 
 @Module({
