@@ -112,6 +112,7 @@ import { TestsslScannerModule } from '@autoscanner/scanners-testssl';
 import { JwtToolScannerModule } from '@autoscanner/scanners-jwt-tool';
 import { OauthOidcScannerModule } from '@autoscanner/scanners-oauth-oidc';
 import { SamlReconScannerModule } from '@autoscanner/scanners-saml-recon';
+import { GitDumperScannerModule } from '@autoscanner/scanners-git-dumper';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -234,6 +235,7 @@ const SCANNER_MODULES = [
   JwtToolScannerModule,
   OauthOidcScannerModule,
   SamlReconScannerModule,
+  GitDumperScannerModule,
 ];
 
 @Module({
