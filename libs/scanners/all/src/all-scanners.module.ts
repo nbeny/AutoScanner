@@ -109,6 +109,7 @@ import { TrivyScannerModule } from '@autoscanner/scanners-trivy';
 import { OralyzerScannerModule } from '@autoscanner/scanners-oralyzer';
 import { SmugglerScannerModule } from '@autoscanner/scanners-smuggler';
 import { TestsslScannerModule } from '@autoscanner/scanners-testssl';
+import { JwtToolScannerModule } from '@autoscanner/scanners-jwt-tool';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -228,6 +229,7 @@ const SCANNER_MODULES = [
   OralyzerScannerModule,
   SmugglerScannerModule,
   TestsslScannerModule,
+  JwtToolScannerModule,
 ];
 
 @Module({
