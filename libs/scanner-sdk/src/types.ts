@@ -24,6 +24,7 @@ export enum ScannerCategory {
   SMTP = 'smtp',
   SNMP = 'snmp',
   IOT_ICS = 'iot-ics',
+  AI_LLM = 'ai-llm',
   IMPORT_ONLY = 'import-only',
 }
 
