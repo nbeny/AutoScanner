@@ -28,8 +28,9 @@ export const JwtToolScanner: ScannerDefinition<JwtToolInputType> = {
   displayName: 'jwt_tool',
   category: [ScannerCategory.API_SECURITY, ScannerCategory.VULN_SCAN],
   description:
-    'JWT attack toolkit (ticarpi/jwt_tool). Runs the "all tests" playbook (alg:none, ' +
-    'key confusion, claim tampering) and a weak-secret dictionary crack against a supplied token.',
+    'JWT analysis (ticarpi/jwt_tool). Decodes and inspects a supplied token (surfacing ' +
+    'alg:none / weak signing algorithms) and runs an offline dictionary crack to detect ' +
+    'JWTs signed with a weak or known secret. Offline only — no requests are sent to the target.',
   inputSchema: JwtToolInput,
   docker: {
     image: 'autoscanner/jwt-tool:1.0',
@@ -45,9 +46,9 @@ export const JwtToolScanner: ScannerDefinition<JwtToolInputType> = {
       return { cmd: ['sh', '-lc', "printf 'NO_TOKEN\\n' > /out/result.txt"] };
     }
     const token = shEscape(input.token);
-    const wl = input.wordlist;
+    const wl = input.wordlist; // constrained by SAFE_PATH_RE; unescaped to match the parser/CLI literal
     const run =
-      `jwt_tool ${token} -M at > /out/result.txt 2>&1; ` +
+      `jwt_tool ${token} > /out/result.txt 2>&1; ` +
       `jwt_tool ${token} -C -d ${wl} >> /out/result.txt 2>&1`;
     return { cmd: ['sh', '-lc', run] };
   },

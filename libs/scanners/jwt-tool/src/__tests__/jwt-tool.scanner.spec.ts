@@ -15,7 +15,7 @@ describe('JwtToolScanner', () => {
     expect(JwtToolScanner.produces).toEqual(['Finding']);
   });
 
-  it('build() runs jwt_tool playbook + crack against the token', () => {
+  it('build() decodes + cracks the token offline', () => {
     const input = JwtToolScanner.inputSchema.parse({
       token: 'eyJhbGciOiJIUzI1NiJ9.e30.abc',
     });
@@ -23,7 +23,6 @@ describe('JwtToolScanner', () => {
     expect(cmd[0]).toBe('sh');
     expect(cmd[1]).toBe('-lc');
     expect(cmd[2]).toContain("'eyJhbGciOiJIUzI1NiJ9.e30.abc'");
-    expect(cmd[2]).toContain('-M at');
     expect(cmd[2]).toContain('-C -d /opt/wordlists/jwt-secrets.txt');
     expect(cmd[2]).toContain('> /out/result.txt');
   });
@@ -32,7 +31,7 @@ describe('JwtToolScanner', () => {
     const input = JwtToolScanner.inputSchema.parse({});
     const { cmd } = JwtToolScanner.build(input, 'https://api.example/', ctx);
     expect(cmd[2]).toContain('NO_TOKEN');
-    expect(cmd[2]).not.toContain('-M at');
+    expect(cmd[2]).not.toContain('-C -d');
   });
 
   it('rejects a token containing shell metacharacters', () => {
