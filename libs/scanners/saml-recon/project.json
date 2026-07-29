@@ -1,0 +1,18 @@
+{
+  "name": "scanners-saml-recon",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/saml-recon/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/saml-recon"],
+      "options": { "jestConfig": "libs/scanners/saml-recon/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/saml-recon/tsconfig.lib.json" }
+    }
+  }
+}

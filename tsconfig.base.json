@@ -156,6 +156,7 @@
       "@autoscanner/scanners-testssl": ["libs/scanners/testssl/src/index.ts"],
       "@autoscanner/scanners-jwt-tool": ["libs/scanners/jwt-tool/src/index.ts"],
       "@autoscanner/scanners-oauth-oidc": ["libs/scanners/oauth-oidc/src/index.ts"],
+      "@autoscanner/scanners-saml-recon": ["libs/scanners/saml-recon/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }
