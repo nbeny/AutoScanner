@@ -7,14 +7,22 @@ import {
 } from '../../lib/graphql/queries';
 import { formatDate } from '../../lib/format-date';
 
-type ApiProvider = 'SHODAN' | 'CENSYS' | 'CHAOS' | 'FOFA' | 'UNCOVER';
+type ApiProvider = 'SHODAN' | 'CENSYS' | 'CHAOS' | 'FOFA' | 'UNCOVER' | 'INTELX' | 'LEAKIX';
 
 interface ApiCredentialInfo {
   provider: ApiProvider;
   createdAt: string;
 }
 
-const PROVIDERS: ApiProvider[] = ['SHODAN', 'CENSYS', 'CHAOS', 'FOFA', 'UNCOVER'];
+const PROVIDERS: ApiProvider[] = [
+  'SHODAN',
+  'CENSYS',
+  'CHAOS',
+  'FOFA',
+  'UNCOVER',
+  'INTELX',
+  'LEAKIX',
+];
 
 const PROVIDER_HINT: Record<ApiProvider, string> = {
   SHODAN: 'Single API key.',
@@ -22,6 +30,8 @@ const PROVIDER_HINT: Record<ApiProvider, string> = {
   CHAOS: 'ProjectDiscovery Chaos API key.',
   FOFA: 'Paste as email:key (combined).',
   UNCOVER: 'Optional aggregator token (Quake / Hunter).',
+  INTELX: 'Intelligence X free-tier API key (limited credits).',
+  LEAKIX: 'LeakIX free-tier API key.',
 };
 
 export function ApiKeysPanel() {

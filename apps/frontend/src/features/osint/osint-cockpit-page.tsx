@@ -10,6 +10,7 @@ import type { HealthPillData } from '../cockpit/health-pill';
 import { OsintCommandBar } from './osint-command-bar';
 import { InvestigationChips } from './investigation-chips';
 import { IdentitiesPanel } from './identities-panel';
+import { BreachPanel } from './breach-panel';
 import { EmailsPanel } from './emails-panel';
 import { SpoofabilityPanel } from './spoofability-panel';
 import { PhishingExposurePanel } from './phishing-exposure-panel';
@@ -83,6 +84,7 @@ export function OsintCockpitPage() {
         </div>
         <div className="space-y-4">
           <IdentitiesPanel engagementId={scope} focus={focus} />
+          <BreachPanel engagementId={scope} />
           <EmailsPanel engagementId={scope} focus={focus} />
         </div>
         <div className="space-y-4">

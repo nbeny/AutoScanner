@@ -621,6 +621,22 @@ export const IDENTITIES_QUERY = gql`
   }
 `;
 
+export const BREACH_EXPOSURES_QUERY = gql`
+  query BreachExposures($engagementId: ID!) {
+    breachExposures(engagementId: $engagementId) {
+      id
+      seed
+      breachName
+      breachDate
+      dataClasses
+      passwordExposed
+      severity
+      source
+      lastSeenAt
+    }
+  }
+`;
+
 export const RUN_OSINT_SCAN_MUTATION = gql`
   mutation RunOsintScan($input: RunOsintScanInput!) {
     runOsintScan(input: $input) {
