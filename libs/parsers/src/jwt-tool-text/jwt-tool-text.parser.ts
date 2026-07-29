@@ -19,7 +19,7 @@ const RULES: Rule[] = [
     severity: 'CRITICAL',
   },
   {
-    test: /alg[:=]\s*none|"alg"\s*:\s*"none"/i,
+    test: /alg\s*[:=]\s*"?none"?|"alg"\s*:\s*"none"/i,
     title: 'JWT accepts alg:none (unsigned token)',
     severity: 'HIGH',
   },

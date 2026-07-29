@@ -17,7 +17,7 @@ describe('JwtToolTextParser', () => {
   });
 
   it('flags alg:none as HIGH', async () => {
-    const out = await parser.parse('[+] alg:none exploit succeeded (unsigned token accepted)', ctx);
+    const out = await parser.parse('[+] alg = "none"', ctx);
     expect(out.findings).toHaveLength(1);
     expect(out.findings[0]).toMatchObject({
       scannerName: 'jwt-tool',
