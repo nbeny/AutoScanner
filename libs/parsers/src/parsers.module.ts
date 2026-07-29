@@ -101,6 +101,7 @@ import { JwtToolTextParser } from './jwt-tool-text';
 import { OauthOidcJsonParser } from './oauth-oidc-json';
 import { SamlReconJsonParser } from './saml-recon-json';
 import { GitDumperJsonParser } from './git-dumper-json';
+import { MantraTextParser } from './mantra-text';
 
 @Global()
 @Module({
@@ -207,6 +208,7 @@ import { GitDumperJsonParser } from './git-dumper-json';
     OauthOidcJsonParser,
     SamlReconJsonParser,
     GitDumperJsonParser,
+    MantraTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -311,6 +313,7 @@ import { GitDumperJsonParser } from './git-dumper-json';
     OauthOidcJsonParser,
     SamlReconJsonParser,
     GitDumperJsonParser,
+    MantraTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -417,6 +420,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly oauthOidcJson: OauthOidcJsonParser,
     private readonly samlReconJson: SamlReconJsonParser,
     private readonly gitDumperJson: GitDumperJsonParser,
+    private readonly mantraText: MantraTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -521,5 +525,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.oauthOidcJson);
     this.registry.register(this.samlReconJson);
     this.registry.register(this.gitDumperJson);
+    this.registry.register(this.mantraText);
   }
 }
