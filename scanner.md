@@ -1,6 +1,6 @@
 # Scanner inventory
 
-Full list of the **111** scanners registered in
+Full list of the **112** scanners registered in
 [`libs/scanners/all/src/all-scanners.module.ts`](libs/scanners/all/src/all-scanners.module.ts).
 Each adapter lives at `libs/scanners/<name>/src/<name>.scanner.ts` and exports a
 `ScannerDefinition` (name, `category[]`, `inputSchema`, `docker` spec, `build()`, `outputs[]`).
@@ -57,7 +57,7 @@ The two groups below split on the scanner's declared `ScannerCategory`:
 
 ---
 
-## IP / active-scanning scanners (81)
+## IP / active-scanning scanners (82)
 
 ### Subdomain / DNS discovery (14)
 
@@ -129,7 +129,7 @@ The two groups below split on the scanner's declared `ScannerCategory`:
 | `tlsx`    | `tlsx/`                  | `projectdiscovery/tlsx:v1.2.2` | tlsx            | SSL_TLS    |
 | `testssl` | `testssl/`               | `autoscanner/testssl:1.0`      | testssl.sh      | SSL_TLS    |
 
-### Vulnerability scan / DAST / active injection (13)
+### Vulnerability scan / DAST / active injection (14)
 
 | Scanner        | Path (`libs/scanners/…`) | Docker image                     | Underlying tool                     | Categories                  |
 | -------------- | ------------------------ | -------------------------------- | ----------------------------------- | --------------------------- |
@@ -146,6 +146,7 @@ The two groups below split on the scanner's declared `ScannerCategory`:
 | `oralyzer`     | `oralyzer/`              | `autoscanner/oralyzer:1.0`       | Oralyzer (open redirect)            | VULN_SCAN, WEB_ENUM         |
 | `smuggler`     | `smuggler/`              | `autoscanner/smuggler:1.0`       | smuggler (HTTP desync)              | VULN_SCAN, WEB_ENUM         |
 | `pwncat`       | `pwncat/`                | `autoscanner/pwncat:1.0`         | pwncat (experimental exploit probe) | VULN_SCAN                   |
+| `git-dumper`   | `git-dumper/`            | `autoscanner/git-dumper:1.0`     | git-dumper + probe                  | VULN_SCAN, OSINT            |
 
 ### Cloud / storage (2)
 
