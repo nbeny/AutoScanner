@@ -96,6 +96,23 @@ export interface NormalizedIdentity {
   source: string;
 }
 
+export interface NormalizedBreachExposure {
+  /** The email / username / domain that was queried. */
+  seed: string;
+  /** Breach / dataset name, e.g. "LinkedIn", "Collection#1". */
+  breachName: string;
+  /** ISO date string if known. */
+  breachDate?: string;
+  /** Leaked data classes, e.g. ["Passwords","Email addresses","IP addresses"]. */
+  dataClasses: string[];
+  /** True when any password/hash data class is present. */
+  passwordExposed: boolean;
+  severity: Severity;
+  /** Source scanner/provider: H8MAIL | LEAKIX | INTELX. */
+  source: string;
+  raw?: unknown;
+}
+
 export interface NormalizedOrgMetadata {
   kind: 'WHOIS' | 'ASN' | 'ORG' | 'NETBLOCK' | 'CLOUD_BUCKET' | 'OTHER';
   data: unknown;
@@ -126,6 +143,7 @@ export interface NormalizedOutput {
   endpoints: NormalizedEndpoint[];
   emails: NormalizedEmail[];
   identities: NormalizedIdentity[];
+  breachExposures: NormalizedBreachExposure[];
   orgMetadata: NormalizedOrgMetadata[];
   tlsCertificates: NormalizedTlsCertificate[];
   raw?: unknown;
@@ -159,6 +177,7 @@ export function emptyNormalizedOutput(): NormalizedOutput {
     endpoints: [],
     emails: [],
     identities: [],
+    breachExposures: [],
     orgMetadata: [],
     tlsCertificates: [],
   };

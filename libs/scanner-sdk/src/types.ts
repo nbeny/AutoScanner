@@ -25,6 +25,7 @@ export enum ScannerCategory {
   SNMP = 'snmp',
   IOT_ICS = 'iot-ics',
   AI_LLM = 'ai-llm',
+  BREACH_INTEL = 'breach-intel',
   IMPORT_ONLY = 'import-only',
 }
 
@@ -55,7 +56,8 @@ export type ProducedEntity =
   | 'OrgMetadata'
   | 'TlsCertificate'
   | 'Screenshot'
-  | 'Identity';
+  | 'Identity'
+  | 'BreachExposure';
 
 export interface OastConfig {
   /** Self-hosted interactsh server base URL (e.g. https://oast.example.com). */
@@ -129,7 +131,9 @@ export interface ScannerDefinition<TInput = unknown, _TRawOutput = unknown> {
     | 'CHAOS'
     | 'FOFA'
     | 'UNCOVER'
-    | 'EMAILREP';
+    | 'EMAILREP'
+    | 'INTELX'
+    | 'LEAKIX';
   /** Env var name to inject the decrypted credential into (e.g. 'SHODAN_API_KEY'). */
   credentialEnvVar?: string;
 }
