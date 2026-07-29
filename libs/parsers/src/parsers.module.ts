@@ -98,6 +98,7 @@ import { OralyzerTextParser } from './oralyzer-text';
 import { SmugglerTextParser } from './smuggler-text';
 import { TestsslJsonParser } from './testssl-json';
 import { JwtToolTextParser } from './jwt-tool-text';
+import { OauthOidcJsonParser } from './oauth-oidc-json';
 
 @Global()
 @Module({
@@ -201,6 +202,7 @@ import { JwtToolTextParser } from './jwt-tool-text';
     SmugglerTextParser,
     TestsslJsonParser,
     JwtToolTextParser,
+    OauthOidcJsonParser,
   ],
   exports: [
     ParserRegistry,
@@ -302,6 +304,7 @@ import { JwtToolTextParser } from './jwt-tool-text';
     SmugglerTextParser,
     TestsslJsonParser,
     JwtToolTextParser,
+    OauthOidcJsonParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -405,6 +408,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly smugglerText: SmugglerTextParser,
     private readonly testsslJson: TestsslJsonParser,
     private readonly jwtToolText: JwtToolTextParser,
+    private readonly oauthOidcJson: OauthOidcJsonParser,
   ) {}
 
   onModuleInit(): void {
@@ -506,5 +510,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.smugglerText);
     this.registry.register(this.testsslJson);
     this.registry.register(this.jwtToolText);
+    this.registry.register(this.oauthOidcJson);
   }
 }
