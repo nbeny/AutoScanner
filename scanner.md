@@ -1,6 +1,6 @@
 # Scanner inventory
 
-Full list of the **118** scanners registered in
+Full list of the **119** scanners registered in
 [`libs/scanners/all/src/all-scanners.module.ts`](libs/scanners/all/src/all-scanners.module.ts).
 Each adapter lives at `libs/scanners/<name>/src/<name>.scanner.ts` and exports a
 `ScannerDefinition` (name, `category[]`, `inputSchema`, `docker` spec, `build()`, `outputs[]`).
@@ -20,7 +20,7 @@ The two groups below split on the scanner's declared `ScannerCategory`:
 
 ---
 
-## OSINT / passive scanners (31)
+## OSINT / passive scanners (32)
 
 | Scanner             | Path (`libs/scanners/…`) | Docker image                        | Underlying tool              | Categories                           |
 | ------------------- | ------------------------ | ----------------------------------- | ---------------------------- | ------------------------------------ |
@@ -55,11 +55,12 @@ The two groups below split on the scanner's declared `ScannerCategory`:
 | `urlfinder`         | `urlfinder/`             | `autoscanner/urlfinder:1.0`         | urlfinder (ProjectDiscovery) | OSINT, PASSIVE_RECON                 |
 | `whois`             | `whois/`                 | `autoscanner/whois:1.0`             | whois                        | OSINT, PASSIVE_RECON                 |
 
-### Breach intel (1)
+### Breach intel (2)
 
 | Scanner  | Path (`libs/scanners/…`) | Docker image             | Underlying tool | Categories                   |
 | -------- | ------------------------ | ------------------------ | --------------- | ---------------------------- |
 | `h8mail` | `h8mail/`                | `autoscanner/h8mail:1.0` | h8mail          | BREACH_INTEL, IDENTITY_OSINT |
+| `leakix` | `leakix/`                | `autoscanner/leakix:1.0` | LeakIX API      | BREACH_INTEL, OSINT          |
 
 ---
 
