@@ -22,6 +22,7 @@ import { TechnologyPersister } from './persisters/technology-persister';
 import { EndpointPersister } from './persisters/endpoint-persister';
 import { EmailPersister } from './persisters/email-persister';
 import { IdentityPersister } from './persisters/identity-persister';
+import { BreachExposurePersister } from './persisters/breach-exposure-persister';
 import { OrgMetadataPersister } from './persisters/org-metadata-persister';
 import { TlsCertificatePersister } from './persisters/tls-certificate-persister';
 
@@ -50,6 +51,7 @@ import { TlsCertificatePersister } from './persisters/tls-certificate-persister'
     EndpointPersister,
     EmailPersister,
     IdentityPersister,
+    BreachExposurePersister,
     OrgMetadataPersister,
     TlsCertificatePersister,
   ],

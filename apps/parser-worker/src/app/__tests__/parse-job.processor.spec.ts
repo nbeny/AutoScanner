@@ -35,6 +35,7 @@ import { TechnologyPersister } from '../persisters/technology-persister';
 import { EndpointPersister } from '../persisters/endpoint-persister';
 import { EmailPersister } from '../persisters/email-persister';
 import { IdentityPersister } from '../persisters/identity-persister';
+import { BreachExposurePersister } from '../persisters/breach-exposure-persister';
 import { OrgMetadataPersister } from '../persisters/org-metadata-persister';
 import { TlsCertificatePersister } from '../persisters/tls-certificate-persister';
 
@@ -163,6 +164,12 @@ describe('ParseJobProcessor', () => {
       identity: {
         upsert: jest.fn().mockResolvedValue({}),
       },
+      email: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      breachExposure: {
+        upsert: jest.fn().mockResolvedValue({}),
+      },
       assetObservation: {
         create: jest.fn().mockResolvedValue({ id: 'obs_mock' }),
         count: jest.fn().mockResolvedValue(0),
@@ -226,6 +233,7 @@ describe('ParseJobProcessor', () => {
       new EndpointPersister(prisma),
       new EmailPersister(prisma),
       new IdentityPersister(prisma),
+      new BreachExposurePersister(prisma),
       new OrgMetadataPersister(prisma),
       new TlsCertificatePersister(prisma),
       prisma,
@@ -318,6 +326,7 @@ describe('ParseJobProcessor', () => {
       endpointsPersisted: 0,
       emailsPersisted: 0,
       identitiesPersisted: 0,
+      breachExposuresPersisted: 0,
       orgMetadataPersisted: 0,
       tlsCertificatesPersisted: 0,
       correlatedFindings: 0,
