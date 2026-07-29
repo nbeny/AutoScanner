@@ -117,6 +117,7 @@ import { ExposedConfigScannerModule } from '@autoscanner/scanners-exposed-config
 import { MantraScannerModule } from '@autoscanner/scanners-mantra';
 import { LlmReconScannerModule } from '@autoscanner/scanners-llm-recon';
 import { LlmAttackScannerModule } from '@autoscanner/scanners-llm-attack';
+import { GarakScannerModule } from '@autoscanner/scanners-garak';
 
 /**
  * Single import that registers every concrete scanner in the per-process
@@ -244,6 +245,7 @@ const SCANNER_MODULES = [
   MantraScannerModule,
   LlmReconScannerModule,
   LlmAttackScannerModule,
+  GarakScannerModule,
 ];
 
 @Module({
