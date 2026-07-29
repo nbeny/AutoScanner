@@ -37,13 +37,12 @@ export const GarakScanner: ScannerDefinition<GarakInputType> = {
     const model = shEscape(input.model);
     const probes = shEscape(input.probes.join(','));
     // garak's openai generator reads OPENAI_API_BASE + OPENAI_API_KEY from env; we point the
-    // base at the target and use a dummy key (key-free endpoints ignore it). Report is written to
-    // a fixed prefix and the .report.jsonl is copied to the captured path.
+    // base at the target and use a dummy key (key-free endpoints ignore it). With
+    // --report_prefix /out/garak, garak writes exactly /out/garak.report.jsonl (the capture path).
     const run =
       `export OPENAI_API_BASE=${endpoint}; export OPENAI_API_KEY=sk-none; ` +
       `garak --model_type openai --model_name ${model} --probes ${probes} ` +
-      `--report_prefix /out/garak >/dev/null 2>&1; ` +
-      `cp /out/garak.report.jsonl /out/garak.report.jsonl 2>/dev/null || true`;
+      `--report_prefix /out/garak >/dev/null 2>&1 || true`;
     return { cmd: ['sh', '-lc', run] };
   },
   outputs: [

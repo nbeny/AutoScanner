@@ -24,7 +24,7 @@ describe('GarakScanner', () => {
     expect(cmd[2]).toContain("'https://ai.example'");
     expect(cmd[2]).toContain('gpt-3.5-turbo');
     expect(cmd[2]).toContain('promptinject,dan,leakreplay');
-    expect(cmd[2]).toContain('/out/garak.report.jsonl');
+    expect(cmd[2]).toContain('--report_prefix /out/garak');
   });
 
   it('honours custom model + probes and rejects an empty probe entry', () => {
