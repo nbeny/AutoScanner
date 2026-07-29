@@ -16,5 +16,5 @@ RUN apt-get update \
 # container, that first invocation would otherwise be wasted on every single run. Trigger
 # the bootstrap now, as the `scanner` user, so the config pre-exists at container start.
 USER scanner
-RUN jwt_tool eyJhbGciOiJIUzI1NiJ9.e30.YQ -M at > /dev/null 2>&1 || true
+RUN jwt_tool eyJhbGciOiJIUzI1NiJ9.e30.YQ > /dev/null 2>&1 || true
 ENTRYPOINT []

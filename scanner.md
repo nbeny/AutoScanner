@@ -187,7 +187,7 @@ The two groups below split on the scanner's declared `ScannerCategory`:
 | `smtp-recon` | `smtp-recon/`            | `instrumentisto/nmap:7.98-r2` | nmap NSE (SMTP scripts) | SMTP       |
 | `swaks`      | `swaks/`                 | `autoscanner/swaks:1.0`       | swaks                   | SMTP       |
 
-### Auth / token (3)
+### Auth / token (1)
 
 | Scanner    | Path (`libs/scanners/…`) | Docker image               | Underlying tool | Categories              |
 | ---------- | ------------------------ | -------------------------- | --------------- | ----------------------- |
