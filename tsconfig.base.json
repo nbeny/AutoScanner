@@ -158,6 +158,7 @@
       "@autoscanner/scanners-oauth-oidc": ["libs/scanners/oauth-oidc/src/index.ts"],
       "@autoscanner/scanners-saml-recon": ["libs/scanners/saml-recon/src/index.ts"],
       "@autoscanner/scanners-git-dumper": ["libs/scanners/git-dumper/src/index.ts"],
+      "@autoscanner/scanners-exposed-config": ["libs/scanners/exposed-config/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
     }

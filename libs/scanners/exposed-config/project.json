@@ -1,0 +1,18 @@
+{
+  "name": "scanners-exposed-config",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/exposed-config/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/exposed-config"],
+      "options": { "jestConfig": "libs/scanners/exposed-config/jest.config.ts" }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": { "command": "tsc --noEmit -p libs/scanners/exposed-config/tsconfig.lib.json" }
+    }
+  }
+}
