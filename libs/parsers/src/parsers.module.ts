@@ -97,6 +97,7 @@ import { TrivyJsonParser } from './trivy-json';
 import { OralyzerTextParser } from './oralyzer-text';
 import { SmugglerTextParser } from './smuggler-text';
 import { TestsslJsonParser } from './testssl-json';
+import { JwtToolTextParser } from './jwt-tool-text';
 
 @Global()
 @Module({
@@ -199,6 +200,7 @@ import { TestsslJsonParser } from './testssl-json';
     OralyzerTextParser,
     SmugglerTextParser,
     TestsslJsonParser,
+    JwtToolTextParser,
   ],
   exports: [
     ParserRegistry,
@@ -299,6 +301,7 @@ import { TestsslJsonParser } from './testssl-json';
     OralyzerTextParser,
     SmugglerTextParser,
     TestsslJsonParser,
+    JwtToolTextParser,
   ],
 })
 export class ParsersModule implements OnModuleInit {
@@ -401,6 +404,7 @@ export class ParsersModule implements OnModuleInit {
     private readonly oralyzerText: OralyzerTextParser,
     private readonly smugglerText: SmugglerTextParser,
     private readonly testsslJson: TestsslJsonParser,
+    private readonly jwtToolText: JwtToolTextParser,
   ) {}
 
   onModuleInit(): void {
@@ -501,5 +505,6 @@ export class ParsersModule implements OnModuleInit {
     this.registry.register(this.oralyzerText);
     this.registry.register(this.smugglerText);
     this.registry.register(this.testsslJson);
+    this.registry.register(this.jwtToolText);
   }
 }
