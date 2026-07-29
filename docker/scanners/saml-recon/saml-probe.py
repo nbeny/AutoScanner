@@ -2,8 +2,13 @@
 """Discover SAML metadata at common endpoints and flag weak-signature signals.
 Usage: saml-probe <base-url-or-metadata-url>. Emits JSON on stdout; never raises."""
 import json
+import re
 import sys
 import urllib.request
+
+# Matches a <Signature> opening tag under any XML-DSig namespace prefix
+# (e.g. <ds:Signature>, <dsig:Signature>, <saml:Signature>, or bare <Signature>).
+SIGNATURE_RE = re.compile(r"<[a-z0-9]*:?signature[\s>]")
 
 PATHS = [
     "",  # treat arg as a direct metadata URL first
@@ -47,7 +52,7 @@ def main():
             "id": "sha1-signature", "severity": "MEDIUM",
             "title": "SAML metadata signed with SHA-1",
             "detail": "SignatureMethod/DigestMethod references SHA-1."})
-    if "<ds:signature" not in low and "<signature" not in low:
+    if not SIGNATURE_RE.search(low):
         report["findings"].append({
             "id": "unsigned-metadata", "severity": "LOW",
             "title": "SAML metadata is not signed",
