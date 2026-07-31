@@ -32,7 +32,8 @@
     "dev:scheduler": "nx serve scheduler",
     "prepare": "husky",
     "scanners:build": "bash tools/scanners/build-images.sh",
-    "kafka:provision": "tsx tools/kafka/provision.ts"
+    "kafka:provision": "tsx tools/kafka/provision.ts",
+    "test:messaging:int": "jest --config libs/messaging/jest.int.config.ts"
   },
   "lint-staged": {
     "*.{ts,tsx,js,json,md,yaml,yml}": [
