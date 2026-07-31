@@ -47,10 +47,19 @@ export class DiscoveryService {
           update: { lastSeenAt: new Date() },
           select: { id: true },
         });
+        // The httpx probe fields used to be patched onto Subdomain by AssetPersister;
+        // Subdomain is discovery-owned, so the patch travels with the get-or-create.
+        const probe = req.httpProbe;
+        const probePatch =
+          probe &&
+          (probe.status !== undefined || probe.title !== undefined || probe.server !== undefined)
+            ? { httpStatus: probe.status, httpTitle: probe.title, httpServer: probe.server }
+            : {};
+
         const subdomain = await this.prisma.subdomain.upsert({
           where: { engagementId_canonicalValue: { engagementId, canonicalValue } },
-          create: { engagementId, domainId: domain.id, value, canonicalValue },
-          update: { lastSeenAt: new Date(), domainId: domain.id },
+          create: { engagementId, domainId: domain.id, value, canonicalValue, ...probePatch },
+          update: { lastSeenAt: new Date(), domainId: domain.id, ...probePatch },
           select: { id: true },
         });
         return { id: subdomain.id, kind };

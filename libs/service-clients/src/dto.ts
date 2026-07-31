@@ -31,6 +31,12 @@ export interface DiscoveryEntityRequest {
   kind: 'DOMAIN' | 'SUBDOMAIN' | 'IP_ADDRESS';
   value: string;
   canonicalValue: string;
+  /**
+   * SUBDOMAIN only: the httpx probe fields that used to be patched onto the Subdomain row
+   * by AssetPersister. Subdomain is discovery-owned, so the patch travels with the
+   * get-or-create instead of being written across the service boundary.
+   */
+  httpProbe?: { status?: number; title?: string; server?: string };
 }
 
 export interface DiscoveryEntityResponse {
