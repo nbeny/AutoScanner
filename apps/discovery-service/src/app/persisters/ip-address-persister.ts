@@ -10,18 +10,16 @@ export class IpAddressPersister {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Upsert an IpAddress row and its linked Asset pivot for a normalized IP asset.
+   * Upsert an IpAddress (discovery) row for a normalized IP asset and return its id.
    *
-   * Responsibility boundary: this persister owns the IP_ADDRESS path end-to-end
-   * (IpAddress row + Asset row with ipAddressId set). The AssetPersister skips
-   * assets whose mapped type is IP_ADDRESS so there is no double-persistence.
+   * Single-writer boundary (SP1a): discovery-service owns the IpAddress table only.
+   * The Asset pivot (an Asset row with `ipAddressId` set) is created by asset-service
+   * once it has this id — it is NOT written here anymore.
    *
    * IP version heuristic: presence of `:` → IPV6; otherwise → IPV4.
-   * Phase 4 will replace this with ipaddr.js for proper validation.
    *
-   * Transaction model: if `tx` is provided, use it as-is (orchestrator owns the
-   * outer transaction). Otherwise open our own `$transaction` to keep the
-   * IpAddress + Asset writes atomic when called standalone.
+   * Transaction model: if `tx` is provided, use it as-is (caller owns the outer
+   * transaction). Otherwise open our own `$transaction`.
    */
   async upsert(
     engagementId: string,
@@ -48,35 +46,6 @@ export class IpAddressPersister {
       select: { id: true },
     });
 
-    const existingAsset = await tx.asset.findFirst({
-      where: {
-        engagementId,
-        type: 'IP_ADDRESS',
-        canonicalValue,
-        ipAddressId: ip.id,
-        deletedAt: null,
-      },
-      select: { id: true },
-    });
-
-    if (existingAsset) {
-      await tx.asset.update({
-        where: { id: existingAsset.id },
-        data: { lastSeenAt: new Date() },
-      });
-      return existingAsset.id;
-    }
-
-    const created = await tx.asset.create({
-      data: {
-        engagementId,
-        type: 'IP_ADDRESS',
-        value: asset.value,
-        canonicalValue,
-        ipAddressId: ip.id,
-      },
-      select: { id: true },
-    });
-    return created.id;
+    return ip.id;
   }
 }
