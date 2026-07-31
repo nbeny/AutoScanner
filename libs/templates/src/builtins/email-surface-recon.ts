@@ -17,13 +17,15 @@ import type { TemplateDefinition } from '../types';
  * - emailrep consumes the merged email set (theharvester/spiderfoot/
  *   whois already contribute; emailfinder adds to it just before) via
  *   ContextBuilder.path: 'emails'.
+ * - h8mail runs last, also over the merged email set, checking free breach
+ *   sources for each harvested address (key-free, produces BreachExposure).
  */
 export const EmailSurfaceRecon: TemplateDefinition = {
   name: 'email-surface-recon',
   displayName: 'Email Surface Recon',
   description:
     'Email/mail surface recon: mailspoof + spoofy DMARC analysis → swaks SMTP probe ' +
-    '(gated) → emailfinder harvest → emailrep reputation lookup per address.',
+    '(gated) → emailfinder harvest → emailrep reputation lookup → h8mail breach check per address.',
   scopeAcknowledgement:
     'swaks runs a live SMTP handshake (banner, AUTH offers, STARTTLS) against the ' +
     'engagement target. The step is gated by the `active-mail-probe` capability and ' +
@@ -39,5 +41,6 @@ export const EmailSurfaceRecon: TemplateDefinition = {
     },
     { scannerName: 'emailfinder', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'emailrep', inputs: {}, target: { kind: 'context', path: 'emails' } },
+    { scannerName: 'h8mail', inputs: {}, target: { kind: 'context', path: 'emails' } },
   ],
 };

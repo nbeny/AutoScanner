@@ -12,6 +12,8 @@ describe('OsintMetaDeep template', () => {
       'urlfinder',
       'gitleaks',
       'emailrep',
+      'leakix',
+      'intelx',
     ]);
   });
 
@@ -37,17 +39,27 @@ describe('OsintMetaDeep template', () => {
 });
 
 describe('OsintMetaDeep template (Phase 14B enrichment)', () => {
-  it('appends emailrep as the trailing step, consuming the emails context', () => {
-    const names = OsintMetaDeep.steps.map((s) => s.scannerName);
-    expect(names[names.length - 1]).toBe('emailrep');
-    const emailrep = OsintMetaDeep.steps[OsintMetaDeep.steps.length - 1];
-    expect(emailrep.target).toEqual({ kind: 'context', path: 'emails' });
+  it('runs emailrep consuming the emails context', () => {
+    const emailrep = OsintMetaDeep.steps.find((s) => s.scannerName === 'emailrep');
+    expect(emailrep?.target).toEqual({ kind: 'context', path: 'emails' });
   });
 
   it('preserves the pre-Phase-14B step order (chaos still present before emailrep)', () => {
-    // Confirm the enrichment did not reorder anything: the Phase 13A step
-    // chaos must still be present somewhere before the new trailing emailrep.
-    const namesBefore = OsintMetaDeep.steps.slice(0, -1).map((s) => s.scannerName);
-    expect(namesBefore).toContain('chaos');
+    const names = OsintMetaDeep.steps.map((s) => s.scannerName);
+    expect(names.indexOf('chaos')).toBeLessThan(names.indexOf('emailrep'));
+  });
+});
+
+describe('OsintMetaDeep template (breach/auth modern scanners enrichment)', () => {
+  it('appends leakix then intelx as the trailing steps, targeting the engagement root', () => {
+    const names = OsintMetaDeep.steps.map((s) => s.scannerName);
+    expect(names.slice(-2)).toEqual(['leakix', 'intelx']);
+
+    const leakix = OsintMetaDeep.steps.find((s) => s.scannerName === 'leakix');
+    const intelx = OsintMetaDeep.steps.find((s) => s.scannerName === 'intelx');
+    expect(leakix?.target).toEqual({ kind: 'context', path: 'target' });
+    expect(leakix?.inputs).toEqual({});
+    expect(intelx?.target).toEqual({ kind: 'context', path: 'target' });
+    expect(intelx?.inputs).toEqual({});
   });
 });

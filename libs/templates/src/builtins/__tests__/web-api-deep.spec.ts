@@ -6,7 +6,7 @@ describe('WebApiDeep template', () => {
     expect(BUILTIN_TEMPLATES.map((t) => t.name)).toContain('web-api-deep');
   });
 
-  it('chains 7 steps in expected order', () => {
+  it('chains 10 steps in expected order', () => {
     expect(WebApiDeep.steps.map((s) => s.scannerName)).toEqual([
       'httpx',
       'subjs',
@@ -15,7 +15,25 @@ describe('WebApiDeep template', () => {
       'kiterunner',
       'graphw00f',
       'graphql-cop',
+      'mantra',
+      'oauth-oidc',
+      'saml-recon',
     ]);
+  });
+
+  it('mantra consumes discovered endpoints for secret-hunting', () => {
+    const mantra = WebApiDeep.steps.find((s) => s.scannerName === 'mantra');
+    expect(mantra?.target).toEqual({ kind: 'context', path: 'endpoints' });
+    expect(mantra?.inputs).toEqual({});
+  });
+
+  it('oauth-oidc and saml-recon target the engagement root', () => {
+    const oauth = WebApiDeep.steps.find((s) => s.scannerName === 'oauth-oidc');
+    const saml = WebApiDeep.steps.find((s) => s.scannerName === 'saml-recon');
+    expect(oauth?.target).toEqual({ kind: 'context', path: 'target' });
+    expect(oauth?.inputs).toEqual({});
+    expect(saml?.target).toEqual({ kind: 'context', path: 'target' });
+    expect(saml?.inputs).toEqual({});
   });
 
   it('linkfinder and jsluice consume JS endpoint URLs (path: endpoints)', () => {
