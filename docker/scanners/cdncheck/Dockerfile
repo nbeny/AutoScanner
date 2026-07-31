@@ -1,5 +1,5 @@
 # cdncheck: identifies hosts behind CDNs, WAFs, or cloud providers (ProjectDiscovery).
-FROM golang:1.22-alpine AS build
+FROM golang:1.24-alpine AS build
 RUN apk add --no-cache git \
  && go install github.com/projectdiscovery/cdncheck/cmd/cdncheck@latest
 
