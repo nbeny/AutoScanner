@@ -34,7 +34,9 @@ export function resolveCandidates(
       throw new Error(`Unknown context path: ${String(_exhaustive)}`);
     }
   }
-  return [...out].sort((a, b) => a.value.localeCompare(b.value));
+  // Ordinal (code-point) sort — deterministic across Node/ICU builds, unlike
+  // localeCompare. This ordering feeds both dispatch order and the audit.
+  return [...out].sort((a, b) => (a.value < b.value ? -1 : a.value > b.value ? 1 : 0));
 }
 
 export interface FilterOutcome {

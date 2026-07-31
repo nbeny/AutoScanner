@@ -18,7 +18,7 @@ export function buildAudit(input: AuditInput): string {
   ).map((s) => `${s}: ${input.discovered.findings.bySeverity[s]}`);
   const otherSevs = Object.keys(input.discovered.findings.bySeverity)
     .filter((s) => !SEVERITY_ORDER.includes(s))
-    .sort((a, b) => a.localeCompare(b))
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
     .map((s) => `${s}: ${input.discovered.findings.bySeverity[s]}`);
   const allSevs = [...sevLines, ...otherSevs];
 
