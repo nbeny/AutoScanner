@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import Docker = require('dockerode');
 import { PassThrough } from 'node:stream';
 import type { DockerRunner, RunResult, RunSpec } from './types';
@@ -31,7 +31,7 @@ export class DockerodeRunner implements DockerRunner {
   private readonly logger = new Logger(DockerodeRunner.name);
   private readonly docker: Docker;
 
-  constructor(docker?: Docker) {
+  constructor(@Optional() docker?: Docker) {
     this.docker = docker ?? new Docker();
   }
 
