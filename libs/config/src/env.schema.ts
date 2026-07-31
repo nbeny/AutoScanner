@@ -47,7 +47,7 @@ export const EnvSchema = z.object({
 
   KAFKA_BROKERS: z.string().default('localhost:19092'),
   KAFKA_CLIENT_ID: z.string().default('autoscanner'),
-  KAFKA_SSL: z.coerce.boolean().default(false),
+  KAFKA_SSL: booleanString,
   KAFKA_SASL_MECHANISM: z.enum(['plain', 'scram-sha-256', 'scram-sha-512']).optional(),
   KAFKA_SASL_USERNAME: z.string().optional(),
   KAFKA_SASL_PASSWORD: z.string().optional(),
