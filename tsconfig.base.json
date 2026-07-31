@@ -168,6 +168,7 @@
       "@autoscanner/scanners-wpscan": ["libs/scanners/wpscan/src/index.ts"],
       "@autoscanner/scanners-xss-scan": ["libs/scanners/xss-scan/src/index.ts"],
       "@autoscanner/scanners-zap-scan": ["libs/scanners/zap-scan/src/index.ts"],
+      "@autoscanner/service-clients": ["libs/service-clients/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
       "@autoscanner/target-parser": ["libs/target-parser/src/index.ts"],
       "@autoscanner/templates": ["libs/templates/src/index.ts"]
