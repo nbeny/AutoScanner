@@ -5,7 +5,7 @@ describe('ReportsService.listForOwner — scope handling', () => {
     const prisma = {
       report: { findMany: jest.fn().mockResolvedValue([]) },
     } as any;
-    // Constructor: (prisma, reportQueue, storage) — pass undefined stubs for the
+    // Constructor: (prisma, bus, storage) — pass undefined stubs for the
     // two extra deps; listForOwner only uses this.prisma.
     const svc = new (ReportsService as any)(prisma, undefined, undefined);
     return { svc, prisma };

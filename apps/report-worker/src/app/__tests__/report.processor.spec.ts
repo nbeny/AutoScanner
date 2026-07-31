@@ -1,18 +1,24 @@
 import { Test } from '@nestjs/testing';
 import { ReportFormat, ReportStatus, Severity } from '@prisma/client';
-import type { Job } from 'bullmq';
 
 import { PrismaService } from '@autoscanner/database';
 import { OBJECT_STORAGE } from '@autoscanner/storage';
 import { PDF_RENDERER } from '@autoscanner/reporting';
 import { NotificationEventType, NotificationsFanoutService } from '@autoscanner/notifications';
+import { ConsumerRegistrar, type MessageContext } from '@autoscanner/messaging';
 
 import { ReportProcessor } from '../report.processor';
 
 const NOW = new Date('2026-06-12T12:00:00Z');
 
-function makeJob(reportId: string): Job<{ reportId: string }> {
-  return { data: { reportId }, id: reportId } as unknown as Job<{ reportId: string }>;
+function makeCtx(reportId: string): MessageContext<{ reportId: string }> {
+  return {
+    id: reportId,
+    type: 'security.report.requested',
+    key: reportId,
+    attempt: 1,
+    payload: { reportId },
+  };
 }
 
 function makeReport(overrides: Partial<{ format: ReportFormat; templateSource: string }> = {}) {
@@ -87,6 +93,7 @@ describe('ReportProcessor', () => {
         { provide: OBJECT_STORAGE, useValue: storage },
         { provide: PDF_RENDERER, useValue: pdf },
         { provide: NotificationsFanoutService, useValue: fanout },
+        { provide: ConsumerRegistrar, useValue: { register: jest.fn() } },
       ],
     }).compile();
 
@@ -97,14 +104,14 @@ describe('ReportProcessor', () => {
 
   it('throws when the Report row is missing', async () => {
     prisma.report.findUnique.mockResolvedValueOnce(null);
-    await expect(processor.process(makeJob('r-missing'))).rejects.toThrow(/not found/);
+    await expect(processor.process(makeCtx('r-missing'))).rejects.toThrow(/not found/);
     expect(prisma.report.update).not.toHaveBeenCalled();
   });
 
   it('renders a JSON report through GENERATING → READY and uploads to MinIO', async () => {
     prisma.report.findUnique.mockResolvedValueOnce(makeReport({ format: ReportFormat.JSON }));
 
-    await processor.process(makeJob('r-1'));
+    await processor.process(makeCtx('r-1'));
 
     expect(prisma.report.update).toHaveBeenNthCalledWith(1, {
       where: { id: 'r-1' },
@@ -151,7 +158,7 @@ describe('ReportProcessor', () => {
       },
     ]);
 
-    await processor.process(makeJob('r-1'));
+    await processor.process(makeCtx('r-1'));
 
     const putArgs = storage.putObject.mock.calls[0][0];
     expect(putArgs.contentType).toBe('text/csv');
@@ -181,7 +188,7 @@ describe('ReportProcessor', () => {
       { cveId: 'CVE-2024-1', cvssV3Score: 9.8, summary: 'RCE in TLS' },
     ]);
 
-    await processor.process(makeJob('r-1'));
+    await processor.process(makeCtx('r-1'));
 
     const putArgs = storage.putObject.mock.calls[0][0];
     expect(putArgs.contentType).toBe('application/sarif+json');
@@ -197,7 +204,7 @@ describe('ReportProcessor', () => {
       makeReport({ format: ReportFormat.PDF, templateSource: '<h1>{{engagement.name}}</h1>' }),
     );
 
-    await processor.process(makeJob('r-1'));
+    await processor.process(makeCtx('r-1'));
 
     expect(pdf.renderHtml).toHaveBeenCalledTimes(1);
     expect(pdf.renderHtml.mock.calls[0][0]).toContain('Test Engagement');
@@ -225,7 +232,7 @@ describe('ReportProcessor', () => {
       },
     ]);
 
-    await processor.process(makeJob('r-1'));
+    await processor.process(makeCtx('r-1'));
 
     const html = pdf.renderHtml.mock.calls[0][0] as string;
     expect(html).toContain('HIGH');
@@ -239,7 +246,7 @@ describe('ReportProcessor', () => {
     prisma.report.findUnique.mockResolvedValueOnce(makeReport({ format: ReportFormat.PDF }));
     pdf.renderHtml.mockRejectedValueOnce(new Error('chromium crashed'));
 
-    await expect(processor.process(makeJob('r-1'))).rejects.toThrow('chromium crashed');
+    await expect(processor.process(makeCtx('r-1'))).rejects.toThrow('chromium crashed');
 
     expect(prisma.report.update).toHaveBeenLastCalledWith({
       where: { id: 'r-1' },
