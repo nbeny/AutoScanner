@@ -2,7 +2,6 @@ import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { AppConfigModule, AppConfigService } from '@autoscanner/config';
 import { DEFAULT_JOB_OPTIONS } from './bullmq.config';
-import { QueueName } from './queue-names';
 
 @Global()
 @Module({
@@ -15,7 +14,6 @@ import { QueueName } from './queue-names';
         defaultJobOptions: DEFAULT_JOB_OPTIONS,
       }),
     }),
-    BullModule.registerQueue({ name: QueueName.TEMPLATE_RUNS }),
   ],
   exports: [BullModule],
 })

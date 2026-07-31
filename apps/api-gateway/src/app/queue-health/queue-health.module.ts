@@ -7,11 +7,7 @@ import { AuthModule } from '../auth/auth.module';
 import { QueueHealthResolver } from './queue-health.resolver';
 
 @Module({
-  imports: [
-    AuthModule,
-    QueuesModule,
-    BullModule.registerQueue({ name: QueueName.TEMPLATE_RUNS }, { name: QueueName.AI_RUNS }),
-  ],
+  imports: [AuthModule, QueuesModule, BullModule.registerQueue({ name: QueueName.AI_RUNS })],
   providers: [QueueHealthResolver],
 })
 export class QueueHealthModule {}

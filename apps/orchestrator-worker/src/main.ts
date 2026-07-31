@@ -3,12 +3,10 @@ import { config as loadEnv } from 'dotenv';
 loadEnv();
 
 import { NestFactory } from '@nestjs/core';
-import { getQueueToken } from '@nestjs/bullmq';
 import { Logger } from 'nestjs-pino';
-import type { Queue } from 'bullmq';
 
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type TemplateRunPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 
 import { AppModule } from './app/app.module';
 import { reconcileRunningTemplateRuns } from './app/reconcile';
@@ -23,10 +21,8 @@ async function bootstrap(): Promise<void> {
   // The processor reads `run.currentStepIndex` and resumes from the last
   // attempted step, so re-enqueuing is idempotent and safe.
   const prisma = app.get(PrismaService);
-  const templateRunsQueue = app.get<Queue<TemplateRunPayload>>(
-    getQueueToken(QueueName.TEMPLATE_RUNS),
-  );
-  await reconcileRunningTemplateRuns(prisma, templateRunsQueue);
+  const bus = app.get<JobBus>(JOB_BUS);
+  await reconcileRunningTemplateRuns(prisma, bus);
 
   // eslint-disable-next-line no-console
   console.log('orchestrator-worker started');

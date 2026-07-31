@@ -13,14 +13,8 @@ import { QueueHealthObject } from './dto/queue-health.object';
 export class QueueHealthResolver {
   private readonly queues: Array<{ name: string; queue: Queue }>;
 
-  constructor(
-    @InjectQueue(QueueName.TEMPLATE_RUNS) templateRuns: Queue,
-    @InjectQueue(QueueName.AI_RUNS) aiRuns: Queue,
-  ) {
-    this.queues = [
-      { name: QueueName.TEMPLATE_RUNS, queue: templateRuns },
-      { name: QueueName.AI_RUNS, queue: aiRuns },
-    ];
+  constructor(@InjectQueue(QueueName.AI_RUNS) aiRuns: Queue) {
+    this.queues = [{ name: QueueName.AI_RUNS, queue: aiRuns }];
   }
 
   @Query(() => [QueueHealthObject], { name: 'queueHealth' })

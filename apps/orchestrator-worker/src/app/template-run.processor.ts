@@ -1,9 +1,8 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, Logger } from '@nestjs/common';
-import type { Job } from 'bullmq';
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type TemplateRunPayload } from '@autoscanner/queues';
+import type { TemplateRunPayload } from '@autoscanner/queues';
+import { ConsumerRegistrar, MessageConsumer, type MessageContext } from '@autoscanner/messaging';
 import { TemplateRegistry } from '@autoscanner/templates';
 import {
   ENGAGEMENT_EVENTS_PUBLISHER,
@@ -13,6 +12,8 @@ import {
 import { NotificationEventType, NotificationsFanoutService } from '@autoscanner/notifications';
 
 import { StepExecutor } from './step-executor.service';
+
+const SCAN_RUN_TOPIC = 'security.scan.requested';
 
 /**
  * Linear executor for `TemplateRun` jobs.
@@ -29,11 +30,15 @@ import { StepExecutor } from './step-executor.service';
  *      - Delegate to {@link StepExecutor.runStep} which fans out ScanJobs and
  *        waits for completion.
  *  5. On all-green: flip to COMPLETED + `completedAt`.
- *  6. On any step throw: flip to FAILED + `errorMessage` + re-throw so BullMQ
- *     records the job as failed.
+ *  6. On any step throw: flip to FAILED + `errorMessage` + re-throw so the
+ *     retry/DLQ policy records the failure.
  */
-@Processor(QueueName.TEMPLATE_RUNS)
-export class TemplateRunProcessor extends WorkerHost {
+@Injectable()
+export class TemplateRunProcessor
+  extends MessageConsumer<TemplateRunPayload>
+  implements OnApplicationBootstrap
+{
+  readonly topic = SCAN_RUN_TOPIC;
   private readonly logger = new Logger(TemplateRunProcessor.name);
 
   constructor(
@@ -43,6 +48,7 @@ export class TemplateRunProcessor extends WorkerHost {
     @Inject(ENGAGEMENT_EVENTS_PUBLISHER)
     private readonly events: EngagementEventsPublisher,
     private readonly fanout: NotificationsFanoutService,
+    @Inject(ConsumerRegistrar) private readonly registrar: ConsumerRegistrar,
   ) {
     super();
   }
@@ -62,8 +68,12 @@ export class TemplateRunProcessor extends WorkerHost {
       });
   }
 
-  async process(job: Job<TemplateRunPayload>): Promise<void> {
-    const { templateRunId } = job.data;
+  async onApplicationBootstrap(): Promise<void> {
+    await this.registrar.register(this);
+  }
+
+  async process(ctx: MessageContext<TemplateRunPayload>): Promise<void> {
+    const { templateRunId } = ctx.payload;
 
     const run = await this.prisma.templateRun.findUniqueOrThrow({
       where: { id: templateRunId },

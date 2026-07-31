@@ -4,7 +4,6 @@ import IORedis from 'ioredis';
 import { AppConfigModule, AppConfigService } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
-import { QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { AllScannersModule } from '@autoscanner/scanners-all';
 import { TemplatesModule } from '@autoscanner/templates';
@@ -41,7 +40,6 @@ const redisSubscriber: Provider = {
     AppConfigModule,
     AppLoggingModule,
     PrismaModule,
-    QueuesModule,
     TemplatesModule,
     ScannerSdkModule,
     AllScannersModule,

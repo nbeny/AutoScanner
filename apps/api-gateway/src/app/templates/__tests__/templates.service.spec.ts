@@ -1,14 +1,12 @@
-import type { Queue } from 'bullmq';
 import { ForbiddenException } from '@nestjs/common';
 import type { PrismaService } from '@autoscanner/database';
-import type { TemplateRunPayload } from '@autoscanner/queues';
 import { NotFoundError } from '@autoscanner/common';
 
 import { TemplatesService } from '../templates.service';
 
 describe('TemplatesService.runTemplate', () => {
   let prisma: jest.Mocked<PrismaService>;
-  let queue: jest.Mocked<Queue<TemplateRunPayload>>;
+  let bus: { publish: jest.Mock };
   let svc: TemplatesService;
 
   const userId = 'user_1';
@@ -47,17 +45,15 @@ describe('TemplatesService.runTemplate', () => {
       },
     } as unknown as jest.Mocked<PrismaService>;
 
-    queue = { add: jest.fn().mockResolvedValue({ id: 'bull_1' }) } as unknown as jest.Mocked<
-      Queue<TemplateRunPayload>
-    >;
+    bus = { publish: jest.fn().mockResolvedValue(undefined) };
 
     const capabilities = { has: jest.fn().mockResolvedValue(true) };
-    svc = new TemplatesService(prisma, queue, capabilities as any);
+    svc = new TemplatesService(prisma, bus, capabilities as any);
   });
 
   it('filterStepsByCapability() skips a step whose requiresCapability is not held by the caller', async () => {
     const cap = { has: jest.fn().mockResolvedValue(false) };
-    const localSvc = new TemplatesService(prisma, queue, cap as any);
+    const localSvc = new TemplatesService(prisma, bus, cap as any);
     const logSpy = jest.spyOn((localSvc as any).logger, 'log');
     const filtered = await localSvc.filterStepsByCapability('user_x', [
       { scannerName: 'nmap', inputs: {}, target: { kind: 'context', path: 'target' } },
@@ -79,7 +75,7 @@ describe('TemplatesService.runTemplate', () => {
 
   it('filterStepsByCapability() keeps a gated step when the capability is granted', async () => {
     const cap = { has: jest.fn().mockResolvedValue(true) };
-    const localSvc = new TemplatesService(prisma, queue, cap as any);
+    const localSvc = new TemplatesService(prisma, bus, cap as any);
     const filtered = await localSvc.filterStepsByCapability('user_x', [
       {
         scannerName: 'ike-scan',
@@ -109,8 +105,9 @@ describe('TemplatesService.runTemplate', () => {
         }),
       }),
     );
-    expect(queue.add).toHaveBeenCalledWith(
-      'template-run',
+    expect(bus.publish).toHaveBeenCalledWith(
+      'security.scan.requested',
+      expect.any(String),
       expect.objectContaining({ templateRunId: 'run_1', engagementId }),
     );
     expect(prisma.templateRun.update).not.toHaveBeenCalled();
@@ -125,7 +122,7 @@ describe('TemplatesService.runTemplate', () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.templateRun.create).not.toHaveBeenCalled();
-    expect(queue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
   });
 
   it('throws NotFoundError when the engagement is not owned', async () => {
@@ -137,7 +134,7 @@ describe('TemplatesService.runTemplate', () => {
 
   it('marks the TemplateRun FAILED when the BullMQ enqueue throws and re-throws the error', async () => {
     const err = new Error('redis is down');
-    (queue.add as jest.Mock).mockRejectedValueOnce(err);
+    (bus.publish as jest.Mock).mockRejectedValueOnce(err);
 
     await expect(
       svc.runTemplate(userId, { engagementId, templateName: 'recon-passive', target }),
@@ -150,7 +147,7 @@ describe('TemplatesService.runTemplate', () => {
   });
 
   it('still re-throws the enqueue error even if the FAILED status update itself fails', async () => {
-    (queue.add as jest.Mock).mockRejectedValueOnce(new Error('redis is down'));
+    (bus.publish as jest.Mock).mockRejectedValueOnce(new Error('redis is down'));
     (prisma.templateRun.update as jest.Mock).mockRejectedValueOnce(new Error('db is down'));
 
     await expect(

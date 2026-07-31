@@ -1,7 +1,9 @@
 import { Logger } from '@nestjs/common';
-import type { Queue } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
 import type { TemplateRunPayload } from '@autoscanner/queues';
+import type { JobBus } from '@autoscanner/messaging';
+
+const SCAN_RUN_TOPIC = 'security.scan.requested';
 
 /**
  * Crash-recovery: on boot, re-enqueue every `TemplateRun` row left in the
@@ -16,7 +18,7 @@ import type { TemplateRunPayload } from '@autoscanner/queues';
  */
 export async function reconcileRunningTemplateRuns(
   prisma: Pick<PrismaService, 'templateRun'>,
-  queue: Pick<Queue<TemplateRunPayload>, 'add'>,
+  bus: Pick<JobBus, 'publish'>,
   logger: Pick<Logger, 'log' | 'warn'> = new Logger('OrchestratorReconcile'),
 ): Promise<number> {
   const runs = await prisma.templateRun.findMany({
@@ -32,7 +34,7 @@ export async function reconcileRunningTemplateRuns(
   logger.log(`Boot reconciliation: re-enqueuing ${runs.length} RUNNING TemplateRun(s)`);
   for (const run of runs) {
     try {
-      await queue.add('run-template', {
+      await bus.publish<TemplateRunPayload>(SCAN_RUN_TOPIC, run.id, {
         templateRunId: run.id,
         engagementId: run.engagementId,
       });
