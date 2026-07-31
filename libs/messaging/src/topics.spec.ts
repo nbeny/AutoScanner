@@ -16,7 +16,17 @@ describe('topics', () => {
         'security.webhook.ingest.requested',
       ]),
     );
-    expect(Object.keys(TOPICS)).toHaveLength(10);
+    expect(Object.keys(TOPICS)).toHaveLength(13);
+  });
+
+  it('includes the SP1 asset and discovery lifecycle topics', () => {
+    expect(Object.keys(TOPICS)).toEqual(
+      expect.arrayContaining([
+        'security.asset.upserted',
+        'security.asset.risk.changed',
+        'security.discovery.entity.upserted',
+      ]),
+    );
   });
 
   it('derives retry and dlq names', () => {
@@ -29,7 +39,7 @@ describe('topics', () => {
     expect(names).toContain('security.report.requested');
     expect(names).toContain('security.report.requested.retry');
     expect(names).toContain('security.report.requested.dlq');
-    expect(names).toHaveLength(10 * 3);
+    expect(names).toHaveLength(13 * 3);
   });
 
   it('gives dlq topics a single partition', () => {
