@@ -18,6 +18,7 @@ import { CapabilitiesModule } from './capabilities/capabilities.module';
 import { EngagementAuthModule } from './engagement-auth/engagement-auth.module';
 import { AiRunsModule } from './ai-runs/ai-runs.module';
 import { AssetsModule } from './assets/assets.module';
+import { ChainsModule } from './chains/chains.module';
 import { AuthModule } from './auth/auth.module';
 import { CorrelatedFindingsModule } from './correlated-findings/correlated-findings.module';
 import { DnsRecordsModule } from './dns-records/dns-records.module';
@@ -101,6 +102,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     QueueHealthModule,
     ScansModule,
     AiRunsModule,
+    ChainsModule,
     SchedulesModule,
     TemplatesModule,
     ToolsModule,
