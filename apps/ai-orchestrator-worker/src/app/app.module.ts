@@ -10,7 +10,7 @@ import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { AllScannersModule } from '@autoscanner/scanners-all';
 import { ClaudeAgentModule } from '@autoscanner/claude-agent';
 import {
-  ScanDispatchModule,
+  ScanDispatcher,
   SCAN_DISPATCH_REDIS_SUBSCRIBER,
   type ScanDispatchRedisSubscriber,
 } from '@autoscanner/scan-dispatch';
@@ -61,13 +61,16 @@ const aiRunEventsRedis: Provider = {
     ScannerSdkModule,
     AllScannersModule,
     ClaudeAgentModule,
-    ScanDispatchModule,
     EngagementEventsModule.forRoot(),
     ChainsModule,
   ],
   providers: [
     scanDispatchRedisSubscriber,
     aiRunEventsRedis,
+    // Provided directly here (not via ScanDispatchModule) so ScanDispatcher can
+    // resolve the app-scoped SCAN_DISPATCH_REDIS_SUBSCRIBER token — a module
+    // provider is otherwise invisible to the encapsulated ScanDispatchModule.
+    ScanDispatcher,
     WorldStateService,
     ResolvableEntitiesLoader,
     ClaudeDecider,
