@@ -1,9 +1,9 @@
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
-import { Queue, type Job } from 'bullmq';
+import { type Job } from 'bullmq';
 import { SecretBox } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import {
@@ -14,10 +14,13 @@ import {
 } from '@autoscanner/docker-runner';
 import { LOG_STREAM_PUBLISHER, type LogStreamPublisher } from '@autoscanner/log-stream';
 import { QueueName, type ParseJobPayload, type ScanJobPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, rawOutputKey, type ObjectStorage } from '@autoscanner/storage';
 import { SECRET_BOX } from './secret-box.provider';
 import { ScanControlSubscriber } from './scan-control.subscriber';
+
+const PARSE_TOPIC = 'security.parse.requested';
 
 // Per-scan capture cap. The docker sandbox limits container memory to ~2 GiB
 // (DEFAULT_MEMORY_MB in dockerode-runner) but a scanner can SHIP up to that
@@ -37,7 +40,7 @@ export class ScanJobProcessor extends WorkerHost {
     private readonly registry: ScannerRegistry,
     @Inject(DOCKER_RUNNER) private readonly docker: DockerRunner,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
-    @InjectQueue(QueueName.PARSE_JOBS) private readonly parseQueue: Queue<ParseJobPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
     @Inject(LOG_STREAM_PUBLISHER) private readonly logStream: LogStreamPublisher,
     @Inject(SECRET_BOX) private readonly secretBox: SecretBox,
     private readonly scanControlSubscriber: ScanControlSubscriber,
@@ -384,7 +387,7 @@ export class ScanJobProcessor extends WorkerHost {
       // BINARY format scanners produce no normalised parse output — skip enqueue.
       if (status === 'COMPLETED' && out0.format !== 'BINARY') {
         try {
-          await this.parseQueue.add('parse', {
+          await this.bus.publish<ParseJobPayload>(PARSE_TOPIC, payload.scanJobId, {
             scanJobId: payload.scanJobId,
             rawOutputKey: key,
             parserName: out0.parser,

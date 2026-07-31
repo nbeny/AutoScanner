@@ -12,7 +12,6 @@ import { QueueHealthResolver } from './queue-health.resolver';
     QueuesModule,
     BullModule.registerQueue(
       { name: QueueName.SCAN_JOBS },
-      { name: QueueName.PARSE_JOBS },
       { name: QueueName.TEMPLATE_RUNS },
       { name: QueueName.AI_RUNS },
     ),

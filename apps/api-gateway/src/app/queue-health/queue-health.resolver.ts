@@ -15,13 +15,11 @@ export class QueueHealthResolver {
 
   constructor(
     @InjectQueue(QueueName.SCAN_JOBS) scanJobs: Queue,
-    @InjectQueue(QueueName.PARSE_JOBS) parseJobs: Queue,
     @InjectQueue(QueueName.TEMPLATE_RUNS) templateRuns: Queue,
     @InjectQueue(QueueName.AI_RUNS) aiRuns: Queue,
   ) {
     this.queues = [
       { name: QueueName.SCAN_JOBS, queue: scanJobs },
-      { name: QueueName.PARSE_JOBS, queue: parseJobs },
       { name: QueueName.TEMPLATE_RUNS, queue: templateRuns },
       { name: QueueName.AI_RUNS, queue: aiRuns },
     ];

@@ -1,5 +1,4 @@
 import { Module, type Provider } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
 import IORedis from 'ioredis';
 
 import { AppConfigModule, AppConfigService } from '@autoscanner/config';
@@ -7,10 +6,11 @@ import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
 import { DockerRunnerModule } from '@autoscanner/docker-runner';
 import { LogStreamModule } from '@autoscanner/log-stream';
-import { QueueName, QueuesModule } from '@autoscanner/queues';
+import { QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { StorageModule } from '@autoscanner/storage';
 import { AllScannersModule } from '@autoscanner/scanners-all';
+import { MessagingModule } from '@autoscanner/messaging';
 
 import { ScanJobProcessor } from './scan-job.processor';
 import { secretBoxProvider } from './secret-box.provider';
@@ -33,7 +33,7 @@ const scanControlSubRedisProvider: Provider = {
     LogStreamModule,
     ScannerSdkModule,
     AllScannersModule,
-    BullModule.registerQueue({ name: QueueName.PARSE_JOBS }),
+    MessagingModule.forRoot(),
   ],
   providers: [
     ScanJobProcessor,

@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
 import { Logger } from '@nestjs/common';
-import type { Job } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
+import type { ConsumerRegistrar, MessageContext } from '@autoscanner/messaging';
 import {
   DnsxJsonParser,
   HttpxJsonParser,
@@ -233,16 +233,18 @@ describe('ParseJobProcessor', () => {
       prisma,
       busMock,
       eventsMock,
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
   });
 
   const job = (payload: ParseJobPayload) =>
     ({
-      id: 'bull_1',
-      name: 'parse',
-      data: payload,
-      attemptsMade: 0,
-    }) as unknown as Job<ParseJobPayload>;
+      id: 'msg_1',
+      type: 'security.parse.requested',
+      key: payload.scanJobId,
+      attempt: 1,
+      payload,
+    }) as MessageContext<ParseJobPayload>;
 
   const payload: ParseJobPayload = {
     scanJobId: 'job_1',

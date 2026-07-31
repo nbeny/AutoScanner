@@ -4,7 +4,6 @@ import { AppConfigModule } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
 import { CorrelationModule } from '@autoscanner/correlation';
 import { PrismaModule } from '@autoscanner/database';
-import { QueuesModule } from '@autoscanner/queues';
 import { ParsersModule } from '@autoscanner/parsers';
 import { StorageModule } from '@autoscanner/storage';
 import { EngagementEventsModule } from '@autoscanner/engagement-events';
@@ -33,7 +32,6 @@ import { TlsCertificatePersister } from './persisters/tls-certificate-persister'
     AppLoggingModule,
     CorrelationModule,
     PrismaModule,
-    QueuesModule,
     StorageModule,
     ParsersModule,
     EngagementEventsModule.forRoot(),

@@ -1,27 +1,31 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import type { Readable } from 'node:stream';
-import type { Job } from 'bullmq';
 import {
   ParserRegistry,
   type NormalizedHttpProbe,
   type NormalizedOutput,
 } from '@autoscanner/parsers';
-import {
-  QueueName,
-  type ParseJobPayload,
-  type CveEnrichmentPayload,
-  type CveDiscoveryPayload,
+import type {
+  ParseJobPayload,
+  CveEnrichmentPayload,
+  CveDiscoveryPayload,
 } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 import { PrismaService } from '@autoscanner/database';
-import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
+import {
+  ConsumerRegistrar,
+  JOB_BUS,
+  MessageConsumer,
+  type JobBus,
+  type MessageContext,
+} from '@autoscanner/messaging';
 import {
   ENGAGEMENT_EVENTS_PUBLISHER,
   EngagementUpdateKind,
   type EngagementEventsPublisher,
 } from '@autoscanner/engagement-events';
 
+const PARSE_TOPIC = 'security.parse.requested';
 const CVE_ENRICH_TOPIC = 'security.cve.enrich.requested';
 const CVE_DISCOVERY_TOPIC = 'security.cve.discovery.requested';
 
@@ -66,8 +70,12 @@ export interface ParseJobResult {
   correlatedFindings: number;
 }
 
-@Processor(QueueName.PARSE_JOBS, { concurrency: 4 })
-export class ParseJobProcessor extends WorkerHost {
+@Injectable()
+export class ParseJobProcessor
+  extends MessageConsumer<ParseJobPayload>
+  implements OnApplicationBootstrap
+{
+  readonly topic = PARSE_TOPIC;
   private readonly logger = new Logger(ParseJobProcessor.name);
 
   constructor(
@@ -93,8 +101,13 @@ export class ParseJobProcessor extends WorkerHost {
     @Inject(JOB_BUS) private readonly bus: JobBus,
     @Inject(ENGAGEMENT_EVENTS_PUBLISHER)
     private readonly events: EngagementEventsPublisher,
+    @Inject(ConsumerRegistrar) private readonly registrar: ConsumerRegistrar,
   ) {
     super();
+  }
+
+  async onApplicationBootstrap(): Promise<void> {
+    await this.registrar.register(this);
   }
 
   private publish(
@@ -118,8 +131,8 @@ export class ParseJobProcessor extends WorkerHost {
       });
   }
 
-  async process(job: Job<ParseJobPayload>): Promise<ParseJobResult> {
-    const payload = job.data;
+  async process(ctx: MessageContext<ParseJobPayload>): Promise<ParseJobResult> {
+    const payload = ctx.payload;
     this.logger.log(
       `Processing parseJob scanJob=${payload.scanJobId} parser=${payload.parserName}`,
     );

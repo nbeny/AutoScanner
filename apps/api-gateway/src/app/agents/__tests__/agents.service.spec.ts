@@ -6,7 +6,6 @@ import {
   signAgentMessage,
 } from '@autoscanner/common';
 import type { PrismaService } from '@autoscanner/database';
-import type { Queue } from 'bullmq';
 import type { ObjectStorage } from '@autoscanner/storage';
 import type { ScannerRegistry } from '@autoscanner/scanner-sdk';
 
@@ -63,7 +62,7 @@ function makeJob(overrides: Record<string, unknown> = {}) {
 
 describe('AgentsService', () => {
   let prisma: jest.Mocked<PrismaService>;
-  let parseQueue: jest.Mocked<Queue>;
+  let bus: { publish: jest.Mock };
   let storage: jest.Mocked<ObjectStorage>;
   let registry: jest.Mocked<ScannerRegistry>;
   let svc: AgentsService;
@@ -86,9 +85,7 @@ describe('AgentsService', () => {
       $transaction: jest.fn(),
     } as unknown as jest.Mocked<PrismaService>;
 
-    parseQueue = {
-      add: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<Queue>;
+    bus = { publish: jest.fn().mockResolvedValue(undefined) };
 
     storage = {
       ensureBucket: jest.fn().mockResolvedValue(undefined),
@@ -101,7 +98,7 @@ describe('AgentsService', () => {
       }),
     } as unknown as jest.Mocked<ScannerRegistry>;
 
-    svc = new AgentsService(prisma, parseQueue, storage, registry);
+    svc = new AgentsService(prisma, bus, storage, registry);
   });
 
   // ─── createRegistration ───────────────────────────────────────────────────
@@ -398,8 +395,9 @@ describe('AgentsService', () => {
       expect(storage.putObject).toHaveBeenCalledWith(
         expect.objectContaining({ bucket: 'raw-outputs' }),
       );
-      expect(parseQueue.add).toHaveBeenCalledWith(
-        'parse',
+      expect(bus.publish).toHaveBeenCalledWith(
+        'security.parse.requested',
+        JOB_ID,
         expect.objectContaining({
           scanJobId: JOB_ID,
           parserName: 'nmap-xml',
@@ -451,7 +449,7 @@ describe('AgentsService', () => {
         }),
       );
       // Should NOT enqueue parse-job on failure
-      expect(parseQueue.add).not.toHaveBeenCalled();
+      expect(bus.publish).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundError when CAS misses (already submitted, wrong agent, or not RUNNING)', async () => {
@@ -480,7 +478,7 @@ describe('AgentsService', () => {
 
       // Must NOT store output or enqueue parse-job when CAS misses
       expect(storage.putObject).not.toHaveBeenCalled();
-      expect(parseQueue.add).not.toHaveBeenCalled();
+      expect(bus.publish).not.toHaveBeenCalled();
     });
   });
 
