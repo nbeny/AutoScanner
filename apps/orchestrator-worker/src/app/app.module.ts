@@ -10,6 +10,7 @@ import { AllScannersModule } from '@autoscanner/scanners-all';
 import { TemplatesModule } from '@autoscanner/templates';
 import { EngagementEventsModule } from '@autoscanner/engagement-events';
 import { NotificationsFanoutModule } from '@autoscanner/notifications';
+import { MessagingModule } from '@autoscanner/messaging';
 
 import { ContextBuilder } from './context-builder.service';
 import {
@@ -46,6 +47,7 @@ const redisSubscriber: Provider = {
     AllScannersModule,
     EngagementEventsModule.forRoot(),
     NotificationsFanoutModule,
+    MessagingModule.forRoot(),
   ],
   providers: [redisSubscriber, ContextBuilder, StepExecutor, TemplateRunProcessor],
 })

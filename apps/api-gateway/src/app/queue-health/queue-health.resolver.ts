@@ -19,7 +19,6 @@ export class QueueHealthResolver {
     @InjectQueue(QueueName.TEMPLATE_RUNS) templateRuns: Queue,
     @InjectQueue(QueueName.AI_RUNS) aiRuns: Queue,
     @InjectQueue(QueueName.CVE_ENRICHMENT) cveEnrichment: Queue,
-    @InjectQueue(QueueName.NOTIFICATION_JOBS) notifications: Queue,
     @InjectQueue(QueueName.REPORT_JOBS) reports: Queue,
   ) {
     this.queues = [
@@ -28,7 +27,6 @@ export class QueueHealthResolver {
       { name: QueueName.TEMPLATE_RUNS, queue: templateRuns },
       { name: QueueName.AI_RUNS, queue: aiRuns },
       { name: QueueName.CVE_ENRICHMENT, queue: cveEnrichment },
-      { name: QueueName.NOTIFICATION_JOBS, queue: notifications },
       { name: QueueName.REPORT_JOBS, queue: reports },
     ];
   }

@@ -1,11 +1,10 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import type { Job } from 'bullmq';
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { DeliveryStatus } from '@prisma/client';
 
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type NotificationJobPayload } from '@autoscanner/queues';
+import type { NotificationJobPayload } from '@autoscanner/queues';
 import type { SecretBox } from '@autoscanner/common';
+import { ConsumerRegistrar, MessageConsumer, type MessageContext } from '@autoscanner/messaging';
 import {
   NotificationDispatcher,
   NotificationEventType,
@@ -15,21 +14,31 @@ import {
 
 import { SECRET_BOX } from './notification-adapters.module';
 
-@Processor(QueueName.NOTIFICATION_JOBS)
+const NOTIFICATION_TOPIC = 'security.notification.requested';
+
 @Injectable()
-export class NotificationProcessor extends WorkerHost {
+export class NotificationProcessor
+  extends MessageConsumer<NotificationJobPayload>
+  implements OnApplicationBootstrap
+{
+  readonly topic = NOTIFICATION_TOPIC;
   private readonly logger = new Logger(NotificationProcessor.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly dispatcher: NotificationDispatcher,
     @Inject(SECRET_BOX) private readonly secretBox: SecretBox,
+    @Inject(ConsumerRegistrar) private readonly registrar: ConsumerRegistrar,
   ) {
     super();
   }
 
-  async process(job: Job<NotificationJobPayload>): Promise<void> {
-    const { notificationId } = job.data;
+  async onApplicationBootstrap(): Promise<void> {
+    await this.registrar.register(this);
+  }
+
+  async process(ctx: MessageContext<NotificationJobPayload>): Promise<void> {
+    const { notificationId } = ctx.payload;
 
     // Step 1: Load Notification with channel
     const notification = await this.prisma.notification.findUnique({
@@ -103,7 +112,7 @@ export class NotificationProcessor extends WorkerHost {
           errorMessage: errorMessage.slice(0, 500),
         },
       });
-      // Rethrow so BullMQ retry policy applies
+      // Rethrow so the retry/DLQ policy applies
       throw err;
     }
   }

@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import type { Queue } from 'bullmq';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type NotificationJobPayload } from '@autoscanner/queues';
+import type { NotificationJobPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 import { NotificationEventType, type NotificationEventPayload } from './event-types';
+
+const NOTIFICATION_TOPIC = 'security.notification.requested';
 
 @Injectable()
 export class NotificationsFanoutService {
@@ -12,7 +13,7 @@ export class NotificationsFanoutService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(QueueName.NOTIFICATION_JOBS) private readonly queue: Queue<NotificationJobPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
   ) {}
 
   async fanout(
@@ -44,7 +45,9 @@ export class NotificationsFanoutService {
         select: { id: true },
       });
       try {
-        await this.queue.add('notify', { notificationId: notif.id });
+        await this.bus.publish<NotificationJobPayload>(NOTIFICATION_TOPIC, notif.id, {
+          notificationId: notif.id,
+        });
         enqueued++;
       } catch (err) {
         this.logger.warn(`enqueue failed for notification=${notif.id}: ${(err as Error).message}`);

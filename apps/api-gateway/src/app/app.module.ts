@@ -8,6 +8,7 @@ import { AppConfigModule, AppConfigService } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule, PrismaService } from '@autoscanner/database';
 import { StorageModule } from '@autoscanner/storage';
+import { MessagingModule } from '@autoscanner/messaging';
 
 import { authenticateWsConnection } from './auth/ws-auth';
 import { formatGraphqlError } from './graphql-error.formatter';
@@ -47,6 +48,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     AppLoggingModule,
     PrismaModule,
     StorageModule,
+    MessagingModule.forRoot(),
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
       imports: [AppConfigModule, PrismaModule],

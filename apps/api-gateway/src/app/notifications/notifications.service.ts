@@ -1,15 +1,16 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import type { Queue } from 'bullmq';
 import { DeliveryStatus, type NotificationChannel, type Notification } from '@prisma/client';
 
 import { NotFoundError, SecretBox, ValidationError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type NotificationJobPayload } from '@autoscanner/queues';
+import type { NotificationJobPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 
 import { CreateNotificationChannelInput } from './dto/create-notification-channel.input';
 import { UpdateNotificationChannelInput } from './dto/update-notification-channel.input';
 import { SECRET_BOX } from './secret-box.provider';
+
+const NOTIFICATION_TOPIC = 'security.notification.requested';
 
 @Injectable()
 export class NotificationsService {
@@ -18,8 +19,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(SECRET_BOX) private readonly secretBox: SecretBox,
-    @InjectQueue(QueueName.NOTIFICATION_JOBS)
-    private readonly notificationQueue: Queue<NotificationJobPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
   ) {}
 
   async createChannel(
@@ -107,7 +107,9 @@ export class NotificationsService {
     });
 
     try {
-      await this.notificationQueue.add('notify', { notificationId: notif.id });
+      await this.bus.publish<NotificationJobPayload>(NOTIFICATION_TOPIC, notif.id, {
+        notificationId: notif.id,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to enqueue test notification=${notif.id}: ${message}`);

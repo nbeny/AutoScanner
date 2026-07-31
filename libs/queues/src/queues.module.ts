@@ -23,7 +23,6 @@ import { QueueName } from './queue-names';
       { name: QueueName.CVE_DISCOVERY },
       { name: QueueName.NVD_SYNC },
       { name: QueueName.REPORT_JOBS },
-      { name: QueueName.NOTIFICATION_JOBS },
       { name: QueueName.WEBHOOK_JOBS },
     ),
   ],

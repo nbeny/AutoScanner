@@ -16,7 +16,6 @@ import { QueueHealthResolver } from './queue-health.resolver';
       { name: QueueName.TEMPLATE_RUNS },
       { name: QueueName.AI_RUNS },
       { name: QueueName.CVE_ENRICHMENT },
-      { name: QueueName.NOTIFICATION_JOBS },
       { name: QueueName.REPORT_JOBS },
     ),
   ],
