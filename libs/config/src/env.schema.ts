@@ -51,8 +51,6 @@ export const EnvSchema = z.object({
   KAFKA_SASL_MECHANISM: z.enum(['plain', 'scram-sha-256', 'scram-sha-512']).optional(),
   KAFKA_SASL_USERNAME: z.string().optional(),
   KAFKA_SASL_PASSWORD: z.string().optional(),
-  MESSAGING_BACKEND: z.enum(['bullmq', 'kafka']).default('bullmq'),
-  MESSAGING_BACKEND_OVERRIDES: z.string().default(''),
 
   S3_ENDPOINT: z.string().url(),
   S3_REGION: z.string(),

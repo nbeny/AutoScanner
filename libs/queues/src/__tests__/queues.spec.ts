@@ -1,12 +1,11 @@
-import {
-  DEFAULT_JOB_OPTIONS,
-  ParseJobPayload,
-  PayloadFor,
-  QueueName,
-  ScanJobPayload,
-  buildQueueOptions,
-} from '..';
+import { ParseJobPayload, PayloadFor, QueueName, ScanJobPayload } from '..';
 
+/**
+ * After the Kafka migration this lib no longer owns any queue wiring — BullMQ and its
+ * job options are gone. What survives is the payload contract (now carried in Kafka
+ * message envelopes) and the `scan-control` Redis channel, so that is what we pin here.
+ * `QueueName` is kept as the stable logical identifier behind each topic.
+ */
 describe('@autoscanner/queues', () => {
   describe('QueueName', () => {
     it('uses stable wire identifiers', () => {
@@ -34,29 +33,6 @@ describe('@autoscanner/queues', () => {
 
       expect(scan.scannerName).toBe('nmap');
       expect(parse.parserName).toBe('nmap-xml');
-    });
-  });
-
-  describe('DEFAULT_JOB_OPTIONS', () => {
-    it('retries 3 times with exponential backoff', () => {
-      expect(DEFAULT_JOB_OPTIONS.attempts).toBe(3);
-      expect(DEFAULT_JOB_OPTIONS.backoff).toEqual({ type: 'exponential', delay: 5_000 });
-    });
-
-    it('cleans completed jobs after 7 days and 5000 entries', () => {
-      expect(DEFAULT_JOB_OPTIONS.removeOnComplete).toEqual({ age: 7 * 86_400, count: 5_000 });
-    });
-
-    it('keeps failed jobs for 30 days', () => {
-      expect(DEFAULT_JOB_OPTIONS.removeOnFail).toEqual({ age: 30 * 86_400 });
-    });
-  });
-
-  describe('buildQueueOptions', () => {
-    it('returns connection.url and defaultJobOptions', () => {
-      const opts = buildQueueOptions('redis://localhost:6379');
-      expect(opts.defaultJobOptions).toBe(DEFAULT_JOB_OPTIONS);
-      expect((opts.connection as { url: string }).url).toBe('redis://localhost:6379');
     });
   });
 });

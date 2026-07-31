@@ -7,4 +7,3 @@ export * from './kafka/kafka-client';
 export * from './kafka/kafka-job-bus';
 export * from './kafka/kafka-consumer.runner';
 export * from './kafka/provision';
-export * from './bullmq/bullmq-job-bus';

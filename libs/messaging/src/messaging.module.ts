@@ -15,27 +15,6 @@ import { KafkaJobBus } from './kafka/kafka-job-bus';
 import { runConsumer } from './kafka/kafka-consumer.runner';
 import { JOB_BUS, type MessageConsumer } from './job-bus';
 
-export type Backend = 'bullmq' | 'kafka';
-
-/**
- * Resolves the messaging backend for a given topic: a per-topic override in
- * `overrides` (comma-separated `<topic>=kafka|bullmq`) wins over `globalDefault`.
- *
- * Retained for reference/tests; SP0 uses physical per-queue cutover (each migrated queue is
- * unconditionally Kafka), so this is not consulted at runtime. Removed with the rest of the
- * legacy shims in the decommission task.
- */
-export function resolveBackend(topic: string, globalDefault: Backend, overrides: string): Backend {
-  for (const pair of overrides
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)) {
-    const [t, b] = pair.split('=');
-    if (t === topic && (b === 'kafka' || b === 'bullmq')) return b;
-  }
-  return globalDefault;
-}
-
 export const KAFKA = Symbol('KAFKA');
 export const KAFKA_PRODUCER = Symbol('KAFKA_PRODUCER');
 
