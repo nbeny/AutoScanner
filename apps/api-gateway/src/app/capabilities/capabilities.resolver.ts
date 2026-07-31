@@ -8,7 +8,7 @@ export class CapabilitiesResolver {
   @Query(() => Boolean)
   async hasCapability(
     @Args('userId') userId: string,
-    @Args('key') key: CapabilityKey,
+    @Args('key', { type: () => String }) key: CapabilityKey,
   ): Promise<boolean> {
     return this.svc.has(userId, key);
   }
@@ -17,7 +17,7 @@ export class CapabilitiesResolver {
   async grantCapability(
     @Args('adminUserId') adminUserId: string,
     @Args('userId') userId: string,
-    @Args('key') key: CapabilityKey,
+    @Args('key', { type: () => String }) key: CapabilityKey,
   ): Promise<boolean> {
     await this.svc.grant(adminUserId, userId, key);
     return true;
@@ -27,7 +27,7 @@ export class CapabilitiesResolver {
   async revokeCapability(
     @Args('adminUserId') adminUserId: string,
     @Args('userId') userId: string,
-    @Args('key') key: CapabilityKey,
+    @Args('key', { type: () => String }) key: CapabilityKey,
   ): Promise<boolean> {
     await this.svc.revoke(adminUserId, userId, key);
     return true;
