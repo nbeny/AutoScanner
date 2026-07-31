@@ -1,7 +1,6 @@
-import type { Job } from 'bullmq';
-
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import type { AiRunPayload } from '@autoscanner/queues';
+import type { ConsumerRegistrar, MessageContext } from '@autoscanner/messaging';
 
 import { AiRunProcessor } from '../ai-run.processor';
 import type { DecisionOutcome } from '../next-step-decider';
@@ -71,7 +70,13 @@ function makePrisma() {
   } as any;
 }
 
-const job = { data: { aiRunId: 'r1', engagementId: 'e1' } as AiRunPayload } as Job<AiRunPayload>;
+const job = {
+  id: 'msg_1',
+  type: 'security.ai.run.requested',
+  key: 'r1',
+  attempt: 1,
+  payload: { aiRunId: 'r1', engagementId: 'e1' } as AiRunPayload,
+} as MessageContext<AiRunPayload>;
 
 /** A no-op ChainDecider — an AI run (chainName null) never touches it. */
 const noopChainDecider = { decide: jest.fn(), audit: jest.fn() } as any;
@@ -112,6 +117,7 @@ describe('AiRunProcessor (AI run — ClaudeDecider path)', () => {
       events,
       claudeDecider,
       noopChainDecider,
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
 
     await processor.process(job);
@@ -173,6 +179,7 @@ describe('AiRunProcessor (AI run — ClaudeDecider path)', () => {
       events,
       claudeDecider,
       noopChainDecider,
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
 
     await processor.process(job);

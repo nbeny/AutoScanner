@@ -1,11 +1,10 @@
-import { BullModule } from '@nestjs/bullmq';
 import { Module, type Provider } from '@nestjs/common';
 import IORedis from 'ioredis';
 
 import { AppConfigModule, AppConfigService } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
+import { MessagingModule } from '@autoscanner/messaging';
 import { PrismaModule } from '@autoscanner/database';
-import { QueuesModule, QueueName } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { AllScannersModule } from '@autoscanner/scanners-all';
 import { ClaudeAgentModule } from '@autoscanner/claude-agent';
@@ -53,11 +52,7 @@ const aiRunEventsRedis: Provider = {
     AppConfigModule,
     AppLoggingModule,
     PrismaModule,
-    QueuesModule,
-    // The shared QueuesModule does not register `ai-runs`; register it here so
-    // this worker can attach a `@Processor(QueueName.AI_RUNS)` and (later)
-    // `@InjectQueue(QueueName.AI_RUNS)` for reconcile.
-    BullModule.registerQueue({ name: QueueName.AI_RUNS }),
+    MessagingModule.forRoot(),
     ScannerSdkModule,
     AllScannersModule,
     ClaudeAgentModule,

@@ -1,6 +1,4 @@
-import type { Queue } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
-import type { AiRunPayload } from '@autoscanner/queues';
 import { ValidationError } from '@autoscanner/common';
 
 import { AiRunsService } from '../ai-runs.service';
@@ -8,7 +6,7 @@ import type { QuickScanProvisioner } from '../quick-scan-provisioner.service';
 
 describe('AiRunsService.runAiScan', () => {
   let prisma: jest.Mocked<PrismaService>;
-  let aiRunQueue: jest.Mocked<Queue<AiRunPayload>>;
+  let bus: { publish: jest.Mock };
   let provisioner: jest.Mocked<QuickScanProvisioner>;
   let svc: AiRunsService;
 
@@ -39,9 +37,7 @@ describe('AiRunsService.runAiScan', () => {
       aiDecision: { findMany: jest.fn() },
     } as unknown as jest.Mocked<PrismaService>;
 
-    aiRunQueue = { add: jest.fn().mockResolvedValue({}) } as unknown as jest.Mocked<
-      Queue<AiRunPayload>
-    >;
+    bus = { publish: jest.fn().mockResolvedValue(undefined) };
 
     provisioner = {
       ensureEngagement: jest.fn().mockResolvedValue({ id: engagementId }),
@@ -49,7 +45,7 @@ describe('AiRunsService.runAiScan', () => {
       addTargetToScope: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<QuickScanProvisioner>;
 
-    svc = new AiRunsService(prisma, aiRunQueue, provisioner);
+    svc = new AiRunsService(prisma, bus, provisioner);
   });
 
   it('creates a PENDING SINGLE_HOST AiRun, provisions, and enqueues for a bare IPv4', async () => {
@@ -70,7 +66,7 @@ describe('AiRunsService.runAiScan', () => {
         }),
       }),
     );
-    expect(aiRunQueue.add).toHaveBeenCalledWith('airun', {
+    expect(bus.publish).toHaveBeenCalledWith('security.ai.run.requested', expect.any(String), {
       aiRunId: 'airun_1',
       engagementId,
     });
@@ -93,13 +89,13 @@ describe('AiRunsService.runAiScan', () => {
     );
 
     expect(prisma.aiRun.create).not.toHaveBeenCalled();
-    expect(aiRunQueue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
     expect(provisioner.ensureEngagement).not.toHaveBeenCalled();
   });
 
   it('reconciles the AiRun to FAILED and rethrows when the enqueue rejects', async () => {
     const enqueueError = new Error('redis is down');
-    (aiRunQueue.add as jest.Mock).mockRejectedValueOnce(enqueueError);
+    (bus.publish as jest.Mock).mockRejectedValueOnce(enqueueError);
 
     await expect(svc.runAiScan(userId, { target: '1.2.3.4' })).rejects.toBe(enqueueError);
 
