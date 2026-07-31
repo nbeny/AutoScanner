@@ -10,12 +10,12 @@ function fakeQueue(counts: Record<string, number>, workers: number) {
 describe('QueueHealthResolver', () => {
   it('returns one health row per queue with counts and worker count', async () => {
     const q = fakeQueue({ waiting: 3, active: 1, completed: 10, failed: 2, delayed: 0 }, 2);
-    const resolver = new QueueHealthResolver(q, q, q);
+    const resolver = new QueueHealthResolver(q, q);
     const rows = await resolver.queueHealth();
     // Only the queues still on BullMQ are reported; migrated queues moved to Kafka.
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(2);
     expect(rows[0]).toEqual({
-      name: 'scan-jobs',
+      name: 'template-runs',
       waiting: 3,
       active: 1,
       completed: 10,
@@ -32,7 +32,7 @@ describe('QueueHealthResolver', () => {
         .mockResolvedValue({ waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 }),
       getWorkers: jest.fn().mockRejectedValue(new Error('no conn')),
     } as any;
-    const resolver = new QueueHealthResolver(q, q, q);
+    const resolver = new QueueHealthResolver(q, q);
     const rows = await resolver.queueHealth();
     expect(rows[0].workers).toBe(0);
   });

@@ -1,7 +1,5 @@
-import type { Queue } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
 import type { ScannerRegistry } from '@autoscanner/scanner-sdk';
-import type { ScanJobPayload } from '@autoscanner/queues';
 
 import { ScanDispatcher, type DispatchItem } from '../src/scan-dispatcher.service';
 import type { ScanDispatchRedisSubscriber } from '../src/scan-dispatch.tokens';
@@ -15,7 +13,7 @@ interface Harness {
     scan: { create: jest.Mock; update: jest.Mock };
     scanJob: { create: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
   };
-  scanQueue: { add: jest.Mock };
+  bus: { publish: jest.Mock };
   registry: { get: jest.Mock };
   subscriber: {
     subscribe: jest.Mock;
@@ -50,10 +48,10 @@ function makeHarness(
     },
   };
 
-  const scanQueue = {
-    add: opts?.enqueueRejects
+  const bus = {
+    publish: opts?.enqueueRejects
       ? jest.fn().mockRejectedValue(new Error('redis down'))
-      : jest.fn().mockResolvedValue({}),
+      : jest.fn().mockResolvedValue(undefined),
   };
 
   const registry = { get: jest.fn(() => ({ docker: { defaultTimeoutMs: 1000 } })) };
@@ -68,12 +66,12 @@ function makeHarness(
   const dispatcher = new ScanDispatcher(
     prisma as unknown as PrismaService,
     registry as unknown as ScannerRegistry,
-    scanQueue as unknown as Queue<ScanJobPayload>,
+    bus,
     subscriber as unknown as ScanDispatchRedisSubscriber,
     { pollIntervalMs: 5 },
   );
 
-  return { dispatcher, prisma, scanQueue, registry, subscriber };
+  return { dispatcher, prisma, bus, registry, subscriber };
 }
 
 const baseItem = (over: Partial<DispatchItem> = {}): DispatchItem => ({
@@ -107,7 +105,7 @@ describe('ScanDispatcher', () => {
         data: expect.objectContaining({ aiRunId: 'run1', aiRunNodeId: 'node1' }),
       }),
     );
-    expect(h.scanQueue.add).toHaveBeenCalledTimes(1);
+    expect(h.bus.publish).toHaveBeenCalledTimes(1);
   });
 
   it('resolves FAILED with errorMessage and does not throw', async () => {

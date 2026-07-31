@@ -14,12 +14,10 @@ export class QueueHealthResolver {
   private readonly queues: Array<{ name: string; queue: Queue }>;
 
   constructor(
-    @InjectQueue(QueueName.SCAN_JOBS) scanJobs: Queue,
     @InjectQueue(QueueName.TEMPLATE_RUNS) templateRuns: Queue,
     @InjectQueue(QueueName.AI_RUNS) aiRuns: Queue,
   ) {
     this.queues = [
-      { name: QueueName.SCAN_JOBS, queue: scanJobs },
       { name: QueueName.TEMPLATE_RUNS, queue: templateRuns },
       { name: QueueName.AI_RUNS, queue: aiRuns },
     ];

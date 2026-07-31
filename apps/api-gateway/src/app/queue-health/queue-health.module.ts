@@ -10,11 +10,7 @@ import { QueueHealthResolver } from './queue-health.resolver';
   imports: [
     AuthModule,
     QueuesModule,
-    BullModule.registerQueue(
-      { name: QueueName.SCAN_JOBS },
-      { name: QueueName.TEMPLATE_RUNS },
-      { name: QueueName.AI_RUNS },
-    ),
+    BullModule.registerQueue({ name: QueueName.TEMPLATE_RUNS }, { name: QueueName.AI_RUNS }),
   ],
   providers: [QueueHealthResolver],
 })

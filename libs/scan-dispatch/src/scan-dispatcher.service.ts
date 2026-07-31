@@ -1,11 +1,10 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import type { Queue } from 'bullmq';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type ScanJobPayload } from '@autoscanner/queues';
+import { type ScanJobPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 
 import {
@@ -13,6 +12,8 @@ import {
   type ScanDispatchRedisSubscriber,
   scanJobDoneChannel,
 } from './scan-dispatch.tokens';
+
+const SCANNER_TOPIC = 'security.scanner.requested';
 
 /** Default polling interval (ms) between ScanJob status checks. */
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
@@ -79,7 +80,7 @@ export class ScanDispatcher implements OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly registry: ScannerRegistry,
-    @InjectQueue(QueueName.SCAN_JOBS) private readonly scanQueue: Queue<ScanJobPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
     @Inject(SCAN_DISPATCH_REDIS_SUBSCRIBER)
     private readonly subscriber: ScanDispatchRedisSubscriber,
     @Optional() options?: ScanDispatcherOptions,
@@ -196,7 +197,7 @@ export class ScanDispatcher implements OnModuleDestroy {
       engagementId: item.engagementId,
     };
     try {
-      await this.scanQueue.add('scan', payload);
+      await this.bus.publish<ScanJobPayload>(SCANNER_TOPIC, scanJobId, payload);
     } catch (err) {
       // DB rows are already committed; if the enqueue fails we reconcile both
       // rows to FAILED (best-effort) so the operator doesn't see a phantom

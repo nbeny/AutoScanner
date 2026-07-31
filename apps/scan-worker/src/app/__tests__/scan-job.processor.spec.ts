@@ -1,11 +1,11 @@
 import * as fs from 'node:fs';
 import { join } from 'node:path';
-import type { Job } from 'bullmq';
 import { SecretBox } from '@autoscanner/common';
 import type { PrismaService } from '@autoscanner/database';
 import type { DockerRunner, RunResult, RunSpec } from '@autoscanner/docker-runner';
 import type { LogStreamPublisher } from '@autoscanner/log-stream';
 import type { ScanJobPayload } from '@autoscanner/queues';
+import type { ConsumerRegistrar, MessageContext } from '@autoscanner/messaging';
 import { ScannerRegistry, type ScannerDefinition } from '@autoscanner/scanner-sdk';
 import { NmapScanner } from '@autoscanner/scanners-nmap';
 import type { ObjectStorage } from '@autoscanner/storage';
@@ -104,6 +104,7 @@ describe('ScanJobProcessor', () => {
       docker,
       storage,
       bus,
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
       logStream,
       secretBox,
       scanControlSubscriber,
@@ -112,11 +113,12 @@ describe('ScanJobProcessor', () => {
 
   const job = (payload: ScanJobPayload) =>
     ({
-      id: 'bull_1',
-      name: 'scan',
-      data: payload,
-      attemptsMade: 0,
-    }) as unknown as Job<ScanJobPayload>;
+      id: 'msg_1',
+      type: 'security.scanner.requested',
+      key: payload.scanJobId,
+      attempt: 1,
+      payload,
+    }) as MessageContext<ScanJobPayload>;
 
   it('runs scanner, uploads stdout to MinIO, enqueues parse job, marks COMPLETED', async () => {
     const payload: ScanJobPayload = {

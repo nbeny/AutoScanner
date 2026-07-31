@@ -6,7 +6,6 @@ import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
 import { DockerRunnerModule } from '@autoscanner/docker-runner';
 import { LogStreamModule } from '@autoscanner/log-stream';
-import { QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { StorageModule } from '@autoscanner/storage';
 import { AllScannersModule } from '@autoscanner/scanners-all';
@@ -27,7 +26,6 @@ const scanControlSubRedisProvider: Provider = {
     AppConfigModule,
     AppLoggingModule,
     PrismaModule,
-    QueuesModule,
     DockerRunnerModule,
     StorageModule,
     LogStreamModule,

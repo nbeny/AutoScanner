@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
 import IORedis from 'ioredis';
 
 import { AppConfigModule, AppConfigService } from '@autoscanner/config';
 import { CapabilityModule } from '@autoscanner/auth';
 import { LogStreamModule } from '@autoscanner/log-stream';
-import { QueueName, QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { AllScannersModule } from '@autoscanner/scanners-all';
 import { EngagementEventsModule } from '@autoscanner/engagement-events';
@@ -23,11 +21,9 @@ import './dto/scan-log-chunk.object';
   imports: [
     AuthModule,
     AppConfigModule,
-    QueuesModule,
     LogStreamModule,
     ScannerSdkModule,
     AllScannersModule,
-    BullModule.registerQueue({ name: QueueName.SCAN_JOBS }),
     EngagementEventsModule.forRoot(),
     CapabilityModule,
   ],

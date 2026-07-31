@@ -15,7 +15,7 @@ import { QueueName } from './queue-names';
         defaultJobOptions: DEFAULT_JOB_OPTIONS,
       }),
     }),
-    BullModule.registerQueue({ name: QueueName.SCAN_JOBS }, { name: QueueName.TEMPLATE_RUNS }),
+    BullModule.registerQueue({ name: QueueName.TEMPLATE_RUNS }),
   ],
   exports: [BullModule],
 })

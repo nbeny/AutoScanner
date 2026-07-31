@@ -1,13 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
 import type { Scan, ScanJob } from '@prisma/client';
 import { NotFoundError, ValidationError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import { CapabilityService, ACTIVE_RECON_HOST_NET, ACTIVE_MAIL_PROBE } from '@autoscanner/auth';
-import { QueueName, type ScanJobPayload } from '@autoscanner/queues';
+import { type ScanJobPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 import {
@@ -19,6 +18,8 @@ import {
 import { RunScanInput } from './dto/run-scan.input';
 import { ScansFilterInput } from './dto/scans-filter.input';
 import { ScanControlPublisher } from './scan-control.publisher';
+
+const SCANNER_TOPIC = 'security.scanner.requested';
 
 const RAW_OUTPUT_PRESIGN_TTL_SECONDS = 3600;
 
@@ -39,7 +40,7 @@ export class ScansService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(ScannerRegistry) private readonly registry: ScannerRegistry,
-    @InjectQueue(QueueName.SCAN_JOBS) private readonly scanQueue: Queue<ScanJobPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly scanControl: ScanControlPublisher,
     @Inject(ENGAGEMENT_EVENTS_PUBLISHER) private readonly events: EngagementEventsPublisher,
@@ -126,7 +127,7 @@ export class ScansService {
       };
 
       try {
-        await this.scanQueue.add('scan', payload);
+        await this.bus.publish<ScanJobPayload>(SCANNER_TOPIC, scanJob.id, payload);
       } catch (err) {
         // The DB rows are already committed; if the enqueue fails (Redis
         // unavailable, queue rejected the job, etc.) we must mark both rows
@@ -243,14 +244,8 @@ export class ScansService {
       return job as ScanJob;
     }
 
-    if (job.status === 'QUEUED') {
-      try {
-        const bullJob = await this.scanQueue.getJob(jobId);
-        if (bullJob) await bullJob.remove();
-      } catch {
-        // safe to ignore — job may not exist in the queue
-      }
-    }
+    // A QUEUED job's Kafka message cannot be un-published; the scan-worker's
+    // terminal-status guard skips it once it sees the CANCELLED row below.
 
     const updated = await this.prisma.scanJob.update({
       where: { id: jobId },

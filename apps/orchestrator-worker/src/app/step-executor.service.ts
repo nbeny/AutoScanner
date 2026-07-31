@@ -1,11 +1,10 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import type { Queue } from 'bullmq';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type ScanJobPayload } from '@autoscanner/queues';
+import { type ScanJobPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import type { ContextRef, TemplateStep } from '@autoscanner/templates';
 
@@ -15,6 +14,8 @@ import {
   type OrchestratorRedisSubscriber,
   scanJobDoneChannel,
 } from './orchestrator-redis.tokens';
+
+const SCANNER_TOPIC = 'security.scanner.requested';
 
 /** Default polling interval (ms) between ScanJob status checks. */
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
@@ -131,7 +132,7 @@ export class StepExecutor implements OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly registry: ScannerRegistry,
-    @InjectQueue(QueueName.SCAN_JOBS) private readonly scanQueue: Queue<ScanJobPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
     @Inject(ORCHESTRATOR_REDIS_SUBSCRIBER)
     private readonly redis: OrchestratorRedisSubscriber,
     private readonly contextBuilder: ContextBuilder,
@@ -293,7 +294,7 @@ export class StepExecutor implements OnModuleDestroy {
       engagementId: templateRun.engagementId,
     };
     try {
-      await this.scanQueue.add('scan', payload);
+      await this.bus.publish<ScanJobPayload>(SCANNER_TOPIC, scanJobId, payload);
     } catch (err) {
       // Mirrors the api-gateway ScansService reconciliation path: the DB
       // rows are already committed; if the enqueue fails (Redis down, queue

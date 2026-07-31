@@ -8,7 +8,7 @@ describe('ScansService.cancelAllScans', () => {
     const svc = new ScansService(
       prisma,
       {} as any, // registry
-      {} as any, // scanQueue
+      {} as any, // JobBus
       {} as any, // storage
       {} as any, // scanControl
       {} as any, // events
