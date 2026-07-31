@@ -130,6 +130,9 @@ services:
       S3_SECRET_KEY: devpassword
       S3_REGION: us-east-1
       FRONTEND_URL: http://localhost:4200
+      # In-network Redpanda listener (host-published 19092 is not reachable as
+      # localhost from inside the container). Redpanda advertises internal://redpanda:9092.
+      KAFKA_BROKERS: redpanda:9092
     # Apply migrations, then boot the API.
     command: sh -c "pnpm prisma migrate deploy && node dist/apps/api-gateway/main.js"
     ports:
@@ -140,6 +143,8 @@ services:
       redis:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      redpanda:
         condition: service_healthy
 
   frontend:

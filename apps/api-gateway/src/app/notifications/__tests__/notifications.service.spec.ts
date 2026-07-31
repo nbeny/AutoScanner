@@ -1,9 +1,8 @@
 import { DeliveryStatus, NotificationChannelType } from '@prisma/client';
-import type { Queue } from 'bullmq';
 
 import { NotFoundError, ValidationError } from '@autoscanner/common';
 import type { PrismaService } from '@autoscanner/database';
-import type { NotificationJobPayload } from '@autoscanner/queues';
+import type { JobBus } from '@autoscanner/messaging';
 
 import { NotificationsService } from '../notifications.service';
 
@@ -51,7 +50,7 @@ function makeNotification(overrides: Partial<Record<string, unknown>> = {}) {
 
 describe('NotificationsService', () => {
   let prisma: jest.Mocked<PrismaService>;
-  let queue: jest.Mocked<Queue<NotificationJobPayload>>;
+  let bus: jest.Mocked<JobBus>;
   let svc: NotificationsService;
 
   beforeEach(() => {
@@ -71,11 +70,11 @@ describe('NotificationsService', () => {
       },
     } as unknown as jest.Mocked<PrismaService>;
 
-    queue = {
-      add: jest.fn().mockResolvedValue({ id: 'job_1' }),
-    } as unknown as jest.Mocked<Queue<NotificationJobPayload>>;
+    bus = {
+      publish: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<JobBus>;
 
-    svc = new NotificationsService(prisma, mockSecretBox as never, queue);
+    svc = new NotificationsService(prisma, mockSecretBox as never, bus);
   });
 
   // ─── createChannel ───────────────────────────────────────────────────────────
@@ -234,7 +233,7 @@ describe('NotificationsService', () => {
       await expect(svc.testChannel(USER_ID, 'missing')).rejects.toBeInstanceOf(NotFoundError);
 
       expect(prisma.notification.create).not.toHaveBeenCalled();
-      expect(queue.add).not.toHaveBeenCalled();
+      expect(bus.publish).not.toHaveBeenCalled();
     });
 
     it('creates a Notification row and enqueues { notificationId }', async () => {
@@ -255,7 +254,9 @@ describe('NotificationsService', () => {
       );
 
       // Queue job enqueued with notificationId
-      expect(queue.add).toHaveBeenCalledWith('notify', { notificationId: notif.id });
+      expect(bus.publish).toHaveBeenCalledWith('security.notification.requested', notif.id, {
+        notificationId: notif.id,
+      });
 
       // Returns the notification row
       expect(result).toBe(notif);
@@ -265,7 +266,7 @@ describe('NotificationsService', () => {
       (prisma.notificationChannel.findFirst as jest.Mock).mockResolvedValue(makeChannel());
       const notif = makeNotification();
       (prisma.notification.create as jest.Mock).mockResolvedValue(notif);
-      (queue.add as jest.Mock).mockRejectedValueOnce(new Error('redis-down'));
+      (bus.publish as jest.Mock).mockRejectedValueOnce(new Error('redis-down'));
       (prisma.notification.update as jest.Mock).mockResolvedValue({});
 
       await expect(svc.testChannel(USER_ID, CHANNEL_ID)).rejects.toThrow('redis-down');

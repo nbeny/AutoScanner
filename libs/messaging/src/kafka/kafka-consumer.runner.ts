@@ -9,7 +9,28 @@ export type Outcome =
   | { kind: 'retry'; topic: string; nextAttempt: number; availableAt: Date }
   | { kind: 'dlq'; topic: string };
 
-export function decideOutcome(baseTopic: string, attempt: number, _err: Error, now: Date): Outcome {
+/**
+ * Thrown by a consumer that hit an upstream rate limit and knows when to come back
+ * (e.g. an HTTP `Retry-After`). The message is re-driven at that time **without**
+ * consuming an attempt, so a rate limit never exhausts the retry budget or lands in
+ * the DLQ. Replaces the BullMQ per-job `delay` self-reschedule.
+ */
+export class RetryAfterError extends Error {
+  constructor(public readonly delayMs: number) {
+    super(`retry after ${delayMs}ms`);
+    this.name = 'RetryAfterError';
+  }
+}
+
+export function decideOutcome(baseTopic: string, attempt: number, err: Error, now: Date): Outcome {
+  if (err instanceof RetryAfterError) {
+    return {
+      kind: 'retry',
+      topic: retryTopic(baseTopic),
+      nextAttempt: attempt,
+      availableAt: new Date(now.getTime() + err.delayMs),
+    };
+  }
   if (attempt >= MAX_ATTEMPTS) {
     return { kind: 'dlq', topic: dlqTopic(baseTopic) };
   }

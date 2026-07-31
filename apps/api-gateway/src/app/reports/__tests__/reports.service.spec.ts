@@ -1,10 +1,9 @@
 import { Readable } from 'node:stream';
-import type { Queue } from 'bullmq';
 import { ReportFormat, ReportStatus } from '@prisma/client';
 
 import { ConflictError, NotFoundError } from '@autoscanner/common';
 import type { PrismaService } from '@autoscanner/database';
-import type { ReportJobPayload } from '@autoscanner/queues';
+import type { JobBus } from '@autoscanner/messaging';
 import type { ObjectStorage } from '@autoscanner/storage';
 
 import { ReportsService } from '../reports.service';
@@ -49,7 +48,7 @@ function makeReport(overrides: Partial<{ status: ReportStatus; storageKey: strin
 
 describe('ReportsService', () => {
   let prisma: jest.Mocked<PrismaService>;
-  let queue: jest.Mocked<Queue<ReportJobPayload>>;
+  let bus: jest.Mocked<JobBus>;
   let storage: jest.Mocked<ObjectStorage>;
   let svc: ReportsService;
 
@@ -65,9 +64,7 @@ describe('ReportsService', () => {
         findFirst: jest.fn(),
       },
     } as unknown as jest.Mocked<PrismaService>;
-    queue = { add: jest.fn().mockResolvedValue({ id: 'b1' }) } as unknown as jest.Mocked<
-      Queue<ReportJobPayload>
-    >;
+    bus = { publish: jest.fn().mockResolvedValue(undefined) } as unknown as jest.Mocked<JobBus>;
     storage = {
       ensureBucket: jest.fn(),
       putObject: jest.fn(),
@@ -78,7 +75,7 @@ describe('ReportsService', () => {
       presignPutUrl: jest.fn(),
     } as unknown as jest.Mocked<ObjectStorage>;
 
-    svc = new ReportsService(prisma, queue, storage);
+    svc = new ReportsService(prisma, bus, storage);
   });
 
   describe('generateReport', () => {
@@ -102,7 +99,9 @@ describe('ReportsService', () => {
         }),
         include: { template: true },
       });
-      expect(queue.add).toHaveBeenCalledWith('report', { reportId: 'rep_1' });
+      expect(bus.publish).toHaveBeenCalledWith('security.report.requested', 'rep_1', {
+        reportId: 'rep_1',
+      });
       expect(result.id).toBe('rep_1');
     });
 
@@ -129,7 +128,7 @@ describe('ReportsService', () => {
       (prisma.engagement.findFirst as jest.Mock).mockResolvedValue({ id: ENGAGEMENT_ID });
       (prisma.reportTemplate.findUnique as jest.Mock).mockResolvedValue(makeTemplate());
       (prisma.report.create as jest.Mock).mockResolvedValue(makeReport());
-      (queue.add as jest.Mock).mockRejectedValueOnce(new Error('redis-down'));
+      (bus.publish as jest.Mock).mockRejectedValueOnce(new Error('redis-down'));
 
       await expect(
         svc.generateReport(USER_ID, {
