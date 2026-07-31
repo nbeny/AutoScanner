@@ -15,10 +15,14 @@ import {
   type ScanDispatchRedisSubscriber,
 } from '@autoscanner/scan-dispatch';
 import { EngagementEventsModule } from '@autoscanner/engagement-events';
+import { ChainsModule } from '@autoscanner/chains';
 
 import { AiRunProcessor } from './ai-run.processor';
 import { AiRunEventsPublisher, AI_RUN_EVENTS_REDIS } from './ai-run-events.publisher';
 import { WorldStateService } from './world-state.service';
+import { ResolvableEntitiesLoader } from './entities-loader.service';
+import { ClaudeDecider } from './claude-decider';
+import { ChainDecider } from './chain-decider';
 
 /**
  * Dedicated Redis subscriber client for the {@link ScanDispatcher}. A pub/sub
@@ -59,11 +63,15 @@ const aiRunEventsRedis: Provider = {
     ClaudeAgentModule,
     ScanDispatchModule,
     EngagementEventsModule.forRoot(),
+    ChainsModule,
   ],
   providers: [
     scanDispatchRedisSubscriber,
     aiRunEventsRedis,
     WorldStateService,
+    ResolvableEntitiesLoader,
+    ClaudeDecider,
+    ChainDecider,
     AiRunEventsPublisher,
     AiRunProcessor,
   ],

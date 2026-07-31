@@ -6,21 +6,14 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@autoscanner/database';
 import { QueueName, type AiRunPayload } from '@autoscanner/queues';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
-import { ClaudeAgentService } from '@autoscanner/claude-agent';
-import { ScanDispatcher, type DispatchItem } from '@autoscanner/scan-dispatch';
+import { ScanDispatcher } from '@autoscanner/scan-dispatch';
 import { parseTarget } from '@autoscanner/target-parser';
 
-import { WorldStateService, type WorldState } from './world-state.service';
-import { buildScannerCatalog, catalogToPromptText } from './scanner-catalog';
-import { buildSystemPrompt, buildUserPrompt, buildAuditPrompt } from './decision-prompt';
-import { validateDecision, type ValidatedDecision } from './decision-validator';
-import {
-  evaluateGuardrails,
-  DEFAULT_GUARDRAILS,
-  type Guardrails,
-  type RunProgress,
-} from './guardrails';
+import { evaluateGuardrails, DEFAULT_GUARDRAILS, type Guardrails } from './guardrails';
 import { AiRunEventsPublisher } from './ai-run-events.publisher';
+import { ClaudeDecider } from './claude-decider';
+import { ChainDecider } from './chain-decider';
+import type { NextStepDecider, DecisionAction } from './next-step-decider';
 
 /** Terminal statuses that make (re)processing a no-op under at-least-once delivery. */
 const TERMINAL_STATUSES = new Set(['COMPLETED', 'FAILED', 'CANCELLED', 'STOPPED_CAP']);
@@ -46,12 +39,17 @@ export class AiRunProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly registry: ScannerRegistry,
-    private readonly claude: ClaudeAgentService,
     private readonly dispatcher: ScanDispatcher,
-    private readonly worldState: WorldStateService,
     private readonly events: AiRunEventsPublisher,
+    private readonly claudeDecider: ClaudeDecider,
+    private readonly chainDecider: ChainDecider,
   ) {
     super();
+  }
+
+  /** Sélection du décideur selon le type de run. */
+  private deciderFor(chainName: string | null): NextStepDecider {
+    return chainName ? this.chainDecider : this.claudeDecider;
   }
 
   async process(job: Job<AiRunPayload>): Promise<void> {
@@ -79,7 +77,8 @@ export class AiRunProcessor extends WorkerHost {
       });
       await this.events.publish(aiRunId, { type: 'status', status: 'RUNNING' });
 
-      const hosts = await this.resolveHosts(aiRun, guardrails);
+      const decider = this.deciderFor(aiRun.chainName ?? null);
+      const hosts = aiRun.chainName ? [aiRun.target] : await this.resolveHosts(aiRun, guardrails);
 
       let stoppedByCap = false;
       let degradedRun = false;
@@ -93,6 +92,8 @@ export class AiRunProcessor extends WorkerHost {
           guardrails,
           startedAt,
           startDepth: aiRun.currentDepth ?? 0,
+          decider,
+          chainName: aiRun.chainName ?? null,
         });
         if (outcome.stoppedByCap) stoppedByCap = true;
         if (outcome.degraded) degradedRun = true;
@@ -107,25 +108,7 @@ export class AiRunProcessor extends WorkerHost {
       await this.prisma.aiRun.update({ where: { id: aiRunId }, data: { status: 'AUDITING' } });
       await this.events.publish(aiRunId, { type: 'status', status: 'AUDITING' });
 
-      const findingRows = await this.prisma.finding.findMany({
-        where: { scanJob: { scan: { aiRunId } } },
-        select: { title: true, severity: true },
-      });
-      const findings = findingRows.map((f) => ({ title: f.title, severity: String(f.severity) }));
-
-      const decisionRows = await this.prisma.aiDecision.findMany({
-        where: { aiRunId },
-        orderBy: { round: 'asc' },
-        select: { round: true },
-      });
-      // AiDecision carries no rationale column; summarise as round markers.
-      const decisions = decisionRows.map((d) => ({ round: d.round, rationale: '' }));
-
-      const auditResp = await this.claude.complete({
-        system: buildSystemPrompt(),
-        prompt: buildAuditPrompt({ target: aiRun.target, findings, decisions }),
-      });
-      const auditText = auditResp.text.trim() || this.fallbackAudit(findings);
+      const auditText = await decider.audit({ aiRunId, target: aiRun.target });
 
       const finalStatus = stoppedByCap ? 'STOPPED_CAP' : 'COMPLETED';
       await this.prisma.aiRun.update({
@@ -220,8 +203,10 @@ export class AiRunProcessor extends WorkerHost {
   }
 
   /**
-   * Drive the decide -> dispatch loop for a single host until Claude signals
-   * done, proposes nothing, or a guardrail trips.
+   * Drive the decide -> dispatch loop for a single host until the decider signals
+   * done, proposes nothing, or a guardrail trips. The loop is decider-agnostic:
+   * the same body drives {@link ClaudeDecider} (AI runs) or {@link ChainDecider}
+   * (logical chains) via the unified {@link NextStepDecider} contract.
    */
   private async runHostLoop(args: {
     aiRunId: string;
@@ -231,8 +216,20 @@ export class AiRunProcessor extends WorkerHost {
     guardrails: Guardrails;
     startedAt: Date;
     startDepth: number;
+    decider: NextStepDecider;
+    chainName: string | null;
   }): Promise<{ stoppedByCap: boolean; degraded: boolean }> {
-    const { aiRunId, engagementId, createdById, host, guardrails, startedAt, startDepth } = args;
+    const {
+      aiRunId,
+      engagementId,
+      createdById,
+      host,
+      guardrails,
+      startedAt,
+      startDepth,
+      decider,
+      chainName,
+    } = args;
 
     let depth = startDepth;
     let round = 0;
@@ -247,111 +244,104 @@ export class AiRunProcessor extends WorkerHost {
         select: { scanCount: true },
       });
       const scanCount = fresh?.scanCount ?? 0;
-
-      const progress: RunProgress = {
+      const gr = evaluateGuardrails(guardrails, {
         scanCount,
         depth,
         elapsedMs: Date.now() - startedAt.getTime(),
-      };
-      const gr = evaluateGuardrails(guardrails, progress);
+      });
       if (gr.stop) {
         stoppedByCap = true;
         break;
       }
 
-      const worldState = await this.worldState.build(aiRunId, engagementId, host);
-      const catalogText = catalogToPromptText(buildScannerCatalog(this.registry));
-      const budgetRemaining = {
-        scans: guardrails.maxScans - scanCount,
-        depth: guardrails.maxDepth - depth,
-      };
-
-      const resp = await this.claude.complete({
-        system: buildSystemPrompt(),
-        prompt: buildUserPrompt({ worldState, catalogText, budgetRemaining }),
+      const outcome = await decider.decide({
+        aiRunId,
+        engagementId,
+        host,
+        chainName,
+        budgetRemaining: {
+          scans: guardrails.maxScans - scanCount,
+          depth: guardrails.maxDepth - depth,
+        },
       });
-
-      let degraded = false;
-      let decision: ValidatedDecision;
-      if (!resp.text.trim()) {
-        degraded = true;
-        decision = this.fallbackDecision(worldState);
-      } else {
-        decision = validateDecision(resp.safeJson<unknown>(null), this.registry);
-        if (decision.next.length === 0 && !decision.done) {
-          // Claude returned something unusable — one degraded fallback attempt.
-          degraded = true;
-          decision = this.fallbackDecision(worldState);
-        }
-      }
-      if (degraded) degradedRun = true;
+      if (outcome.degraded) degradedRun = true;
 
       await this.prisma.aiDecision.create({
         data: {
           aiRunId,
           round,
-          worldStateSnapshot: worldState as unknown as Prisma.InputJsonValue,
-          responseJson: (resp.text
-            ? resp.safeJson<Prisma.InputJsonValue>({ raw: resp.text } as Prisma.InputJsonValue)
-            : { degraded: true }) as Prisma.InputJsonValue,
-          degraded,
+          worldStateSnapshot: (outcome.snapshot ?? {}) as Prisma.InputJsonValue,
+          responseJson: (outcome.snapshot ?? {}) as Prisma.InputJsonValue,
+          degraded: outcome.degraded ?? false,
         },
       });
 
-      if (decision.done || decision.next.length === 0) break;
+      if (outcome.done || outcome.actions.length === 0) break;
 
-      // Materialise proposed scans as nodes, then dispatch.
+      // Matérialiser les nœuds (run + skip).
+      const runActions: DecisionAction[] = [];
       const nodeIds: string[] = [];
-      for (const p of decision.next) {
+      for (const action of outcome.actions) {
         const node = await this.prisma.aiRunNode.create({
           data: {
             aiRunId,
             parentNodeId: lastRoundNodeId,
-            scannerName: p.scannerName,
-            target: p.target,
+            scannerName: action.scannerName,
+            target: action.target,
             depth,
-            rationale: p.why,
-            status: 'RUNNING',
+            rationale: action.kind === 'run' ? action.rationale : null,
+            stepId: action.stepId ?? null,
+            skipReason: action.kind === 'skip' ? action.skipReason : null,
+            status: action.kind === 'skip' ? 'CANCELLED' : 'RUNNING',
           },
           select: { id: true },
         });
-        nodeIds.push(node.id);
+        await this.events.publish(aiRunId, {
+          type: 'node',
+          nodeId: node.id,
+          scannerName: action.scannerName,
+          status: action.kind === 'skip' ? 'CANCELLED' : 'RUNNING',
+          skipReason: action.kind === 'skip' ? action.skipReason : undefined,
+        });
+        if (action.kind === 'run') {
+          runActions.push(action);
+          nodeIds.push(node.id);
+        }
       }
       lastRoundNodeId = nodeIds[0] ?? lastRoundNodeId;
 
-      const items: DispatchItem[] = decision.next.map((p, i) => ({
-        engagementId,
-        createdById,
-        scannerName: p.scannerName,
-        target: p.target,
-        input: p.inputs,
-        aiRunId,
-        aiRunNodeId: nodeIds[i],
-        name: p.scannerName,
-      }));
-      const results = await this.dispatcher.dispatchMany(items);
-
-      for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const nodeId = nodeIds[i];
-        if (!nodeId) continue;
-        await this.prisma.aiRunNode.update({
-          where: { id: nodeId },
-          data: { status: result.status, scanId: result.scanId || null },
-        });
-        await this.events.publish(aiRunId, {
-          type: 'node',
-          nodeId,
-          scannerName: result ? decision.next[i]?.scannerName : undefined,
-          status: result.status,
-          scanId: result.scanId || null,
+      if (runActions.length > 0) {
+        const items = runActions.map((a, i) => ({
+          engagementId,
+          createdById,
+          scannerName: a.scannerName,
+          target: a.target,
+          input: a.kind === 'run' ? a.inputs : {},
+          aiRunId,
+          aiRunNodeId: nodeIds[i],
+          name: a.scannerName,
+        }));
+        const results = await this.dispatcher.dispatchMany(items);
+        for (let i = 0; i < results.length; i++) {
+          const nodeId = nodeIds[i];
+          if (!nodeId) continue;
+          await this.prisma.aiRunNode.update({
+            where: { id: nodeId },
+            data: { status: results[i].status, scanId: results[i].scanId || null },
+          });
+          await this.events.publish(aiRunId, {
+            type: 'node',
+            nodeId,
+            scannerName: runActions[i]?.scannerName,
+            status: results[i].status,
+            scanId: results[i].scanId || null,
+          });
+        }
+        await this.prisma.aiRun.update({
+          where: { id: aiRunId },
+          data: { scanCount: { increment: results.length }, currentDepth: depth + 1 },
         });
       }
-
-      await this.prisma.aiRun.update({
-        where: { id: aiRunId },
-        data: { scanCount: { increment: results.length }, currentDepth: depth + 1 },
-      });
 
       depth++;
       round++;
@@ -359,83 +349,5 @@ export class AiRunProcessor extends WorkerHost {
     }
 
     return { stoppedByCap, degraded: degradedRun };
-  }
-
-  /**
-   * Deterministic methodology used when the model output is empty or unusable.
-   * Only proposes scanners the registry actually has, and returns `done` once
-   * the obvious next steps are exhausted so the loop always terminates.
-   */
-  private fallbackDecision(worldState: WorldState): ValidatedDecision {
-    const has = (n: string): boolean => this.registry.has(n);
-
-    if (worldState.scannersRun.length === 0 && has('nmap')) {
-      return {
-        done: false,
-        rationale: 'degraded fallback: baseline recon',
-        next: [
-          {
-            scannerName: 'nmap',
-            target: worldState.target,
-            inputs: {},
-            why: 'baseline recon (degraded fallback)',
-          },
-        ],
-      };
-    }
-
-    if (worldState.openPorts.length > 0 && worldState.technologies.length === 0 && has('httpx')) {
-      return {
-        done: false,
-        rationale: 'degraded fallback: web fingerprinting',
-        next: [
-          {
-            scannerName: 'httpx',
-            target: worldState.target,
-            inputs: {},
-            why: 'fingerprint web tech (degraded fallback)',
-          },
-        ],
-      };
-    }
-
-    if (worldState.urls.length > 0 && has('nuclei')) {
-      return {
-        done: false,
-        rationale: 'degraded fallback: vuln scan',
-        next: [
-          {
-            scannerName: 'nuclei',
-            target: worldState.urls[0],
-            inputs: {},
-            why: 'vulnerability scan (degraded fallback)',
-          },
-        ],
-      };
-    }
-
-    return { done: true, rationale: 'degraded: nothing further', next: [] };
-  }
-
-  /** Minimal Markdown audit used when Claude returns no audit text. */
-  private fallbackAudit(findings: { title: string; severity: string }[]): string {
-    const counts = new Map<string, number>();
-    for (const f of findings) {
-      const sev = f.severity.toUpperCase();
-      counts.set(sev, (counts.get(sev) ?? 0) + 1);
-    }
-    const order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
-    const lines = order.filter((s) => counts.has(s)).map((s) => `- ${s}: ${counts.get(s)}`);
-    const others = [...counts.keys()].filter((s) => !order.includes(s));
-    for (const s of others) lines.push(`- ${s}: ${counts.get(s)}`);
-
-    return [
-      '# AutoHunt Audit (degraded)',
-      '',
-      `Total findings: ${findings.length}`,
-      '',
-      '## Findings by severity',
-      lines.length > 0 ? lines.join('\n') : '- none',
-    ].join('\n');
   }
 }

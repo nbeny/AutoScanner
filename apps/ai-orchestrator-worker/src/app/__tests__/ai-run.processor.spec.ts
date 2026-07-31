@@ -1,11 +1,10 @@
 import type { Job } from 'bullmq';
 
-import { ClaudeResponse } from '@autoscanner/claude-agent';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import type { AiRunPayload } from '@autoscanner/queues';
 
 import { AiRunProcessor } from '../ai-run.processor';
-import type { WorldState } from '../world-state.service';
+import type { DecisionOutcome } from '../next-step-decider';
 
 /** A minimal registry stub that recognises `nmap` (and only nmap). */
 function makeRegistry(): ScannerRegistry {
@@ -27,17 +26,6 @@ function makeRegistry(): ScannerRegistry {
   } as unknown as ScannerRegistry;
 }
 
-const emptyWorldState = (target: string, scannersRun: string[] = []): WorldState => ({
-  target,
-  openPorts: [],
-  services: [],
-  technologies: [],
-  urls: [],
-  endpoints: [],
-  findings: [],
-  scannersRun,
-});
-
 function makePrisma() {
   const run = {
     id: 'r1',
@@ -46,6 +34,7 @@ function makePrisma() {
     target: '1.2.3.4',
     strategy: 'SINGLE_HOST',
     status: 'PENDING',
+    chainName: null,
     guardrails: { maxScans: 200, maxDepth: 8, timeBudgetMs: 1e9, hostCap: 16 },
     scanCount: 0,
     currentDepth: 0,
@@ -84,20 +73,28 @@ function makePrisma() {
 
 const job = { data: { aiRunId: 'r1', engagementId: 'e1' } as AiRunPayload } as Job<AiRunPayload>;
 
-describe('AiRunProcessor', () => {
+/** A no-op ChainDecider — an AI run (chainName null) never touches it. */
+const noopChainDecider = { decide: jest.fn(), audit: jest.fn() } as any;
+
+describe('AiRunProcessor (AI run — ClaudeDecider path)', () => {
   it('runs the decide->dispatch->audit loop and completes', async () => {
     const prisma = makePrisma();
     const registry = makeRegistry();
 
-    const responses = [
-      new ClaudeResponse(
-        '{"done":false,"rationale":"recon","next":[{"scannerName":"nmap","target":"1.2.3.4","inputs":{},"why":"ports"}]}',
-      ),
-      new ClaudeResponse('{"done":true,"rationale":"done","next":[]}'),
-      new ClaudeResponse('# Audit\nAll clear.'),
+    // ClaudeDecider drives the loop: propose nmap, then done.
+    const outcomes: DecisionOutcome[] = [
+      {
+        done: false,
+        actions: [
+          { kind: 'run', scannerName: 'nmap', target: '1.2.3.4', inputs: {}, rationale: 'ports' },
+        ],
+        snapshot: { target: '1.2.3.4' },
+      },
+      { done: true, actions: [], snapshot: { target: '1.2.3.4' } },
     ];
-    const claude = {
-      complete: jest.fn().mockImplementation(() => Promise.resolve(responses.shift())),
+    const claudeDecider = {
+      decide: jest.fn().mockImplementation(() => Promise.resolve(outcomes.shift())),
+      audit: jest.fn().mockResolvedValue('# Audit\nAll clear.'),
     } as any;
 
     const dispatcher = {
@@ -106,35 +103,59 @@ describe('AiRunProcessor', () => {
         .mockResolvedValue([{ scanId: 's1', scanJobId: 'j1', status: 'COMPLETED' }]),
     } as any;
 
-    const worldState = {
-      build: jest
-        .fn()
-        .mockImplementation((_id, _eng, target) => Promise.resolve(emptyWorldState(target))),
-    } as any;
-
     const events = { publish: jest.fn().mockResolvedValue(undefined) } as any;
 
-    const processor = new AiRunProcessor(prisma, registry, claude, dispatcher, worldState, events);
+    const processor = new AiRunProcessor(
+      prisma,
+      registry,
+      dispatcher,
+      events,
+      claudeDecider,
+      noopChainDecider,
+    );
 
     await processor.process(job);
+
+    // Chain decider is never consulted for an AI run.
+    expect(noopChainDecider.decide).not.toHaveBeenCalled();
 
     expect(dispatcher.dispatchMany).toHaveBeenCalledTimes(1);
     expect(prisma.aiRunNode.create).toHaveBeenCalledTimes(1);
     expect(prisma.aiRunNode.create.mock.calls[0][0].data.scannerName).toBe('nmap');
 
+    // Audit delegated to the decider and persisted.
+    expect(claudeDecider.audit).toHaveBeenCalledWith({ aiRunId: 'r1', target: '1.2.3.4' });
     const updates = prisma.aiRun.update.mock.calls.map((c: any) => c[0].data);
     const finalUpdate = updates.find((d: any) => d.status === 'COMPLETED');
     expect(finalUpdate).toBeDefined();
-    expect(finalUpdate.auditText).toBeTruthy();
+    expect(finalUpdate.auditText).toBe('# Audit\nAll clear.');
   });
 
-  it('falls back deterministically on empty model output and still audits', async () => {
+  it('propagates a degraded decision and still audits/completes', async () => {
     const prisma = makePrisma();
     const registry = makeRegistry();
 
-    // Always empty -> forces the degraded fallback path.
-    const claude = {
-      complete: jest.fn().mockResolvedValue(new ClaudeResponse('')),
+    // Decider flags a degraded round (its own deterministic fallback), then done.
+    const outcomes: DecisionOutcome[] = [
+      {
+        done: false,
+        degraded: true,
+        actions: [
+          {
+            kind: 'run',
+            scannerName: 'nmap',
+            target: '1.2.3.4',
+            inputs: {},
+            rationale: 'baseline recon',
+          },
+        ],
+        snapshot: { target: '1.2.3.4' },
+      },
+      { done: true, actions: [], snapshot: { target: '1.2.3.4' } },
+    ];
+    const claudeDecider = {
+      decide: jest.fn().mockImplementation(() => Promise.resolve(outcomes.shift())),
+      audit: jest.fn().mockResolvedValue('# AutoHunt Audit (degraded)\n\nTotal findings: 0'),
     } as any;
 
     const dispatcher = {
@@ -143,33 +164,30 @@ describe('AiRunProcessor', () => {
         .mockResolvedValue([{ scanId: 's1', scanJobId: 'j1', status: 'COMPLETED' }]),
     } as any;
 
-    // 1st build: no scanners run -> fallback dispatches nmap.
-    // 2nd+ build: nmap already run -> fallback returns done -> loop ends.
-    let builds = 0;
-    const worldState = {
-      build: jest.fn().mockImplementation((_id, _eng, target) => {
-        builds++;
-        return Promise.resolve(emptyWorldState(target, builds > 1 ? ['nmap'] : []));
-      }),
-    } as any;
-
     const events = { publish: jest.fn().mockResolvedValue(undefined) } as any;
 
-    const processor = new AiRunProcessor(prisma, registry, claude, dispatcher, worldState, events);
+    const processor = new AiRunProcessor(
+      prisma,
+      registry,
+      dispatcher,
+      events,
+      claudeDecider,
+      noopChainDecider,
+    );
 
     await processor.process(job);
 
-    // Fallback dispatched nmap exactly once.
+    // Degraded round dispatched nmap exactly once.
     expect(dispatcher.dispatchMany).toHaveBeenCalledTimes(1);
     expect(prisma.aiRunNode.create.mock.calls[0][0].data.scannerName).toBe('nmap');
 
-    // Run flagged degraded.
+    // Run flagged degraded (propagated from the outcome).
     const degradedUpdate = prisma.aiRun.update.mock.calls
       .map((c: any) => c[0].data)
       .find((d: any) => d.degraded === true);
     expect(degradedUpdate).toBeDefined();
 
-    // Completed with a (fallback) audit.
+    // Completed with the (fallback) audit from the decider.
     const finalUpdate = prisma.aiRun.update.mock.calls
       .map((c: any) => c[0].data)
       .find((d: any) => d.status === 'COMPLETED');
