@@ -1169,6 +1169,7 @@ model AiRun {
   scanCount    Int           @default(0)
   currentDepth Int           @default(0)
   degraded     Boolean       @default(false)
+  chainName    String?
   auditText    String?
   errorMessage String?
   startedAt    DateTime?
@@ -1194,6 +1195,8 @@ model AiRunNode {
   target       String
   depth        Int
   rationale    String?
+  stepId       String?
+  skipReason   String?
   status       ScanStatus @default(PENDING)
   createdAt    DateTime   @default(now())
 
