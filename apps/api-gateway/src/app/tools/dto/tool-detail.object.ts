@@ -6,7 +6,7 @@ export class ToolRunObject {
   @Field() status!: string;
   @Field(() => Int, { nullable: true }) durationMs?: number | null;
   @Field(() => Int, { nullable: true }) exitCode?: number | null;
-  @Field({ nullable: true }) errorMessage?: string | null;
+  @Field(() => String, { nullable: true }) errorMessage?: string | null;
   @Field(() => Date, { nullable: true }) completedAt?: Date | null;
   @Field(() => ID, { nullable: true }) agentId?: string | null;
 }

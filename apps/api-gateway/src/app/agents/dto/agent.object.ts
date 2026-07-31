@@ -16,7 +16,7 @@ export class AgentObject {
   @Field()
   name!: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   hostname?: string | null;
 
   @Field(() => AgentStatus)
@@ -25,7 +25,7 @@ export class AgentObject {
   @Field(() => GraphQLJSON, { nullable: true })
   capabilities?: unknown;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   version?: string | null;
 
   @Field(() => Date, { nullable: true })
