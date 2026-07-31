@@ -45,6 +45,15 @@ export const EnvSchema = z.object({
   MONGODB_URL: z.string().url(),
   REDIS_URL: z.string().url(),
 
+  KAFKA_BROKERS: z.string().default('localhost:19092'),
+  KAFKA_CLIENT_ID: z.string().default('autoscanner'),
+  KAFKA_SSL: z.coerce.boolean().default(false),
+  KAFKA_SASL_MECHANISM: z.enum(['plain', 'scram-sha-256', 'scram-sha-512']).optional(),
+  KAFKA_SASL_USERNAME: z.string().optional(),
+  KAFKA_SASL_PASSWORD: z.string().optional(),
+  MESSAGING_BACKEND: z.enum(['bullmq', 'kafka']).default('bullmq'),
+  MESSAGING_BACKEND_OVERRIDES: z.string().default(''),
+
   S3_ENDPOINT: z.string().url(),
   S3_REGION: z.string(),
   S3_ACCESS_KEY: z.string(),

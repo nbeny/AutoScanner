@@ -82,6 +82,28 @@ services:
         echo "MinIO buckets ready"
     restart: 'no'
 
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    container_name: autoscanner-redpanda
+    command:
+      - redpanda
+      - start
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --smp=1
+      - --memory=512M
+      - --mode=dev-container
+      - --default-log-level=warn
+    ports:
+      - '19092:19092'
+    healthcheck:
+      test: ['CMD-SHELL', 'rpk cluster health | grep -q "Healthy:.*true"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+
   # --- Application services (profile: app) ------------------------------------
   # Opt-in so `pnpm dev:up` stays lean (infra only). Bring the app up with:
   #   docker compose -f docker/docker-compose.dev.yml --profile app up -d --build
@@ -139,3 +161,4 @@ volumes:
   redisdata:
   mongodata:
   miniodata:
+  redpanda-data:
