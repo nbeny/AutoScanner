@@ -1172,6 +1172,29 @@ export const RUN_AI_SCAN = gql`
   }
 `;
 
+export const CHAINS = gql`
+  query Chains {
+    chains {
+      name
+      displayName
+      description
+      whenToUse
+      produces
+      scopeAcknowledgement
+    }
+  }
+`;
+
+export const RUN_CHAIN = gql`
+  mutation RunChain($input: RunChainInput!) {
+    runChain(input: $input) {
+      id
+      status
+      target
+    }
+  }
+`;
+
 export const AI_RUN_QUERY = gql`
   query AiRun($id: ID!) {
     aiRun(id: $id) {
