@@ -8,6 +8,8 @@ export interface AiRunNode {
   rationale: string | null;
   status: string;
   createdAt: string;
+  stepId?: string | null;
+  skipReason?: string | null;
 }
 
 export interface AiDecision {

@@ -80,6 +80,7 @@ export class AiRunsResolver {
       scanId: (msg.scanId ?? undefined) as string | undefined,
       depth: msg.depth as number | undefined,
       round: msg.round as number | undefined,
+      skipReason: msg.skipReason as string | undefined,
     }),
   })
   aiRunEvents(@Args('id', { type: () => ID }) id: string): AsyncIterable<AiRunEventMessage> {

@@ -1220,6 +1220,8 @@ export const AI_RUN_QUERY = gql`
         rationale
         status
         createdAt
+        stepId
+        skipReason
       }
       decisions {
         id
