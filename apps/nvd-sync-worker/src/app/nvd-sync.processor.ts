@@ -1,25 +1,33 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import type { Job } from 'bullmq';
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 
 import { PrismaService } from '@autoscanner/database';
 import { NvdClient, cvssToSeverity, type NvdFullCve } from '@autoscanner/cve';
-import { QueueName, type NvdSyncPayload } from '@autoscanner/queues';
+import type { NvdSyncPayload } from '@autoscanner/queues';
+import { ConsumerRegistrar, MessageConsumer, type MessageContext } from '@autoscanner/messaging';
 
 const PAGE = 2000;
 const MAX_WINDOW_MS = 120 * 86_400_000;
 const DEFAULT_INCREMENTAL_LOOKBACK_MS = 30 * 86_400_000;
+const NVD_SYNC_TOPIC = 'security.nvd.sync.requested';
 
-@Processor(QueueName.NVD_SYNC)
 @Injectable()
-export class NvdSyncProcessor extends WorkerHost {
+export class NvdSyncProcessor
+  extends MessageConsumer<NvdSyncPayload>
+  implements OnApplicationBootstrap
+{
+  readonly topic = NVD_SYNC_TOPIC;
   private readonly logger = new Logger(NvdSyncProcessor.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly nvd: NvdClient,
+    @Inject(ConsumerRegistrar) private readonly registrar: ConsumerRegistrar,
   ) {
     super();
+  }
+
+  async onApplicationBootstrap(): Promise<void> {
+    await this.registrar.register(this);
   }
 
   private parseVendorProduct(criteria: string): { cpeVendor: string; cpeProduct: string } {
@@ -75,14 +83,14 @@ export class NvdSyncProcessor extends WorkerHost {
     });
   }
 
-  async process(job: Job<NvdSyncPayload>): Promise<void> {
+  async process(ctx: MessageContext<NvdSyncPayload>): Promise<void> {
     const state = await this.prisma.nvdSyncState.upsert({
       where: { id: 'singleton' },
       create: { id: 'singleton' },
       update: {},
     });
 
-    if (job.data.mode === 'full' || !state.fullSyncCompletedAt) {
+    if (ctx.payload.mode === 'full' || !state.fullSyncCompletedAt) {
       // Full sync (resumable)
       let startIndex = state.lastStartIndex ?? 0;
       let total = Infinity;

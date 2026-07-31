@@ -1,10 +1,29 @@
-import { Global, Module, DynamicModule } from '@nestjs/common';
+import {
+  Global,
+  Inject,
+  Injectable,
+  Logger,
+  Module,
+  type DynamicModule,
+  type OnModuleDestroy,
+  type Provider,
+} from '@nestjs/common';
+import type { Consumer, Kafka, Producer } from 'kafkajs';
+import { AppConfigService } from '@autoscanner/config';
+import { createKafka } from './kafka/kafka-client';
+import { KafkaJobBus } from './kafka/kafka-job-bus';
+import { runConsumer } from './kafka/kafka-consumer.runner';
+import { JOB_BUS, type MessageConsumer } from './job-bus';
 
 export type Backend = 'bullmq' | 'kafka';
 
 /**
  * Resolves the messaging backend for a given topic: a per-topic override in
  * `overrides` (comma-separated `<topic>=kafka|bullmq`) wins over `globalDefault`.
+ *
+ * Retained for reference/tests; SP0 uses physical per-queue cutover (each migrated queue is
+ * unconditionally Kafka), so this is not consulted at runtime. Removed with the rest of the
+ * legacy shims in the decommission task.
  */
 export function resolveBackend(topic: string, globalDefault: Backend, overrides: string): Backend {
   for (const pair of overrides
@@ -17,21 +36,91 @@ export function resolveBackend(topic: string, globalDefault: Backend, overrides:
   return globalDefault;
 }
 
+export const KAFKA = Symbol('KAFKA');
+export const KAFKA_PRODUCER = Symbol('KAFKA_PRODUCER');
+
 /**
- * Global messaging module.
- *
- * The concrete `JOB_BUS` provider (a composite that delegates per-topic to either
- * `KafkaJobBus` — over a shared connected `Producer` from `createKafka(env)` — or the
- * transitional `BullMqJobBus`) plus the `registerConsumer(consumer)` runtime (which calls
- * `runConsumer(kafka, producer, consumer)` when the topic resolves to `kafka`, and otherwise
- * leaves the existing `@Processor` in place) are wired here as each app is cut over. The
- * wiring is added in the first cutover task (T13), where a concrete app supplies its Kafka
- * producer and any remaining legacy BullMQ routes.
+ * Runs `MessageConsumer`s as Kafka consumers and tears them down on shutdown. A migrated
+ * worker injects this and calls `register(this)` for its consumer(s) in an
+ * `OnApplicationBootstrap` hook.
+ */
+@Injectable()
+export class ConsumerRegistrar implements OnModuleDestroy {
+  private readonly logger = new Logger(ConsumerRegistrar.name);
+  private readonly consumers: Consumer[] = [];
+
+  constructor(
+    @Inject(KAFKA) private readonly kafka: Kafka,
+    @Inject(KAFKA_PRODUCER) private readonly producer: Producer,
+  ) {}
+
+  async register(consumer: MessageConsumer): Promise<void> {
+    const c = await runConsumer(this.kafka, this.producer, consumer);
+    this.consumers.push(c);
+    this.logger.log(`kafka consumer running for topic ${consumer.topic}`);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    for (const c of this.consumers) {
+      try {
+        await c.disconnect();
+      } catch {
+        /* best-effort shutdown */
+      }
+    }
+  }
+}
+
+@Injectable()
+class KafkaProducerLifecycle implements OnModuleDestroy {
+  constructor(@Inject(KAFKA_PRODUCER) private readonly producer: Producer) {}
+
+  async onModuleDestroy(): Promise<void> {
+    try {
+      await this.producer.disconnect();
+    } catch {
+      /* best-effort shutdown */
+    }
+  }
+}
+
+/**
+ * Global messaging module. Provides a connected Kafka producer, the `JOB_BUS` publisher, and
+ * the `ConsumerRegistrar`. Import via `MessagingModule.forRoot()` in each migrated worker.
  */
 @Global()
 @Module({})
 export class MessagingModule {
   static forRoot(): DynamicModule {
-    return { module: MessagingModule, providers: [], exports: [] };
+    const kafkaProvider: Provider = {
+      provide: KAFKA,
+      useFactory: (cfg: AppConfigService) => createKafka(cfg.env),
+      inject: [AppConfigService],
+    };
+    const producerProvider: Provider = {
+      provide: KAFKA_PRODUCER,
+      useFactory: async (kafka: Kafka) => {
+        const producer = kafka.producer();
+        await producer.connect();
+        return producer;
+      },
+      inject: [KAFKA],
+    };
+    const jobBusProvider: Provider = {
+      provide: JOB_BUS,
+      useFactory: (producer: Producer) => new KafkaJobBus(producer),
+      inject: [KAFKA_PRODUCER],
+    };
+    return {
+      module: MessagingModule,
+      providers: [
+        kafkaProvider,
+        producerProvider,
+        jobBusProvider,
+        KafkaProducerLifecycle,
+        ConsumerRegistrar,
+      ],
+      exports: [JOB_BUS, KAFKA, KAFKA_PRODUCER, ConsumerRegistrar],
+    };
   }
 }
