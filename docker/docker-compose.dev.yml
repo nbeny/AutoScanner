@@ -82,6 +82,58 @@ services:
         echo "MinIO buckets ready"
     restart: 'no'
 
+  # --- Application services (profile: app) ------------------------------------
+  # Opt-in so `pnpm dev:up` stays lean (infra only). Bring the app up with:
+  #   docker compose -f docker/docker-compose.dev.yml --profile app up -d --build
+  # API is published on http://localhost:4000, frontend on http://localhost:4200.
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+      args:
+        APP: api-gateway
+    container_name: autoscanner-api
+    profiles: ['app']
+    # Base config from .env; the in-network overrides below win over it.
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      API_HOST: 0.0.0.0
+      API_PORT: '4000'
+      DATABASE_URL: postgresql://autoscanner:dev@postgres:5432/autoscanner
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: autoscanner
+      S3_SECRET_KEY: devpassword
+      S3_REGION: us-east-1
+      FRONTEND_URL: http://localhost:4200
+    # Apply migrations, then boot the API.
+    command: sh -c "pnpm prisma migrate deploy && node dist/apps/api-gateway/main.js"
+    ports:
+      - '4000:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        # SPA runs in the browser -> reach the API on its HOST-published port.
+        VITE_API_URL: http://localhost:4000
+    container_name: autoscanner-frontend
+    profiles: ['app']
+    ports:
+      - '4200:80'
+    depends_on:
+      - api-gateway
+
 volumes:
   pgdata:
   redisdata:
