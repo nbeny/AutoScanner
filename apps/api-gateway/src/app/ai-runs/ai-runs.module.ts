@@ -1,10 +1,8 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
 import IORedis from 'ioredis';
 
 import { AppConfigModule, AppConfigService } from '@autoscanner/config';
 import { CapabilityModule } from '@autoscanner/auth';
-import { QueueName, QueuesModule } from '@autoscanner/queues';
 
 import { AuthModule } from '../auth/auth.module';
 import { AiRunsResolver } from './ai-runs.resolver';
@@ -13,13 +11,7 @@ import { QuickScanProvisioner } from './quick-scan-provisioner.service';
 import { AiRunEventsSubscriber, AI_RUN_EVENTS_REDIS_SUBSCRIBER } from './ai-run-events.subscriber';
 
 @Module({
-  imports: [
-    AuthModule,
-    AppConfigModule,
-    QueuesModule,
-    BullModule.registerQueue({ name: QueueName.AI_RUNS }),
-    CapabilityModule,
-  ],
+  imports: [AuthModule, AppConfigModule, CapabilityModule],
   providers: [
     AiRunsService,
     AiRunsResolver,

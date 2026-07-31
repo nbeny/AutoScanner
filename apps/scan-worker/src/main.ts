@@ -3,12 +3,10 @@ import { config as loadEnv } from 'dotenv';
 loadEnv();
 
 import { NestFactory } from '@nestjs/core';
-import { getQueueToken } from '@nestjs/bullmq';
 import { Logger } from 'nestjs-pino';
-import type { Queue } from 'bullmq';
 
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type ScanJobPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 
 import { AppModule } from './app/app.module';
 import { reconcileRunningScanJobs } from './app/reconcile';
@@ -23,8 +21,8 @@ async function bootstrap(): Promise<void> {
   // from scratch and overwrites the previous attempt's raw output at the
   // same key, so re-enqueuing is safe.
   const prisma = app.get(PrismaService);
-  const scanQueue = app.get<Queue<ScanJobPayload>>(getQueueToken(QueueName.SCAN_JOBS));
-  await reconcileRunningScanJobs(prisma, scanQueue);
+  const bus = app.get<JobBus>(JOB_BUS);
+  await reconcileRunningScanJobs(prisma, bus);
 
   // eslint-disable-next-line no-console
   console.log('scan-worker started');

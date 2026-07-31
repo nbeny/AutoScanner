@@ -1,6 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { Job } from 'bullmq';
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import {
   ReportFormat,
   ReportStatus,
@@ -10,9 +8,10 @@ import {
 } from '@prisma/client';
 
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type ReportJobPayload } from '@autoscanner/queues';
+import type { ReportJobPayload } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 import { NotificationEventType, NotificationsFanoutService } from '@autoscanner/notifications';
+import { ConsumerRegistrar, MessageConsumer, type MessageContext } from '@autoscanner/messaging';
 import {
   CsvRenderer,
   JsonExporter,
@@ -46,10 +45,14 @@ const FINDING_CSV_COLUMNS = [
 ];
 
 const TOOL_VERSION = '0.1.0';
+const REPORT_TOPIC = 'security.report.requested';
 
-@Processor(QueueName.REPORT_JOBS)
 @Injectable()
-export class ReportProcessor extends WorkerHost {
+export class ReportProcessor
+  extends MessageConsumer<ReportJobPayload>
+  implements OnApplicationBootstrap
+{
+  readonly topic = REPORT_TOPIC;
   private readonly logger = new Logger(ReportProcessor.name);
   private readonly templateEngine = new TemplateEngine();
   private readonly csvRenderer = new CsvRenderer();
@@ -61,12 +64,17 @@ export class ReportProcessor extends WorkerHost {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(PDF_RENDERER) private readonly pdfRenderer: PdfRenderer,
     private readonly fanout: NotificationsFanoutService,
+    @Inject(ConsumerRegistrar) private readonly registrar: ConsumerRegistrar,
   ) {
     super();
   }
 
-  async process(job: Job<ReportJobPayload>): Promise<void> {
-    const { reportId } = job.data;
+  async onApplicationBootstrap(): Promise<void> {
+    await this.registrar.register(this);
+  }
+
+  async process(ctx: MessageContext<ReportJobPayload>): Promise<void> {
+    const { reportId } = ctx.payload;
     const report = await this.prisma.report.findUnique({
       where: { id: reportId },
       include: { template: true },

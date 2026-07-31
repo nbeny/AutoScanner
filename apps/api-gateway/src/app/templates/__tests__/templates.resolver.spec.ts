@@ -1,7 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import type { Queue } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
-import type { TemplateRunPayload } from '@autoscanner/queues';
 import { NotFoundError } from '@autoscanner/common';
 
 import { TemplatesService } from '../templates.service';
@@ -35,22 +33,22 @@ function buildPrismaMock(): PrismaMock {
   } as unknown as PrismaMock;
 }
 
-function buildQueueMock(): jest.Mocked<Queue<TemplateRunPayload>> {
+function buildQueueMock(): { publish: jest.Mock } {
   return {
-    add: jest.fn().mockResolvedValue({ id: 'bull_1' }),
-  } as unknown as jest.Mocked<Queue<TemplateRunPayload>>;
+    publish: jest.fn().mockResolvedValue(undefined),
+  };
 }
 
 describe('TemplatesService', () => {
   let prisma: PrismaMock;
-  let queue: jest.Mocked<Queue<TemplateRunPayload>>;
+  let bus: { publish: jest.Mock };
   let svc: TemplatesService;
 
   beforeEach(() => {
     prisma = buildPrismaMock();
-    queue = buildQueueMock();
+    bus = buildQueueMock();
     const capabilities = { has: jest.fn().mockResolvedValue(true) };
-    svc = new TemplatesService(prisma, queue, capabilities as any);
+    svc = new TemplatesService(prisma, bus, capabilities as any);
   });
 
   describe('runTemplate', () => {
@@ -111,9 +109,10 @@ describe('TemplatesService', () => {
           }),
         }),
       );
-      expect(queue.add).toHaveBeenCalledTimes(1);
-      expect(queue.add).toHaveBeenCalledWith(
-        'template-run',
+      expect(bus.publish).toHaveBeenCalledTimes(1);
+      expect(bus.publish).toHaveBeenCalledWith(
+        'security.scan.requested',
+        expect.any(String),
         expect.objectContaining({ templateRunId: 'run_1', engagementId }),
       );
       expect(run.id).toBe('run_1');
@@ -131,7 +130,7 @@ describe('TemplatesService', () => {
         }),
       ).rejects.toBeInstanceOf(NotFoundError);
 
-      expect(queue.add).not.toHaveBeenCalled();
+      expect(bus.publish).not.toHaveBeenCalled();
       expect(prisma.templateRun.create).not.toHaveBeenCalled();
     });
 
@@ -146,7 +145,7 @@ describe('TemplatesService', () => {
         }),
       ).rejects.toBeInstanceOf(ForbiddenException);
 
-      expect(queue.add).not.toHaveBeenCalled();
+      expect(bus.publish).not.toHaveBeenCalled();
       expect(prisma.templateRun.create).not.toHaveBeenCalled();
     });
 
@@ -161,7 +160,7 @@ describe('TemplatesService', () => {
         }),
       ).rejects.toBeInstanceOf(NotFoundError);
 
-      expect(queue.add).not.toHaveBeenCalled();
+      expect(bus.publish).not.toHaveBeenCalled();
       expect(prisma.templateRun.create).not.toHaveBeenCalled();
     });
 
@@ -179,7 +178,7 @@ describe('TemplatesService', () => {
           }),
         ).resolves.toBeDefined();
 
-        expect(queue.add).toHaveBeenCalledTimes(1);
+        expect(bus.publish).toHaveBeenCalledTimes(1);
       });
 
       it('DOMAIN does NOT match subdomain', async () => {
@@ -195,7 +194,7 @@ describe('TemplatesService', () => {
           }),
         ).rejects.toBeInstanceOf(ForbiddenException);
 
-        expect(queue.add).not.toHaveBeenCalled();
+        expect(bus.publish).not.toHaveBeenCalled();
       });
 
       it('WILDCARD_DOMAIN matches root', async () => {
@@ -239,7 +238,7 @@ describe('TemplatesService', () => {
           }),
         ).rejects.toBeInstanceOf(ForbiddenException);
 
-        expect(queue.add).not.toHaveBeenCalled();
+        expect(bus.publish).not.toHaveBeenCalled();
       });
 
       it('WILDCARD_DOMAIN does NOT match unrelated host containing value', async () => {

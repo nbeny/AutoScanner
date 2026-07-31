@@ -1,5 +1,5 @@
-import type { Job } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
+import type { ConsumerRegistrar, MessageContext } from '@autoscanner/messaging';
 import type { TemplateRunPayload } from '@autoscanner/queues';
 import type { TemplateDefinition } from '@autoscanner/templates';
 import { TemplateRegistry } from '@autoscanner/templates';
@@ -99,13 +99,13 @@ function makeFanout(): jest.Mocked<NotificationsFanoutService> {
   } as unknown as jest.Mocked<NotificationsFanoutService>;
 }
 
-const job = (payload: TemplateRunPayload): Job<TemplateRunPayload> =>
-  ({
-    id: 'bull_1',
-    name: 'run-template',
-    data: payload,
-    attemptsMade: 0,
-  }) as unknown as Job<TemplateRunPayload>;
+const job = (payload: TemplateRunPayload): MessageContext<TemplateRunPayload> => ({
+  id: 'msg_1',
+  type: 'security.scan.requested',
+  key: payload.templateRunId,
+  attempt: 1,
+  payload,
+});
 
 describe('TemplateRunProcessor', () => {
   it('PENDING -> RUNNING -> COMPLETED happy path', async () => {
@@ -114,7 +114,9 @@ describe('TemplateRunProcessor', () => {
     const registry = makeRegistry();
     const executor = makeExecutor();
     const fanout = makeFanout();
-    const proc = new TemplateRunProcessor(prisma, registry, executor, makeEvents(), fanout);
+    const proc = new TemplateRunProcessor(prisma, registry, executor, makeEvents(), fanout, {
+      register: jest.fn(),
+    } as unknown as ConsumerRegistrar);
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
 
@@ -187,6 +189,7 @@ describe('TemplateRunProcessor', () => {
       executor,
       makeEvents(),
       makeFanout(),
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
@@ -202,7 +205,9 @@ describe('TemplateRunProcessor', () => {
     const executor = makeExecutor();
     executor.runStep.mockRejectedValueOnce(new Error('docker boom'));
     const fanout = makeFanout();
-    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents(), fanout);
+    const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, makeEvents(), fanout, {
+      register: jest.fn(),
+    } as unknown as ConsumerRegistrar);
 
     await expect(
       proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
@@ -236,6 +241,7 @@ describe('TemplateRunProcessor', () => {
       executor,
       makeEvents(),
       makeFanout(),
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
@@ -254,6 +260,7 @@ describe('TemplateRunProcessor', () => {
       executor,
       makeEvents(),
       makeFanout(),
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
@@ -280,6 +287,7 @@ describe('TemplateRunProcessor', () => {
       executor,
       makeEvents(),
       makeFanout(),
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
 
     await expect(
@@ -298,6 +306,7 @@ describe('TemplateRunProcessor', () => {
         makeExecutor(),
         events,
         makeFanout(),
+        { register: jest.fn() } as unknown as ConsumerRegistrar,
       );
 
       await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
@@ -316,7 +325,14 @@ describe('TemplateRunProcessor', () => {
       const executor = makeExecutor();
       executor.runStep.mockRejectedValueOnce(new Error('docker boom'));
       const events = makeEvents();
-      const proc = new TemplateRunProcessor(prisma, makeRegistry(), executor, events, makeFanout());
+      const proc = new TemplateRunProcessor(
+        prisma,
+        makeRegistry(),
+        executor,
+        events,
+        makeFanout(),
+        { register: jest.fn() } as unknown as ConsumerRegistrar,
+      );
 
       await expect(
         proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' })),
@@ -340,6 +356,7 @@ describe('TemplateRunProcessor', () => {
         makeExecutor(),
         events,
         makeFanout(),
+        { register: jest.fn() } as unknown as ConsumerRegistrar,
       );
 
       await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));
@@ -359,6 +376,7 @@ describe('TemplateRunProcessor', () => {
         makeExecutor(),
         events,
         makeFanout(),
+        { register: jest.fn() } as unknown as ConsumerRegistrar,
       );
 
       await expect(
@@ -378,6 +396,7 @@ describe('TemplateRunProcessor', () => {
       executor,
       makeEvents(),
       makeFanout(),
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
 
     await proc.process(job({ templateRunId: 'run_1', engagementId: 'eng_1' }));

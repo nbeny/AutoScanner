@@ -7,7 +7,7 @@ describe('swaks capability gate (Phase 14B)', () => {
   let registry: ScannerRegistry;
   let capabilities: jest.Mocked<CapabilityService>;
   let prisma: { engagement: { findFirst: jest.Mock }; $transaction: jest.Mock };
-  let scanQueue: { add: jest.Mock };
+  let bus: { publish: jest.Mock };
   let storage: unknown;
   let scanControl: unknown;
   let events: unknown;
@@ -24,14 +24,14 @@ describe('swaks capability gate (Phase 14B)', () => {
       engagement: { findFirst: jest.fn().mockResolvedValue({ id: 'eng1' }) },
       $transaction: jest.fn(),
     };
-    scanQueue = { add: jest.fn() };
+    bus = { publish: jest.fn().mockResolvedValue(undefined) };
     storage = {};
     scanControl = { publishCancel: jest.fn() };
     events = { publish: jest.fn() };
     svc = new ScansService(
       prisma as never,
       registry,
-      scanQueue as never,
+      bus as never,
       storage as never,
       scanControl as never,
       events as never,
@@ -67,7 +67,7 @@ describe('swaks capability gate (Phase 14B)', () => {
         },
       }),
     );
-    scanQueue.add.mockResolvedValue({ id: 'b1' });
+    bus.publish.mockResolvedValue(undefined);
     await svc.runScan('user1', {
       engagementId: 'eng1',
       scannerName: 'swaks',

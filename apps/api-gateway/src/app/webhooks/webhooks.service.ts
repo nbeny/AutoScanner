@@ -1,6 +1,7 @@
 import * as crypto from 'node:crypto';
 
 import {
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -8,18 +9,18 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import type { Queue } from 'bullmq';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@autoscanner/database';
 import { AppConfigService } from '@autoscanner/config';
-import { QueueName, type WebhookJobPayload } from '@autoscanner/queues';
+import type { WebhookJobPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 
 const SOURCES = ['generic', 'zap', 'burp'] as const;
 type WebhookSource = (typeof SOURCES)[number];
 
 const SIZE_LIMIT_BYTES = 5_242_880; // 5 MB
+const WEBHOOK_TOPIC = 'security.webhook.ingest.requested';
 
 @Injectable()
 export class WebhooksService {
@@ -27,8 +28,7 @@ export class WebhooksService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(QueueName.WEBHOOK_JOBS)
-    private readonly webhookQueue: Queue<WebhookJobPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
     private readonly cfg: AppConfigService,
   ) {}
 
@@ -91,7 +91,9 @@ export class WebhooksService {
     });
 
     try {
-      await this.webhookQueue.add('ingest', { webhookEventId: event.id }, { attempts: 3 });
+      await this.bus.publish<WebhookJobPayload>(WEBHOOK_TOPIC, event.id, {
+        webhookEventId: event.id,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to enqueue webhook-job for event=${event.id}: ${message}`);

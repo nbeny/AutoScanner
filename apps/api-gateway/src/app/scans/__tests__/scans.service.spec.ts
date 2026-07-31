@@ -1,8 +1,6 @@
-import type { Queue } from 'bullmq';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { NmapScanner } from '@autoscanner/scanners-nmap';
 import type { PrismaService } from '@autoscanner/database';
-import type { ScanJobPayload } from '@autoscanner/queues';
 import { ValidationError, NotFoundError } from '@autoscanner/common';
 import type { ObjectStorage } from '@autoscanner/storage';
 
@@ -10,7 +8,7 @@ import { ScansService } from '../scans.service';
 
 describe('ScansService.runScan', () => {
   let prisma: jest.Mocked<PrismaService>;
-  let scanQueue: jest.Mocked<Queue<ScanJobPayload>>;
+  let bus: { publish: jest.Mock };
   let storage: jest.Mocked<ObjectStorage>;
   let registry: ScannerRegistry;
   let svc: ScansService;
@@ -63,9 +61,7 @@ describe('ScansService.runScan', () => {
       $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(prisma)),
     } as unknown as jest.Mocked<PrismaService>;
 
-    scanQueue = { add: jest.fn().mockResolvedValue({ id: 'bull_1' }) } as unknown as jest.Mocked<
-      Queue<ScanJobPayload>
-    >;
+    bus = { publish: jest.fn().mockResolvedValue(undefined) };
 
     storage = {
       ensureBucket: jest.fn(),
@@ -87,7 +83,7 @@ describe('ScansService.runScan', () => {
     svc = new ScansService(
       prisma,
       registry,
-      scanQueue,
+      bus,
       storage,
       scanControl as any,
       events as any,
@@ -118,8 +114,9 @@ describe('ScansService.runScan', () => {
         }),
       }),
     );
-    expect(scanQueue.add).toHaveBeenCalledWith(
-      'scan',
+    expect(bus.publish).toHaveBeenCalledWith(
+      'security.scanner.requested',
+      'job_1',
       expect.objectContaining({
         scanJobId: 'job_1',
         scannerName: 'nmap',
@@ -143,9 +140,9 @@ describe('ScansService.runScan', () => {
     expect(prisma.scanJob.create).toHaveBeenCalledTimes(1);
   });
 
-  it('marks both Scan and ScanJob FAILED when the BullMQ enqueue throws and re-throws the error', async () => {
+  it('marks both Scan and ScanJob FAILED when the publish throws and re-throws the error', async () => {
     const enqueueError = new Error('redis is down');
-    (scanQueue.add as jest.Mock).mockRejectedValueOnce(enqueueError);
+    (bus.publish as jest.Mock).mockRejectedValueOnce(enqueueError);
 
     await expect(
       svc.runScan(userId, { engagementId, scannerName: 'nmap', target: '127.0.0.1' }),
@@ -162,7 +159,7 @@ describe('ScansService.runScan', () => {
   });
 
   it('still re-throws the enqueue error even if the FAILED status update itself fails', async () => {
-    (scanQueue.add as jest.Mock).mockRejectedValueOnce(new Error('redis is down'));
+    (bus.publish as jest.Mock).mockRejectedValueOnce(new Error('redis is down'));
     (prisma.scan.update as jest.Mock).mockRejectedValueOnce(new Error('db is down'));
     (prisma.scanJob.update as jest.Mock).mockRejectedValueOnce(new Error('db is down'));
 
@@ -191,7 +188,7 @@ describe('ScansService.runScan', () => {
     ).rejects.toThrow(/does-not-exist/);
 
     expect(prisma.scan.create).not.toHaveBeenCalled();
-    expect(scanQueue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
   });
 
   it('rejects malformed optionsJson', async () => {
@@ -204,7 +201,7 @@ describe('ScansService.runScan', () => {
       }),
     ).rejects.toBeInstanceOf(ValidationError);
 
-    expect(scanQueue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
   });
 
   it('rejects engagement the user does not own', async () => {
@@ -214,7 +211,7 @@ describe('ScansService.runScan', () => {
       svc.runScan('other_user', { engagementId, scannerName: 'nmap', target: '127.0.0.1' }),
     ).rejects.toBeInstanceOf(NotFoundError);
 
-    expect(scanQueue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
   });
 
   it('rejects options that fail the scanner zod schema', async () => {
@@ -250,7 +247,7 @@ describe('ScansService.runScan', () => {
           data: expect.objectContaining({ agentId }),
         }),
       );
-      expect(scanQueue.add).not.toHaveBeenCalled();
+      expect(bus.publish).not.toHaveBeenCalled();
       expect(scan.id).toBe('scan_1');
     });
 
@@ -267,7 +264,7 @@ describe('ScansService.runScan', () => {
       ).rejects.toBeInstanceOf(NotFoundError);
 
       expect(prisma.scan.create).not.toHaveBeenCalled();
-      expect(scanQueue.add).not.toHaveBeenCalled();
+      expect(bus.publish).not.toHaveBeenCalled();
     });
   });
 
@@ -389,11 +386,9 @@ describe('ScansService.runScan', () => {
         findFirst: jest.fn().mockResolvedValue(job),
         update: jest.fn().mockResolvedValue({ ...job, status: 'CANCELLED' }),
       };
-      const remove = jest.fn();
-      (scanQueue as any).getJob = jest.fn().mockResolvedValue({ remove });
       await svc.cancelScanJob(userId, 'job_1');
-      expect((scanQueue as any).getJob).toHaveBeenCalledWith('job_1');
-      expect(remove).toHaveBeenCalled();
+      // A published Kafka message cannot be un-published: cancellation marks the row
+      // CANCELLED (asserted below) and the scan-worker's terminal-status guard skips it.
       expect((prisma as any).scanJob.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'job_1' },

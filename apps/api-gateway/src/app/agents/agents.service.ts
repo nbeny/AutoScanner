@@ -1,13 +1,14 @@
 import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
 import { randomBytes } from 'node:crypto';
-import { Queue } from 'bullmq';
 import { Prisma } from '@prisma/client';
 import { ConflictError, NotFoundError, verifyAgentSignature } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type ParseJobPayload } from '@autoscanner/queues';
+import type { ParseJobPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, rawOutputKey, type ObjectStorage } from '@autoscanner/storage';
+
+const PARSE_TOPIC = 'security.parse.requested';
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 h
 const TS_WINDOW_MS = 120_000; // ±120 s
@@ -69,7 +70,7 @@ export class AgentsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(QueueName.PARSE_JOBS) private readonly parseQueue: Queue<ParseJobPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(ScannerRegistry) private readonly registry: ScannerRegistry,
   ) {}
@@ -280,7 +281,7 @@ export class AgentsService {
     });
 
     if (terminalStatus === 'COMPLETED') {
-      await this.parseQueue.add('parse', {
+      await this.bus.publish<ParseJobPayload>(PARSE_TOPIC, job.id, {
         scanJobId: job.id,
         rawOutputKey: key,
         parserName: output.parser,

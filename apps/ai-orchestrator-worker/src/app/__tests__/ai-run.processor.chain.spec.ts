@@ -1,3 +1,5 @@
+import type { ConsumerRegistrar } from '@autoscanner/messaging';
+
 import { AiRunProcessor } from '../ai-run.processor';
 import type { DecisionOutcome } from '../next-step-decider';
 
@@ -60,8 +62,15 @@ describe('AiRunProcessor chain flow', () => {
       events,
       claudeDecider,
       chainDecider,
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
-    await proc.process({ data: { aiRunId: 'r1' } } as never);
+    await proc.process({
+      id: 'msg_1',
+      type: 'security.ai.run.requested',
+      key: 'r1',
+      attempt: 1,
+      payload: { aiRunId: 'r1' },
+    } as never);
 
     // node de skip créé avec skipReason, pas de dispatch
     const nodeCreate = (prisma as { aiRunNode: { create: jest.Mock } }).aiRunNode.create;

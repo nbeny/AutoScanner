@@ -8,10 +8,9 @@ import { ScanDispatcher } from './scan-dispatcher.service';
  * The Redis subscriber (`SCAN_DISPATCH_REDIS_SUBSCRIBER`) is NOT provided here:
  * a pub/sub subscriber must use its own connection, so the consumer app wires
  * an `ioredis` instance against the exported token (mirroring how
- * orchestrator-worker provides `ORCHESTRATOR_REDIS_SUBSCRIBER`). The queue
- * (`@InjectQueue(QueueName.SCAN_JOBS)`) and `PrismaService` / `ScannerRegistry`
- * likewise come from modules the consumer imports (QueuesModule, PrismaModule,
- * ScannerSdkModule).
+ * orchestrator-worker provides `ORCHESTRATOR_REDIS_SUBSCRIBER`). The `JOB_BUS`
+ * publisher and `PrismaService` / `ScannerRegistry` likewise come from modules the
+ * consumer imports (MessagingModule, PrismaModule, ScannerSdkModule).
  */
 @Module({
   providers: [ScanDispatcher],

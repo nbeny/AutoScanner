@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { AppConfigModule } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
-import { QueuesModule } from '@autoscanner/queues';
+import { MessagingModule } from '@autoscanner/messaging';
 
 import { NotificationAdaptersModule } from './notification-adapters.module';
 import { NotificationProcessor } from './notification.processor';
@@ -13,7 +13,7 @@ import { NotificationProcessor } from './notification.processor';
     AppConfigModule,
     AppLoggingModule,
     PrismaModule,
-    QueuesModule,
+    MessagingModule.forRoot(),
     NotificationAdaptersModule,
   ],
   providers: [NotificationProcessor],

@@ -4,13 +4,13 @@ import { AppConfigModule } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
 import { NvdClient, TokenBucketRateLimiter } from '@autoscanner/cve';
 import { PrismaModule } from '@autoscanner/database';
-import { QueuesModule } from '@autoscanner/queues';
+import { MessagingModule } from '@autoscanner/messaging';
 
 import { NvdSyncProcessor } from './nvd-sync.processor';
 import { NvdSyncScheduler } from './nvd-sync.scheduler';
 
 @Module({
-  imports: [AppConfigModule, AppLoggingModule, PrismaModule, QueuesModule],
+  imports: [AppConfigModule, AppLoggingModule, PrismaModule, MessagingModule.forRoot()],
   providers: [
     NvdSyncProcessor,
     NvdSyncScheduler,

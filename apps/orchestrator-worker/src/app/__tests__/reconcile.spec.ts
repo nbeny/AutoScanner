@@ -1,6 +1,4 @@
-import type { Queue } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
-import type { TemplateRunPayload } from '@autoscanner/queues';
 
 import { reconcileRunningTemplateRuns } from '../reconcile';
 
@@ -14,18 +12,18 @@ describe('reconcileRunningTemplateRuns', () => {
     const prisma = {
       templateRun: { findMany: jest.fn().mockResolvedValue([]) },
     } as unknown as PrismaService;
-    const queue = { add: jest.fn() } as unknown as Queue<TemplateRunPayload>;
+    const bus = { publish: jest.fn().mockResolvedValue(undefined) };
 
-    const n = await reconcileRunningTemplateRuns(prisma, queue, silentLogger);
+    const n = await reconcileRunningTemplateRuns(prisma, bus, silentLogger);
 
     expect(n).toBe(0);
-    expect(queue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
     expect((prisma.templateRun.findMany as jest.Mock).mock.calls[0][0]).toEqual(
       expect.objectContaining({ where: { status: 'RUNNING' } }),
     );
   });
 
-  it('re-enqueues every RUNNING TemplateRun on TEMPLATE_RUNS queue', async () => {
+  it('re-enqueues every RUNNING TemplateRun on TEMPLATE_RUNS bus', async () => {
     const prisma = {
       templateRun: {
         findMany: jest.fn().mockResolvedValue([
@@ -34,17 +32,17 @@ describe('reconcileRunningTemplateRuns', () => {
         ]),
       },
     } as unknown as PrismaService;
-    const queue = { add: jest.fn().mockResolvedValue({}) } as unknown as Queue<TemplateRunPayload>;
+    const bus = { publish: jest.fn().mockResolvedValue(undefined) };
 
-    const n = await reconcileRunningTemplateRuns(prisma, queue, silentLogger);
+    const n = await reconcileRunningTemplateRuns(prisma, bus, silentLogger);
 
     expect(n).toBe(2);
-    expect(queue.add).toHaveBeenCalledTimes(2);
-    expect(queue.add).toHaveBeenNthCalledWith(1, 'run-template', {
+    expect(bus.publish).toHaveBeenCalledTimes(2);
+    expect(bus.publish).toHaveBeenNthCalledWith(1, 'security.scan.requested', expect.any(String), {
       templateRunId: 'r1',
       engagementId: 'e1',
     });
-    expect(queue.add).toHaveBeenNthCalledWith(2, 'run-template', {
+    expect(bus.publish).toHaveBeenNthCalledWith(2, 'security.scan.requested', expect.any(String), {
       templateRunId: 'r2',
       engagementId: 'e2',
     });
@@ -60,14 +58,17 @@ describe('reconcileRunningTemplateRuns', () => {
       },
     } as unknown as PrismaService;
     const warn = jest.fn();
-    const queue = {
-      add: jest.fn().mockRejectedValueOnce(new Error('redis down')).mockResolvedValueOnce({}),
-    } as unknown as Queue<TemplateRunPayload>;
+    const bus = {
+      publish: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('redis down'))
+        .mockResolvedValueOnce(undefined),
+    };
 
-    const n = await reconcileRunningTemplateRuns(prisma, queue, { log: jest.fn(), warn });
+    const n = await reconcileRunningTemplateRuns(prisma, bus, { log: jest.fn(), warn });
 
     expect(n).toBe(2);
-    expect(queue.add).toHaveBeenCalledTimes(2);
+    expect(bus.publish).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenCalledWith(
       expect.stringMatching(/Failed to re-enqueue.*r1.*redis down/),
     );

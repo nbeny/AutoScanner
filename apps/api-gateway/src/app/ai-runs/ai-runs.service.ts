@@ -1,16 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { AiRun, AiRunNode, AiDecision } from '@prisma/client';
 
 import { NotFoundError, ValidationError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type AiRunPayload } from '@autoscanner/queues';
+import { type AiRunPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 import { parseTarget } from '@autoscanner/target-parser';
 
 import { RunAiScanInput } from './dto/run-ai-scan.input';
 import { QuickScanProvisioner } from './quick-scan-provisioner.service';
+
+const AI_RUN_TOPIC = 'security.ai.run.requested';
 
 const TERMINAL_STATUSES = ['COMPLETED', 'FAILED', 'CANCELLED', 'STOPPED_CAP'];
 
@@ -20,7 +21,7 @@ export class AiRunsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(QueueName.AI_RUNS) private readonly aiRunQueue: Queue<AiRunPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
     private readonly provisioner: QuickScanProvisioner,
   ) {}
 
@@ -48,7 +49,10 @@ export class AiRunsService {
     });
 
     try {
-      await this.aiRunQueue.add('airun', { aiRunId: aiRun.id, engagementId: eng.id });
+      await this.bus.publish<AiRunPayload>(AI_RUN_TOPIC, aiRun.id, {
+        aiRunId: aiRun.id,
+        engagementId: eng.id,
+      });
     } catch (err) {
       // The AiRun row is already committed; if the enqueue fails (Redis down,
       // queue rejected the job, etc.) reconcile it to FAILED so the UI never

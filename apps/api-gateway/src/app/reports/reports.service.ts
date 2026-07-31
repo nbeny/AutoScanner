@@ -1,18 +1,18 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import type { Queue } from 'bullmq';
 import type { Readable } from 'node:stream';
 import type { Report, ReportTemplate } from '@prisma/client';
 import { Prisma, ReportStatus } from '@prisma/client';
 
 import { ConflictError, NotFoundError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type ReportJobPayload } from '@autoscanner/queues';
+import type { ReportJobPayload } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 
 import { GenerateReportInput } from './dto/generate-report.input';
 
 const DOWNLOAD_URL_TTL_SECONDS = 3600;
+const REPORT_TOPIC = 'security.report.requested';
 
 export type ReportWithTemplate = Report & { template: ReportTemplate };
 
@@ -29,7 +29,7 @@ export class ReportsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(QueueName.REPORT_JOBS) private readonly reportQueue: Queue<ReportJobPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
   ) {}
 
@@ -67,7 +67,7 @@ export class ReportsService {
     })) as ReportWithTemplate;
 
     try {
-      await this.reportQueue.add('report', { reportId: report.id });
+      await this.bus.publish<ReportJobPayload>(REPORT_TOPIC, report.id, { reportId: report.id });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to enqueue report=${report.id}: ${message}`);

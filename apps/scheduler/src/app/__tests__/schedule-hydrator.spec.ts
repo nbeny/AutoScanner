@@ -1,9 +1,8 @@
 import { Test } from '@nestjs/testing';
-import { getQueueToken } from '@nestjs/bullmq';
+import { JOB_BUS } from '@autoscanner/messaging';
 import type { Schedule } from '@prisma/client';
 
 import { PrismaService } from '@autoscanner/database';
-import { QueueName } from '@autoscanner/queues';
 
 import { ScheduleHydrator } from '../schedule-hydrator.service';
 
@@ -76,13 +75,13 @@ function buildPrismaMock(): PrismaMock {
 
 async function buildHydrator(
   prisma: PrismaMock,
-  queue: { add: jest.Mock },
+  bus: { publish: jest.Mock },
 ): Promise<ScheduleHydrator> {
   const module = await Test.createTestingModule({
     providers: [
       ScheduleHydrator,
       { provide: PrismaService, useValue: prisma },
-      { provide: getQueueToken(QueueName.TEMPLATE_RUNS), useValue: queue },
+      { provide: JOB_BUS, useValue: bus },
     ],
   }).compile();
   return module.get(ScheduleHydrator);
@@ -90,13 +89,13 @@ async function buildHydrator(
 
 describe('ScheduleHydrator', () => {
   let prisma: PrismaMock;
-  let queue: { add: jest.Mock };
+  let bus: { publish: jest.Mock };
   let hydrator: ScheduleHydrator;
 
   beforeEach(async () => {
     prisma = buildPrismaMock();
-    queue = { add: jest.fn().mockResolvedValue(undefined) };
-    hydrator = await buildHydrator(prisma, queue);
+    bus = { publish: jest.fn().mockResolvedValue(undefined) };
+    hydrator = await buildHydrator(prisma, bus);
   });
 
   it('plants nextRunAt without enqueuing on first hydration', async () => {
@@ -113,7 +112,7 @@ describe('ScheduleHydrator', () => {
     const plantedNext = prisma.schedule.update.mock.calls[0][0].data.nextRunAt as Date;
     // next "0 2 * * *" UTC tick from 2026-06-12T10:00:00Z is 2026-06-13T02:00:00Z
     expect(plantedNext.toISOString()).toBe('2026-06-13T02:00:00.000Z');
-    expect(queue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -133,8 +132,8 @@ describe('ScheduleHydrator', () => {
 
     expect(result).toEqual({ scanned: 1, enqueued: 3 });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(queue.add).toHaveBeenCalledTimes(3);
-    expect(queue.add).toHaveBeenNthCalledWith(1, 'template-run', {
+    expect(bus.publish).toHaveBeenCalledTimes(3);
+    expect(bus.publish).toHaveBeenNthCalledWith(1, 'security.scan.requested', expect.any(String), {
       templateRunId: 'run-1',
       engagementId: 'eng-1',
     });
@@ -169,17 +168,17 @@ describe('ScheduleHydrator', () => {
 
     expect(result).toEqual({ scanned: 1, enqueued: 0 });
     expect(prisma.schedule.update).not.toHaveBeenCalled();
-    expect(queue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
   });
 
-  it('keeps the templateRun row PENDING when queue.add throws after commit', async () => {
+  it('keeps the templateRun row PENDING when bus.publish throws after commit', async () => {
     const schedule = makeSchedule({
       nextRunAt: new Date('2026-06-12T09:59:00Z'),
       targets: ['example.com'],
     });
     prisma.schedule.findMany.mockResolvedValue([schedule]);
     prisma.templateRun.create.mockResolvedValueOnce({ id: 'run-1' });
-    queue.add.mockRejectedValueOnce(new Error('redis down'));
+    bus.publish.mockRejectedValueOnce(new Error('redis down'));
 
     await expect(hydrator.pollOnce(NOW)).rejects.toThrow('redis down');
 
@@ -200,7 +199,7 @@ describe('ScheduleHydrator', () => {
     const result = await hydrator.pollOnce(NOW);
 
     expect(result).toEqual({ scanned: 1, enqueued: 0 });
-    expect(queue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
     expect(prisma.schedule.update).toHaveBeenCalledWith({
       where: { id: 'sch-1' },
       data: { nextRunAt: expect.any(Date), lastRunAt: NOW },

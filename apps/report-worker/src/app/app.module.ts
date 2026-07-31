@@ -3,10 +3,10 @@ import { Module } from '@nestjs/common';
 import { AppConfigModule } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
-import { QueuesModule } from '@autoscanner/queues';
 import { StorageModule } from '@autoscanner/storage';
 import { PDF_RENDERER, PuppeteerPdfRenderer } from '@autoscanner/reporting';
 import { NotificationsFanoutModule } from '@autoscanner/notifications';
+import { MessagingModule } from '@autoscanner/messaging';
 
 import { ReportProcessor } from './report.processor';
 
@@ -15,9 +15,9 @@ import { ReportProcessor } from './report.processor';
     AppConfigModule,
     AppLoggingModule,
     PrismaModule,
-    QueuesModule,
     StorageModule,
     NotificationsFanoutModule,
+    MessagingModule.forRoot(),
   ],
   providers: [ReportProcessor, { provide: PDF_RENDERER, useClass: PuppeteerPdfRenderer }],
 })

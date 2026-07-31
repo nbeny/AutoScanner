@@ -1,11 +1,11 @@
 import * as fs from 'node:fs';
 import { join } from 'node:path';
-import type { Job, Queue } from 'bullmq';
 import { SecretBox } from '@autoscanner/common';
 import type { PrismaService } from '@autoscanner/database';
 import type { DockerRunner, RunResult, RunSpec } from '@autoscanner/docker-runner';
 import type { LogStreamPublisher } from '@autoscanner/log-stream';
-import type { ParseJobPayload, ScanJobPayload } from '@autoscanner/queues';
+import type { ScanJobPayload } from '@autoscanner/queues';
+import type { ConsumerRegistrar, MessageContext } from '@autoscanner/messaging';
 import { ScannerRegistry, type ScannerDefinition } from '@autoscanner/scanner-sdk';
 import { NmapScanner } from '@autoscanner/scanners-nmap';
 import type { ObjectStorage } from '@autoscanner/storage';
@@ -20,7 +20,7 @@ describe('ScanJobProcessor', () => {
   let prisma: jest.Mocked<PrismaService>;
   let docker: jest.Mocked<DockerRunner>;
   let storage: jest.Mocked<ObjectStorage>;
-  let parseQueue: jest.Mocked<Queue<ParseJobPayload>>;
+  let bus: { publish: jest.Mock };
   let logStream: jest.Mocked<LogStreamPublisher>;
   let registry: ScannerRegistry;
   let secretBox: jest.Mocked<SecretBox>;
@@ -76,9 +76,7 @@ describe('ScanJobProcessor', () => {
       presignPutUrl: jest.fn(),
     } as unknown as jest.Mocked<ObjectStorage>;
 
-    parseQueue = { add: jest.fn().mockResolvedValue({}) } as unknown as jest.Mocked<
-      Queue<ParseJobPayload>
-    >;
+    bus = { publish: jest.fn().mockResolvedValue(undefined) };
 
     logStream = {
       publish: jest.fn().mockResolvedValue(undefined),
@@ -105,7 +103,8 @@ describe('ScanJobProcessor', () => {
       registry,
       docker,
       storage,
-      parseQueue,
+      bus,
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
       logStream,
       secretBox,
       scanControlSubscriber,
@@ -114,11 +113,12 @@ describe('ScanJobProcessor', () => {
 
   const job = (payload: ScanJobPayload) =>
     ({
-      id: 'bull_1',
-      name: 'scan',
-      data: payload,
-      attemptsMade: 0,
-    }) as unknown as Job<ScanJobPayload>;
+      id: 'msg_1',
+      type: 'security.scanner.requested',
+      key: payload.scanJobId,
+      attempt: 1,
+      payload,
+    }) as MessageContext<ScanJobPayload>;
 
   it('runs scanner, uploads stdout to MinIO, enqueues parse job, marks COMPLETED', async () => {
     const payload: ScanJobPayload = {
@@ -141,8 +141,9 @@ describe('ScanJobProcessor', () => {
         contentType: 'application/xml',
       }),
     );
-    expect(parseQueue.add).toHaveBeenCalledWith(
-      'parse',
+    expect(bus.publish).toHaveBeenCalledWith(
+      'security.parse.requested',
+      'job_1',
       expect.objectContaining({
         scanJobId: 'job_1',
         rawOutputKey: 'eng_1/scan_1/job_1/nmap-xml.xml',
@@ -193,7 +194,7 @@ describe('ScanJobProcessor', () => {
       }),
     );
 
-    expect(parseQueue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
     expect(prisma.scanJob.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'TIMEOUT', exitCode: 137 }),
@@ -216,7 +217,7 @@ describe('ScanJobProcessor', () => {
       ),
     ).rejects.toThrow('minio unreachable');
 
-    expect(parseQueue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
     expect(prisma.scanJob.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'job_1' },
@@ -228,8 +229,8 @@ describe('ScanJobProcessor', () => {
     );
   });
 
-  it('marks FAILED with a parse-enqueue error message when parseQueue.add throws (so orchestrator never observes a phantom COMPLETED)', async () => {
-    parseQueue.add.mockRejectedValueOnce(new Error('redis is down'));
+  it('marks FAILED with a parse-enqueue error message when publishing the parse message throws (so orchestrator never observes a phantom COMPLETED)', async () => {
+    bus.publish.mockRejectedValueOnce(new Error('redis is down'));
 
     await expect(
       processor.process(
@@ -243,7 +244,7 @@ describe('ScanJobProcessor', () => {
       ),
     ).rejects.toThrow('redis is down');
 
-    expect(parseQueue.add).toHaveBeenCalledTimes(1);
+    expect(bus.publish).toHaveBeenCalledTimes(1);
     // The final status update must NOT have flipped COMPLETED — the
     // orchestrator's polling would have treated that as a clean step.
     const completedUpdates = (prisma.scanJob.update as jest.Mock).mock.calls.filter(
@@ -263,7 +264,7 @@ describe('ScanJobProcessor', () => {
   });
 
   it('still re-throws the original error when the FAILED reconciliation update itself fails', async () => {
-    parseQueue.add.mockRejectedValueOnce(new Error('redis is down'));
+    bus.publish.mockRejectedValueOnce(new Error('redis is down'));
     // The RUNNING-status update at the start works; the reconciliation
     // update is the second call and will reject.
     (prisma.scanJob.update as jest.Mock)
@@ -308,7 +309,7 @@ describe('ScanJobProcessor', () => {
       ),
     ).rejects.toThrow('boom');
 
-    expect(parseQueue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
     expect(prisma.scanJob.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'FAILED', errorMessage: 'boom' }),
@@ -395,7 +396,7 @@ describe('ScanJobProcessor', () => {
     // Storage upload and parse enqueue must NOT have happened — the output
     // is unusable.
     expect(storage.putObject).not.toHaveBeenCalled();
-    expect(parseQueue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
 
     // Status must be FAILED with the explicit cap-exceeded message — NOT
     // CANCELLED (which is what the normal status mapping would produce for
@@ -590,7 +591,7 @@ describe('ScanJobProcessor', () => {
 
     it('does NOT enqueue a parse job for BINARY format', async () => {
       await processor.process(binaryJob());
-      expect(parseQueue.add).not.toHaveBeenCalled();
+      expect(bus.publish).not.toHaveBeenCalled();
     });
 
     it('marks the job COMPLETED with a rawOutputKey', async () => {
@@ -630,7 +631,7 @@ describe('ScanJobProcessor', () => {
         }),
       );
       expect(storage.putObject).not.toHaveBeenCalled();
-      expect(parseQueue.add).not.toHaveBeenCalled();
+      expect(bus.publish).not.toHaveBeenCalled();
     });
 
     it('cleans up the host temp dir after successful processing', async () => {

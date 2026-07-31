@@ -1,7 +1,9 @@
 import { Logger } from '@nestjs/common';
-import type { Queue } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
 import type { ScanJobPayload } from '@autoscanner/queues';
+import type { JobBus } from '@autoscanner/messaging';
+
+const SCANNER_TOPIC = 'security.scanner.requested';
 
 /**
  * Crash-recovery: on boot, re-enqueue every `ScanJob` row left in the
@@ -25,7 +27,7 @@ import type { ScanJobPayload } from '@autoscanner/queues';
  */
 export async function reconcileRunningScanJobs(
   prisma: Pick<PrismaService, 'scanJob'>,
-  queue: Pick<Queue<ScanJobPayload>, 'add'>,
+  bus: Pick<JobBus, 'publish'>,
   logger: Pick<Logger, 'log' | 'warn'> = new Logger('ScanWorkerReconcile'),
 ): Promise<number> {
   const rows = await prisma.scanJob.findMany({
@@ -47,7 +49,7 @@ export async function reconcileRunningScanJobs(
   logger.log(`Boot reconciliation: re-enqueuing ${rows.length} RUNNING ScanJob(s)`);
   for (const row of rows) {
     try {
-      await queue.add('scan', {
+      await bus.publish<ScanJobPayload>(SCANNER_TOPIC, row.id, {
         scanJobId: row.id,
         scannerName: row.scannerName,
         target: row.target,

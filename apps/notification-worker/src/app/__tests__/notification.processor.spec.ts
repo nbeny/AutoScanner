@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import type { Job } from 'bullmq';
 import { DeliveryStatus } from '@prisma/client';
 
 import { PrismaService } from '@autoscanner/database';
 import { NotificationDispatcher } from '@autoscanner/notifications';
+import { ConsumerRegistrar, type MessageContext } from '@autoscanner/messaging';
 
 import { NotificationProcessor } from '../notification.processor';
 import { SECRET_BOX } from '../notification-adapters.module';
@@ -32,8 +32,14 @@ const mockNotification = {
   channel: mockChannel,
 };
 
-function makeJob(notificationId = 'notif-1'): Job<{ notificationId: string }> {
-  return { data: { notificationId } } as Job<{ notificationId: string }>;
+function makeCtx(notificationId = 'notif-1'): MessageContext<{ notificationId: string }> {
+  return {
+    id: 't',
+    type: 'security.notification.requested',
+    key: notificationId,
+    attempt: 1,
+    payload: { notificationId },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -62,6 +68,7 @@ describe('NotificationProcessor', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: NotificationDispatcher, useValue: dispatcher },
         { provide: SECRET_BOX, useValue: secretBox },
+        { provide: ConsumerRegistrar, useValue: { register: jest.fn() } },
       ],
     }).compile();
 
@@ -75,7 +82,7 @@ describe('NotificationProcessor', () => {
     it('decrypts config and dispatches, then marks SENT', async () => {
       prisma.notification.findUnique.mockResolvedValue(mockNotification);
 
-      await processor.process(makeJob());
+      await processor.process(makeCtx());
 
       // SecretBox.open should have been called with the encrypted buffer
       expect(secretBox.open).toHaveBeenCalledWith(mockChannel.configEncrypted);
@@ -107,7 +114,7 @@ describe('NotificationProcessor', () => {
     it('returns early without dispatching when notification not found', async () => {
       prisma.notification.findUnique.mockResolvedValue(null);
 
-      await processor.process(makeJob('missing-id'));
+      await processor.process(makeCtx('missing-id'));
 
       expect(dispatcher.dispatch).not.toHaveBeenCalled();
       // No update calls since notification doesn't exist
@@ -125,7 +132,7 @@ describe('NotificationProcessor', () => {
         channel: { ...mockChannel, enabled: false },
       });
 
-      await processor.process(makeJob());
+      await processor.process(makeCtx());
 
       expect(dispatcher.dispatch).not.toHaveBeenCalled();
 
@@ -142,7 +149,7 @@ describe('NotificationProcessor', () => {
         channel: { ...mockChannel, deletedAt: new Date() },
       });
 
-      await processor.process(makeJob());
+      await processor.process(makeCtx());
 
       expect(dispatcher.dispatch).not.toHaveBeenCalled();
 
@@ -163,7 +170,7 @@ describe('NotificationProcessor', () => {
       const dispatchError = new Error('Webhook unreachable');
       dispatcher.dispatch.mockRejectedValue(dispatchError);
 
-      await expect(processor.process(makeJob())).rejects.toThrow('Webhook unreachable');
+      await expect(processor.process(makeCtx())).rejects.toThrow('Webhook unreachable');
 
       const failedCall = prisma.notification.update.mock.calls.find(
         (c: [{ data: { deliveryStatus?: string; errorMessage?: string } }]) =>

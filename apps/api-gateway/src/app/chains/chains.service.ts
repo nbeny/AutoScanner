@@ -1,16 +1,17 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { Prisma } from '@prisma/client';
 import type { AiRun } from '@prisma/client';
 
 import { ValidationError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type AiRunPayload } from '@autoscanner/queues';
+import { type AiRunPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 import { ChainRegistry, CHAIN_REGISTRY, type ChainDefinition } from '@autoscanner/chains';
 
 import { QuickScanProvisioner } from '../ai-runs/quick-scan-provisioner.service';
 import type { RunChainInput } from './dto/run-chain.input';
+
+const AI_RUN_TOPIC = 'security.ai.run.requested';
 
 @Injectable()
 export class ChainLauncher {
@@ -18,7 +19,7 @@ export class ChainLauncher {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(QueueName.AI_RUNS) private readonly aiRunQueue: Queue<AiRunPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
     private readonly provisioner: QuickScanProvisioner,
     @Inject(CHAIN_REGISTRY) private readonly registry: ChainRegistry,
   ) {}
@@ -51,7 +52,10 @@ export class ChainLauncher {
     });
 
     try {
-      await this.aiRunQueue.add('airun', { aiRunId: aiRun.id, engagementId: eng.id });
+      await this.bus.publish<AiRunPayload>(AI_RUN_TOPIC, aiRun.id, {
+        aiRunId: aiRun.id,
+        engagementId: eng.id,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to enqueue chain run=${aiRun.id}: ${message}`);

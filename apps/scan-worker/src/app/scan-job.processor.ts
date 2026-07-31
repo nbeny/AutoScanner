@@ -1,9 +1,7 @@
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, Logger } from '@nestjs/common';
-import { Queue, type Job } from 'bullmq';
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { SecretBox } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import {
@@ -13,11 +11,22 @@ import {
   type RunSpec,
 } from '@autoscanner/docker-runner';
 import { LOG_STREAM_PUBLISHER, type LogStreamPublisher } from '@autoscanner/log-stream';
-import { QueueName, type ParseJobPayload, type ScanJobPayload } from '@autoscanner/queues';
+import type { ParseJobPayload, ScanJobPayload } from '@autoscanner/queues';
+import {
+  ConsumerRegistrar,
+  JOB_BUS,
+  MessageConsumer,
+  type JobBus,
+  type MessageContext,
+} from '@autoscanner/messaging';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, rawOutputKey, type ObjectStorage } from '@autoscanner/storage';
 import { SECRET_BOX } from './secret-box.provider';
 import { ScanControlSubscriber } from './scan-control.subscriber';
+
+const PARSE_TOPIC = 'security.parse.requested';
+const SCANNER_TOPIC = 'security.scanner.requested';
+const TERMINAL_STATUSES = new Set(['COMPLETED', 'FAILED', 'TIMEOUT', 'CANCELLED']);
 
 // Per-scan capture cap. The docker sandbox limits container memory to ~2 GiB
 // (DEFAULT_MEMORY_MB in dockerode-runner) but a scanner can SHIP up to that
@@ -28,8 +37,12 @@ import { ScanControlSubscriber } from './scan-control.subscriber';
 // scanner that exceeds this here would be rejected downstream anyway.
 export const MAX_RAW_OUTPUT_BYTES = 256 * 1024 * 1024;
 
-@Processor(QueueName.SCAN_JOBS, { concurrency: 4 })
-export class ScanJobProcessor extends WorkerHost {
+@Injectable()
+export class ScanJobProcessor
+  extends MessageConsumer<ScanJobPayload>
+  implements OnApplicationBootstrap
+{
+  readonly topic = SCANNER_TOPIC;
   private readonly logger = new Logger(ScanJobProcessor.name);
 
   constructor(
@@ -37,7 +50,8 @@ export class ScanJobProcessor extends WorkerHost {
     private readonly registry: ScannerRegistry,
     @Inject(DOCKER_RUNNER) private readonly docker: DockerRunner,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
-    @InjectQueue(QueueName.PARSE_JOBS) private readonly parseQueue: Queue<ParseJobPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
+    @Inject(ConsumerRegistrar) private readonly registrar: ConsumerRegistrar,
     @Inject(LOG_STREAM_PUBLISHER) private readonly logStream: LogStreamPublisher,
     @Inject(SECRET_BOX) private readonly secretBox: SecretBox,
     private readonly scanControlSubscriber: ScanControlSubscriber,
@@ -45,8 +59,14 @@ export class ScanJobProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<ScanJobPayload>): Promise<{ rawOutputKey: string; exitCode: number }> {
-    const payload = job.data;
+  async onApplicationBootstrap(): Promise<void> {
+    await this.registrar.register(this);
+  }
+
+  async process(
+    ctx: MessageContext<ScanJobPayload>,
+  ): Promise<{ rawOutputKey: string; exitCode: number }> {
+    const payload = ctx.payload;
     this.logger.log(`Processing scanJob=${payload.scanJobId} scanner=${payload.scannerName}`);
 
     const scanner = this.registry.get(payload.scannerName);
@@ -56,6 +76,18 @@ export class ScanJobProcessor extends WorkerHost {
       where: { id: payload.scanJobId },
       include: { scan: true },
     });
+
+    // Terminal-status guard. Kafka messages cannot be removed once published, so a
+    // ScanJob cancelled while QUEUED still gets delivered here — running it would
+    // resurrect a scan the operator stopped. This also makes redelivery (at-least-once)
+    // a no-op for jobs that already reached a terminal state.
+    if (TERMINAL_STATUSES.has(scanJob.status)) {
+      this.logger.log(
+        `scanJob=${payload.scanJobId} already ${scanJob.status} — skipping (cancelled or already processed)`,
+      );
+      return { rawOutputKey: scanJob.rawOutputKey ?? '', exitCode: 0 };
+    }
+
     const scanId = scanJob.scanId;
 
     await this.prisma.scanJob.update({
@@ -384,7 +416,7 @@ export class ScanJobProcessor extends WorkerHost {
       // BINARY format scanners produce no normalised parse output — skip enqueue.
       if (status === 'COMPLETED' && out0.format !== 'BINARY') {
         try {
-          await this.parseQueue.add('parse', {
+          await this.bus.publish<ParseJobPayload>(PARSE_TOPIC, payload.scanJobId, {
             scanJobId: payload.scanJobId,
             rawOutputKey: key,
             parserName: out0.parser,

@@ -1,15 +1,16 @@
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
+import { Inject, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import type { Scan, ScanTemplate, ScopeRule, TemplateRun } from '@prisma/client';
 
 import { NotFoundError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import { CapabilityService, type CapabilityKey } from '@autoscanner/auth';
-import { QueueName, type TemplateRunPayload } from '@autoscanner/queues';
+import { type TemplateRunPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 import type { TemplateStep } from '@autoscanner/templates';
 
 import { RunTemplateInput } from './dto/run-template.input';
+
+const SCAN_RUN_TOPIC = 'security.scan.requested';
 
 type ScopeRuleLike = Pick<ScopeRule, 'ruleType' | 'targetType' | 'value'>;
 
@@ -19,8 +20,7 @@ export class TemplatesService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(QueueName.TEMPLATE_RUNS)
-    private readonly templateRunsQueue: Queue<TemplateRunPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
     private readonly capabilities: CapabilityService,
   ) {}
 
@@ -95,7 +95,7 @@ export class TemplatesService {
     };
 
     try {
-      await this.templateRunsQueue.add('template-run', payload);
+      await this.bus.publish<TemplateRunPayload>(SCAN_RUN_TOPIC, run.id, payload);
     } catch (err) {
       // Without this, a Redis blip after the DB write leaves the run
       // visible to the operator as PENDING forever — no worker is going to

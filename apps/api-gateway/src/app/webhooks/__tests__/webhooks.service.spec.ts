@@ -4,10 +4,9 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { Queue } from 'bullmq';
 
 import type { PrismaService } from '@autoscanner/database';
-import type { WebhookJobPayload } from '@autoscanner/queues';
+import type { JobBus } from '@autoscanner/messaging';
 
 import { WebhooksService } from '../webhooks.service';
 
@@ -55,7 +54,7 @@ function makeMockCfg(
 
 describe('WebhooksService', () => {
   let prisma: jest.Mocked<PrismaService>;
-  let queue: jest.Mocked<Queue<WebhookJobPayload>>;
+  let bus: jest.Mocked<JobBus>;
   let cfg: ReturnType<typeof makeMockCfg>;
   let svc: WebhooksService;
 
@@ -69,13 +68,13 @@ describe('WebhooksService', () => {
       },
     } as unknown as jest.Mocked<PrismaService>;
 
-    queue = {
-      add: jest.fn().mockResolvedValue({ id: 'job_1' }),
-    } as unknown as jest.Mocked<Queue<WebhookJobPayload>>;
+    bus = {
+      publish: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<JobBus>;
 
     cfg = makeMockCfg();
 
-    svc = new WebhooksService(prisma, queue, cfg as never);
+    svc = new WebhooksService(prisma, bus, cfg as never);
   });
 
   // ─── tokenForSource ──────────────────────────────────────────────────────
@@ -104,7 +103,7 @@ describe('WebhooksService', () => {
     it('throws ServiceUnavailableException when source token is not configured', () => {
       const unconfiguredSvc = new WebhooksService(
         prisma,
-        queue,
+        bus,
         makeMockCfg({ WEBHOOK_GENERIC_TOKEN: undefined }) as never,
       );
 
@@ -118,7 +117,7 @@ describe('WebhooksService', () => {
       // treat it the same as unconfigured → 503.
       const emptySvc = new WebhooksService(
         prisma,
-        queue,
+        bus,
         makeMockCfg({ WEBHOOK_GENERIC_TOKEN: '' }) as never,
       );
 
@@ -203,11 +202,9 @@ describe('WebhooksService', () => {
 
       await svc.ingest('generic', validPayload, IP);
 
-      expect(queue.add).toHaveBeenCalledWith(
-        'ingest',
-        { webhookEventId: event.id },
-        expect.anything(),
-      );
+      expect(bus.publish).toHaveBeenCalledWith('security.webhook.ingest.requested', event.id, {
+        webhookEventId: event.id,
+      });
     });
 
     it('returns { webhookEventId } matching the inserted event id', async () => {
@@ -233,7 +230,7 @@ describe('WebhooksService', () => {
       const event = makeEvent();
       (prisma.webhookEvent.create as jest.Mock).mockResolvedValue(event);
       const enqueueError = new Error('redis-down');
-      (queue.add as jest.Mock).mockRejectedValueOnce(enqueueError);
+      (bus.publish as jest.Mock).mockRejectedValueOnce(enqueueError);
       (prisma.webhookEvent.update as jest.Mock).mockResolvedValue(event);
 
       await expect(svc.ingest('generic', validPayload, IP)).rejects.toThrow('redis-down');

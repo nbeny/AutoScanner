@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getQueueToken } from '@nestjs/bullmq';
 import { NotificationsFanoutService } from '../notifications-fanout.service';
 import { PrismaService } from '@autoscanner/database';
-import { QueueName } from '@autoscanner/queues';
+import { JOB_BUS } from '@autoscanner/messaging';
 import { NotificationEventType } from '../event-types';
+
+const NOTIFICATION_TOPIC = 'security.notification.requested';
 
 const mockEngagement = { ownerId: 'user-1', name: 'Acme Corp' };
 const mockChannels = [{ id: 'ch-1' }, { id: 'ch-2' }];
@@ -21,24 +22,24 @@ const makePrismaMock = () => ({
   },
 });
 
-const makeQueueMock = () => ({
-  add: jest.fn().mockResolvedValue(undefined),
+const makeBusMock = () => ({
+  publish: jest.fn().mockResolvedValue(undefined),
 });
 
 describe('NotificationsFanoutService', () => {
   let service: NotificationsFanoutService;
   let prisma: ReturnType<typeof makePrismaMock>;
-  let queue: ReturnType<typeof makeQueueMock>;
+  let bus: ReturnType<typeof makeBusMock>;
 
   beforeEach(async () => {
     prisma = makePrismaMock();
-    queue = makeQueueMock();
+    bus = makeBusMock();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificationsFanoutService,
         { provide: PrismaService, useValue: prisma },
-        { provide: getQueueToken(QueueName.NOTIFICATION_JOBS), useValue: queue },
+        { provide: JOB_BUS, useValue: bus },
       ],
     }).compile();
 
@@ -52,7 +53,7 @@ describe('NotificationsFanoutService', () => {
     });
     expect(result).toBe(0);
     expect(prisma.notification.create).not.toHaveBeenCalled();
-    expect(queue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
   });
 
   it('returns 0 when no matching channels', async () => {
@@ -63,10 +64,10 @@ describe('NotificationsFanoutService', () => {
     });
     expect(result).toBe(0);
     expect(prisma.notification.create).not.toHaveBeenCalled();
-    expect(queue.add).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
   });
 
-  it('creates 2 notification rows and enqueues 2 jobs for 2 matching channels', async () => {
+  it('creates 2 notification rows and publishes 2 jobs for 2 matching channels', async () => {
     prisma.engagement.findUnique.mockResolvedValue(mockEngagement);
     prisma.notificationChannel.findMany.mockResolvedValue(mockChannels);
     prisma.notification.create.mockResolvedValue(mockNotification);
@@ -77,8 +78,10 @@ describe('NotificationsFanoutService', () => {
 
     expect(result).toBe(2);
     expect(prisma.notification.create).toHaveBeenCalledTimes(2);
-    expect(queue.add).toHaveBeenCalledTimes(2);
-    expect(queue.add).toHaveBeenCalledWith('notify', { notificationId: 'notif-1' });
+    expect(bus.publish).toHaveBeenCalledTimes(2);
+    expect(bus.publish).toHaveBeenCalledWith(NOTIFICATION_TOPIC, 'notif-1', {
+      notificationId: 'notif-1',
+    });
   });
 
   it('queries channels with eventFilters { has: eventType }', async () => {
@@ -96,11 +99,11 @@ describe('NotificationsFanoutService', () => {
     );
   });
 
-  it('swallows enqueue errors but still counts created notifications', async () => {
+  it('swallows publish errors but still counts created notifications', async () => {
     prisma.engagement.findUnique.mockResolvedValue(mockEngagement);
     prisma.notificationChannel.findMany.mockResolvedValue([{ id: 'ch-1' }]);
     prisma.notification.create.mockResolvedValue(mockNotification);
-    queue.add.mockRejectedValue(new Error('queue down'));
+    bus.publish.mockRejectedValue(new Error('bus down'));
 
     // Should not throw; row still created, enqueued count = 0
     const result = await service.fanout(NotificationEventType.SCAN_COMPLETED, {

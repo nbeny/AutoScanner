@@ -1,11 +1,12 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import type { Queue } from 'bullmq';
+import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { CronExpressionParser } from 'cron-parser';
 import type { Prisma, Schedule } from '@prisma/client';
 
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type TemplateRunPayload } from '@autoscanner/queues';
+import { type TemplateRunPayload } from '@autoscanner/queues';
+import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
+
+const SCAN_RUN_TOPIC = 'security.scan.requested';
 
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
 
@@ -27,8 +28,7 @@ export class ScheduleHydrator implements OnModuleDestroy {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(QueueName.TEMPLATE_RUNS)
-    private readonly templateRunsQueue: Queue<TemplateRunPayload>,
+    @Inject(JOB_BUS) private readonly bus: JobBus,
   ) {}
 
   start(intervalMs: number = readIntervalMs()): void {
@@ -77,12 +77,12 @@ export class ScheduleHydrator implements OnModuleDestroy {
     let enqueued = 0;
     for (const schedule of due) {
       const tasks = await this.advanceSchedule(schedule, now);
-      // Side-effects only after the DB transaction commits. If the queue.add
+      // Side-effects only after the DB transaction commits. If the publish
       // throws here, the TemplateRun row is still PENDING in DB and the
       // orchestrator-worker reconcile path (see `reconcile.ts`) picks it up
       // at next boot — same recovery contract as TemplatesService.
       for (const task of tasks) {
-        await this.templateRunsQueue.add('template-run', {
+        await this.bus.publish<TemplateRunPayload>(SCAN_RUN_TOPIC, task.templateRunId, {
           templateRunId: task.templateRunId,
           engagementId: task.engagementId,
         });

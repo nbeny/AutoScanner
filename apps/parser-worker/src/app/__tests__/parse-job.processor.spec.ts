@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
 import { Logger } from '@nestjs/common';
-import type { Job, Queue } from 'bullmq';
 import type { PrismaService } from '@autoscanner/database';
+import type { ConsumerRegistrar, MessageContext } from '@autoscanner/messaging';
 import {
   DnsxJsonParser,
   HttpxJsonParser,
@@ -10,11 +10,7 @@ import {
   SubfinderJsonParser,
 } from '@autoscanner/parsers';
 import { NmapXmlParser } from '@autoscanner/parsers';
-import type {
-  CveDiscoveryPayload,
-  CveEnrichmentPayload,
-  ParseJobPayload,
-} from '@autoscanner/queues';
+import type { ParseJobPayload } from '@autoscanner/queues';
 import type { ObjectStorage } from '@autoscanner/storage';
 import {
   EngagementUpdateKind,
@@ -68,8 +64,7 @@ describe('ParseJobProcessor', () => {
   let registry: ParserRegistry;
   let assetMerge: AssetMergeService;
   let correlateFindingsSvc: CorrelateFindingsService;
-  let cveQueueMock: jest.Mocked<Pick<Queue<CveEnrichmentPayload>, 'add'>>;
-  let cveDiscoveryQueueMock: jest.Mocked<Pick<Queue<CveDiscoveryPayload>, 'add'>>;
+  let busMock: { publish: jest.Mock };
   let eventsMock: jest.Mocked<EngagementEventsPublisher>;
   let processor: ParseJobProcessor;
 
@@ -213,8 +208,7 @@ describe('ParseJobProcessor', () => {
     // Default: correlate pass is a no-op. Individual tests override.
     jest.spyOn(correlateFindingsSvc, 'correlateFindings').mockResolvedValue({ clusters: 0 });
 
-    cveQueueMock = { add: jest.fn().mockResolvedValue({}) };
-    cveDiscoveryQueueMock = { add: jest.fn().mockResolvedValue({}) };
+    busMock = { publish: jest.fn().mockResolvedValue(undefined) };
     eventsMock = { publish: jest.fn().mockResolvedValue(undefined) };
 
     processor = new ParseJobProcessor(
@@ -237,19 +231,20 @@ describe('ParseJobProcessor', () => {
       new OrgMetadataPersister(prisma),
       new TlsCertificatePersister(prisma),
       prisma,
-      cveQueueMock as unknown as Queue<CveEnrichmentPayload>,
-      cveDiscoveryQueueMock as unknown as Queue<CveDiscoveryPayload>,
+      busMock,
       eventsMock,
+      { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
   });
 
   const job = (payload: ParseJobPayload) =>
     ({
-      id: 'bull_1',
-      name: 'parse',
-      data: payload,
-      attemptsMade: 0,
-    }) as unknown as Job<ParseJobPayload>;
+      id: 'msg_1',
+      type: 'security.parse.requested',
+      key: payload.scanJobId,
+      attempt: 1,
+      payload,
+    }) as MessageContext<ParseJobPayload>;
 
   const payload: ParseJobPayload = {
     scanJobId: 'job_1',
@@ -1383,11 +1378,11 @@ describe('ParseJobProcessor', () => {
         // Expect exactly 1 enqueue call for CVE-2021-44228.
         await processor.process(job(nucleiPayload));
 
-        expect(cveQueueMock.add).toHaveBeenCalledTimes(1);
-        expect(cveQueueMock.add).toHaveBeenCalledWith(
-          'enrich',
+        expect(busMock.publish).toHaveBeenCalledTimes(1);
+        expect(busMock.publish).toHaveBeenCalledWith(
+          'security.cve.enrich.requested',
+          'CVE-2021-44228',
           { cveId: 'CVE-2021-44228' },
-          { jobId: 'CVE-2021-44228' },
         );
       });
 
@@ -1423,11 +1418,11 @@ describe('ParseJobProcessor', () => {
 
         await processor.process(job(nucleiPayload));
 
-        expect(cveQueueMock.add).toHaveBeenCalledTimes(1);
-        expect(cveQueueMock.add).toHaveBeenCalledWith(
-          'enrich',
+        expect(busMock.publish).toHaveBeenCalledTimes(1);
+        expect(busMock.publish).toHaveBeenCalledWith(
+          'security.cve.enrich.requested',
+          'CVE-2021-44228',
           { cveId: 'CVE-2021-44228' },
-          { jobId: 'CVE-2021-44228' },
         );
       });
 
@@ -1446,12 +1441,12 @@ describe('ParseJobProcessor', () => {
 
         await processor.process(job(nucleiPayload));
 
-        expect(cveQueueMock.add).not.toHaveBeenCalled();
+        expect(busMock.publish).not.toHaveBeenCalled();
       });
 
-      it('does not fail the parse job when cveQueue.add throws', async () => {
+      it('does not fail the parse job when publishing enrichment throws', async () => {
         const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-        cveQueueMock.add.mockRejectedValueOnce(new Error('Redis connection lost'));
+        busMock.publish.mockRejectedValueOnce(new Error('Redis connection lost'));
 
         const result = await processor.process(job(nucleiPayload));
 
@@ -1528,11 +1523,12 @@ describe('ParseJobProcessor', () => {
       await processor.process(job(payload));
 
       // 2 CPEs on 1 service → 2 enqueue calls.
-      expect(cveDiscoveryQueueMock.add).toHaveBeenCalledTimes(2);
+      expect(busMock.publish).toHaveBeenCalledTimes(2);
 
       // First CPE
-      expect(cveDiscoveryQueueMock.add).toHaveBeenCalledWith(
-        'discover',
+      expect(busMock.publish).toHaveBeenCalledWith(
+        'security.cve.discovery.requested',
+        'svc_1:cpe:/a:openbsd:openssh:9.0',
         expect.objectContaining({
           scanJobId: 'job_1',
           engagementId: 'eng_1',
@@ -1542,12 +1538,12 @@ describe('ParseJobProcessor', () => {
           cpe: 'cpe:/a:openbsd:openssh:9.0',
           location: '10.0.0.5:22/tcp',
         }),
-        { jobId: 'svc_1:cpe:/a:openbsd:openssh:9.0' },
       );
 
       // Second CPE
-      expect(cveDiscoveryQueueMock.add).toHaveBeenCalledWith(
-        'discover',
+      expect(busMock.publish).toHaveBeenCalledWith(
+        'security.cve.discovery.requested',
+        'svc_1:cpe:/o:linux:linux_kernel',
         expect.objectContaining({
           scanJobId: 'job_1',
           engagementId: 'eng_1',
@@ -1555,7 +1551,6 @@ describe('ParseJobProcessor', () => {
           serviceId: 'svc_1',
           cpe: 'cpe:/o:linux:linux_kernel',
         }),
-        { jobId: 'svc_1:cpe:/o:linux:linux_kernel' },
       );
     });
 
@@ -1577,13 +1572,13 @@ describe('ParseJobProcessor', () => {
 
       await processor.process(job(payload));
 
-      expect(cveDiscoveryQueueMock.add).toHaveBeenCalledWith(
-        'discover',
+      expect(busMock.publish).toHaveBeenCalledWith(
+        'security.cve.discovery.requested',
+        expect.any(String),
         expect.objectContaining({
           product: 'PostgreSQL',
           version: '15',
         }),
-        expect.any(Object),
       );
     });
 
@@ -1591,10 +1586,10 @@ describe('ParseJobProcessor', () => {
       // Default mock already returns [] from findMany — no CPE services in engagement.
       await processor.process(job(payload));
 
-      expect(cveDiscoveryQueueMock.add).not.toHaveBeenCalled();
+      expect(busMock.publish).not.toHaveBeenCalled();
     });
 
-    it('does not fail the parse job when cveDiscoveryQueue.add throws', async () => {
+    it('does not fail the parse job when publishing discovery throws', async () => {
       const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
       (prisma.service as unknown as { findMany: jest.Mock }).findMany.mockResolvedValueOnce([
         {
@@ -1610,7 +1605,7 @@ describe('ParseJobProcessor', () => {
           },
         },
       ]);
-      cveDiscoveryQueueMock.add.mockRejectedValueOnce(new Error('Redis gone'));
+      busMock.publish.mockRejectedValueOnce(new Error('Redis gone'));
 
       const result = await processor.process(job(payload));
 

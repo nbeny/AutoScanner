@@ -1,13 +1,13 @@
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '@autoscanner/database';
 import { NvdClient } from '@autoscanner/cve';
-import type { Job } from 'bullmq';
+import { ConsumerRegistrar, type MessageContext } from '@autoscanner/messaging';
 
 import { NvdSyncProcessor } from '../nvd-sync.processor';
 import type { NvdSyncPayload } from '@autoscanner/queues';
 
-function job(data: NvdSyncPayload): Job<NvdSyncPayload> {
-  return { data } as any;
+function ctx(payload: NvdSyncPayload): MessageContext<NvdSyncPayload> {
+  return { id: 't', type: 'security.nvd.sync.requested', key: payload.mode, attempt: 1, payload };
 }
 
 describe('NvdSyncProcessor', () => {
@@ -44,6 +44,7 @@ describe('NvdSyncProcessor', () => {
         NvdSyncProcessor,
         { provide: PrismaService, useValue: prisma },
         { provide: NvdClient, useValue: nvd },
+        { provide: ConsumerRegistrar, useValue: { register: jest.fn() } },
       ],
     }).compile();
 
@@ -82,7 +83,7 @@ describe('NvdSyncProcessor', () => {
         },
       ],
     });
-    await processor.process(job({ mode: 'full' }));
+    await processor.process(ctx({ mode: 'full' }));
     expect(prisma.nvdCve.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { cveId: 'CVE-2024-1' } }),
     );
@@ -126,7 +127,7 @@ describe('NvdSyncProcessor', () => {
         },
       ],
     });
-    await processor.process(job({ mode: 'full' }));
+    await processor.process(ctx({ mode: 'full' }));
     const nodeCreate = prisma.nvdConfigNode.create.mock.calls[0][0];
     const match = nodeCreate.data.matches.create[0];
     expect(match).toMatchObject({ cpeVendor: 'openssl', cpeProduct: 'openssl', vulnerable: true });
@@ -140,7 +141,7 @@ describe('NvdSyncProcessor', () => {
       lastStartIndex: 0,
     });
     nvd.fetchCvePage.mockResolvedValueOnce({ totalResults: 0, cves: [] });
-    await processor.process(job({ mode: 'incremental' }));
+    await processor.process(ctx({ mode: 'incremental' }));
     const call = nvd.fetchCvePage.mock.calls[0][0];
     expect(call.lastModStartDate).toBeDefined();
     expect(call.lastModEndDate).toBeDefined();
@@ -172,7 +173,7 @@ describe('NvdSyncProcessor', () => {
         },
       ],
     });
-    await processor.process(job({ mode: 'full' }));
+    await processor.process(ctx({ mode: 'full' }));
     expect(nvd.fetchCvePage.mock.calls[0][0].startIndex).toBe(2000);
   });
 });

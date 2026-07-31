@@ -4,12 +4,12 @@ import IORedis from 'ioredis';
 import { AppConfigModule, AppConfigService } from '@autoscanner/config';
 import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
-import { QueuesModule } from '@autoscanner/queues';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { AllScannersModule } from '@autoscanner/scanners-all';
 import { TemplatesModule } from '@autoscanner/templates';
 import { EngagementEventsModule } from '@autoscanner/engagement-events';
 import { NotificationsFanoutModule } from '@autoscanner/notifications';
+import { MessagingModule } from '@autoscanner/messaging';
 
 import { ContextBuilder } from './context-builder.service';
 import {
@@ -40,12 +40,12 @@ const redisSubscriber: Provider = {
     AppConfigModule,
     AppLoggingModule,
     PrismaModule,
-    QueuesModule,
     TemplatesModule,
     ScannerSdkModule,
     AllScannersModule,
     EngagementEventsModule.forRoot(),
     NotificationsFanoutModule,
+    MessagingModule.forRoot(),
   ],
   providers: [redisSubscriber, ContextBuilder, StepExecutor, TemplateRunProcessor],
 })

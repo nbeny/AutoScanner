@@ -1,10 +1,9 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
-import type { Job } from 'bullmq';
+import { Logger, Inject, Injectable, type OnApplicationBootstrap } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type AiRunPayload } from '@autoscanner/queues';
+import type { AiRunPayload } from '@autoscanner/queues';
+import { ConsumerRegistrar, MessageConsumer, type MessageContext } from '@autoscanner/messaging';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { ScanDispatcher } from '@autoscanner/scan-dispatch';
 import { parseTarget } from '@autoscanner/target-parser';
@@ -14,6 +13,8 @@ import { AiRunEventsPublisher } from './ai-run-events.publisher';
 import { ClaudeDecider } from './claude-decider';
 import { ChainDecider } from './chain-decider';
 import type { NextStepDecider, DecisionAction } from './next-step-decider';
+
+const AI_RUN_TOPIC = 'security.ai.run.requested';
 
 /** Terminal statuses that make (re)processing a no-op under at-least-once delivery. */
 const TERMINAL_STATUSES = new Set(['COMPLETED', 'FAILED', 'CANCELLED', 'STOPPED_CAP']);
@@ -32,8 +33,12 @@ const DISCOVERY_SCANNERS = ['naabu', 'nmap', 'mapcidr'] as const;
  * unusable model output) fall back to a small deterministic methodology so the
  * run always makes forward progress and terminates.
  */
-@Processor(QueueName.AI_RUNS)
-export class AiRunProcessor extends WorkerHost {
+@Injectable()
+export class AiRunProcessor
+  extends MessageConsumer<AiRunPayload>
+  implements OnApplicationBootstrap
+{
+  readonly topic = AI_RUN_TOPIC;
   private readonly logger = new Logger(AiRunProcessor.name);
 
   constructor(
@@ -43,8 +48,13 @@ export class AiRunProcessor extends WorkerHost {
     private readonly events: AiRunEventsPublisher,
     private readonly claudeDecider: ClaudeDecider,
     private readonly chainDecider: ChainDecider,
+    @Inject(ConsumerRegistrar) private readonly registrar: ConsumerRegistrar,
   ) {
     super();
+  }
+
+  async onApplicationBootstrap(): Promise<void> {
+    await this.registrar.register(this);
   }
 
   /** Sélection du décideur selon le type de run. */
@@ -52,8 +62,8 @@ export class AiRunProcessor extends WorkerHost {
     return chainName ? this.chainDecider : this.claudeDecider;
   }
 
-  async process(job: Job<AiRunPayload>): Promise<void> {
-    const aiRunId = job.data.aiRunId;
+  async process(ctx: MessageContext<AiRunPayload>): Promise<void> {
+    const aiRunId = ctx.payload.aiRunId;
     const aiRun = await this.prisma.aiRun.findUnique({ where: { id: aiRunId } });
     if (!aiRun) {
       this.logger.warn(`AiRun ${aiRunId} not found — dropping job`);
