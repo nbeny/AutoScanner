@@ -9,6 +9,7 @@ import { AssetDetailPage } from './features/assets/asset-detail-page';
 import { SettingsPage } from './features/settings/settings-page';
 import { HuntSearchPage } from './features/hunt/hunt-search-page';
 import { HuntRunPage } from './features/hunt/hunt-run-page';
+import { ChainsCatalogPage } from './features/chains/chains-catalog-page';
 import { EngagementsListPage } from './features/engagements/engagements-list-page';
 import { EngagementPage } from './features/engagements/engagement-page';
 import { ScanRunPage } from './features/scans/scan-run-page';
@@ -63,6 +64,7 @@ export function AppRoutes({ email, onLogout }: AppRoutesProps) {
         <Route path="/tools" element={<ToolsScoped />} />
         <Route path="/hunt" element={<HuntSearchPage />} />
         <Route path="/hunt/:aiRunId" element={<HuntRunPage />} />
+        <Route path="/chains" element={<ChainsCatalogPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/scans/:scanId" element={<ScanDetailPage />} />
 
