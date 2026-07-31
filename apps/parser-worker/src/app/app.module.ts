@@ -8,6 +8,7 @@ import { QueuesModule } from '@autoscanner/queues';
 import { ParsersModule } from '@autoscanner/parsers';
 import { StorageModule } from '@autoscanner/storage';
 import { EngagementEventsModule } from '@autoscanner/engagement-events';
+import { MessagingModule } from '@autoscanner/messaging';
 
 import { ParseJobProcessor } from './parse-job.processor';
 import { WebhookProcessor } from './webhook/webhook.processor';
@@ -36,6 +37,7 @@ import { TlsCertificatePersister } from './persisters/tls-certificate-persister'
     StorageModule,
     ParsersModule,
     EngagementEventsModule.forRoot(),
+    MessagingModule.forRoot(),
   ],
   providers: [
     ParseJobProcessor,

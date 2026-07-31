@@ -1,9 +1,8 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
-import type { Job } from 'bullmq';
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { PrismaService } from '@autoscanner/database';
-import { QueueName, type WebhookJobPayload } from '@autoscanner/queues';
+import type { WebhookJobPayload } from '@autoscanner/queues';
 import { canonicalize } from '@autoscanner/correlation';
+import { ConsumerRegistrar, MessageConsumer, type MessageContext } from '@autoscanner/messaging';
 
 import { FindingPersister } from '../persisters/finding-persister';
 import { normalizeWebhook, WebhookNormalizationError } from './webhook-normalizer';
@@ -15,20 +14,30 @@ export interface WebhookProcessorResult {
   findingsPersisted: number;
 }
 
+const WEBHOOK_TOPIC = 'security.webhook.ingest.requested';
+
 @Injectable()
-@Processor(QueueName.WEBHOOK_JOBS)
-export class WebhookProcessor extends WorkerHost {
+export class WebhookProcessor
+  extends MessageConsumer<WebhookJobPayload>
+  implements OnApplicationBootstrap
+{
+  readonly topic = WEBHOOK_TOPIC;
   private readonly logger = new Logger(WebhookProcessor.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly findingPersister: FindingPersister,
+    @Inject(ConsumerRegistrar) private readonly registrar: ConsumerRegistrar,
   ) {
     super();
   }
 
-  async process(job: Job<WebhookJobPayload>): Promise<WebhookProcessorResult> {
-    const { webhookEventId } = job.data;
+  async onApplicationBootstrap(): Promise<void> {
+    await this.registrar.register(this);
+  }
+
+  async process(ctx: MessageContext<WebhookJobPayload>): Promise<WebhookProcessorResult> {
+    const { webhookEventId } = ctx.payload;
     const now = new Date();
 
     // -----------------------------------------------------------------------

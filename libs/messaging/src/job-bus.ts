@@ -19,5 +19,10 @@ export interface MessageContext<T> {
 
 export abstract class MessageConsumer<T = unknown> {
   abstract readonly topic: string;
-  abstract process(ctx: MessageContext<T>): Promise<void>;
+  /**
+   * Handles one message. A thrown error routes the message to the retry/DLQ topics.
+   * Any resolved value is ignored by the runner — some consumers return a summary
+   * for their own tests/callers.
+   */
+  abstract process(ctx: MessageContext<T>): Promise<unknown>;
 }

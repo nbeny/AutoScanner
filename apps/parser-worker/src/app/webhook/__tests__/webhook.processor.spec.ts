@@ -5,9 +5,9 @@
  *        FindingPersister.
  * Does NOT mock canonicalize — it is a pure function imported directly.
  */
-import type { Job } from 'bullmq';
 import type { WebhookJobPayload } from '@autoscanner/queues';
 import type { PrismaService } from '@autoscanner/database';
+import type { ConsumerRegistrar, MessageContext } from '@autoscanner/messaging';
 import type { FindingPersister } from '../../persisters/finding-persister';
 import { WebhookProcessor } from '../webhook.processor';
 
@@ -15,8 +15,18 @@ import { WebhookProcessor } from '../webhook.processor';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeJob(data: WebhookJobPayload): Job<WebhookJobPayload> {
-  return { data } as unknown as Job<WebhookJobPayload>;
+function makeCtx(data: WebhookJobPayload): MessageContext<WebhookJobPayload> {
+  return {
+    id: 't',
+    type: 'security.webhook.ingest.requested',
+    key: data.webhookEventId,
+    attempt: 1,
+    payload: data,
+  };
+}
+
+function makeRegistrar(): ConsumerRegistrar {
+  return { register: jest.fn() } as unknown as ConsumerRegistrar;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,16 +110,20 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
     });
 
     findingPersister = buildFindingPersister();
-    processor = new WebhookProcessor(prisma as unknown as PrismaService, findingPersister);
+    processor = new WebhookProcessor(
+      prisma as unknown as PrismaService,
+      findingPersister,
+      makeRegistrar(),
+    );
   });
 
   it('returns findingsPersisted = 2', async () => {
-    const result = await processor.process(makeJob({ webhookEventId }));
+    const result = await processor.process(makeCtx({ webhookEventId }));
     expect(result).toEqual({ findingsPersisted: 2 });
   });
 
   it('creates one Scan with correct fields', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(prisma.scan.create).toHaveBeenCalledTimes(1);
     const createArg = prisma.scan.create.mock.calls[0][0];
     expect(createArg.data).toMatchObject({
@@ -122,7 +136,7 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
   });
 
   it('creates one ScanJob with correct fields', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(prisma.scanJob.create).toHaveBeenCalledTimes(1);
     const createArg = prisma.scanJob.create.mock.calls[0][0];
     expect(createArg.data).toMatchObject({
@@ -134,7 +148,7 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
   });
 
   it('upserts 2 assets (DOMAIN for app.example.com, IP_ADDRESS for 10.0.0.5)', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     // Both assets will call findFirst first (returns null) then create
     expect(prisma.asset.findFirst).toHaveBeenCalledTimes(2);
     expect(prisma.asset.create).toHaveBeenCalledTimes(2);
@@ -145,7 +159,7 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
   });
 
   it('calls findingPersister.upsert twice with scanJobId and assetId', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(findingPersister.upsert).toHaveBeenCalledTimes(2);
 
     // Both calls use the scanJob id from prisma.scanJob.create result
@@ -156,7 +170,7 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
   });
 
   it('updates the WebhookEvent with processedAt and resultingScanId', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(prisma.webhookEvent.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: webhookEventId },
@@ -190,15 +204,19 @@ describe('WebhookProcessor – bad payload (normalizer throws)', () => {
     });
 
     findingPersister = buildFindingPersister();
-    processor = new WebhookProcessor(prisma as unknown as PrismaService, findingPersister);
+    processor = new WebhookProcessor(
+      prisma as unknown as PrismaService,
+      findingPersister,
+      makeRegistrar(),
+    );
   });
 
   it('does NOT throw', async () => {
-    await expect(processor.process(makeJob({ webhookEventId }))).resolves.not.toThrow();
+    await expect(processor.process(makeCtx({ webhookEventId }))).resolves.not.toThrow();
   });
 
   it('sets errorMessage and processedAt on the event', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(prisma.webhookEvent.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: webhookEventId },
@@ -211,12 +229,12 @@ describe('WebhookProcessor – bad payload (normalizer throws)', () => {
   });
 
   it('does NOT create a Scan', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(prisma.scan.create).not.toHaveBeenCalled();
   });
 
   it('does NOT call findingPersister.upsert', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(findingPersister.upsert).not.toHaveBeenCalled();
   });
 });
@@ -247,15 +265,19 @@ describe('WebhookProcessor – unknown engagement', () => {
     prisma.engagement.findUnique.mockResolvedValue(null);
 
     findingPersister = buildFindingPersister();
-    processor = new WebhookProcessor(prisma as unknown as PrismaService, findingPersister);
+    processor = new WebhookProcessor(
+      prisma as unknown as PrismaService,
+      findingPersister,
+      makeRegistrar(),
+    );
   });
 
   it('does NOT throw', async () => {
-    await expect(processor.process(makeJob({ webhookEventId }))).resolves.not.toThrow();
+    await expect(processor.process(makeCtx({ webhookEventId }))).resolves.not.toThrow();
   });
 
   it('sets errorMessage and processedAt on the event', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(prisma.webhookEvent.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: webhookEventId },
@@ -268,7 +290,7 @@ describe('WebhookProcessor – unknown engagement', () => {
   });
 
   it('does NOT persist any findings', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(findingPersister.upsert).not.toHaveBeenCalled();
     expect(prisma.scan.create).not.toHaveBeenCalled();
   });
@@ -289,22 +311,26 @@ describe('WebhookProcessor – missing WebhookEvent', () => {
     prisma.webhookEvent.findUnique.mockResolvedValue(null);
 
     findingPersister = buildFindingPersister();
-    processor = new WebhookProcessor(prisma as unknown as PrismaService, findingPersister);
+    processor = new WebhookProcessor(
+      prisma as unknown as PrismaService,
+      findingPersister,
+      makeRegistrar(),
+    );
   });
 
   it('does NOT throw', async () => {
     await expect(
-      processor.process(makeJob({ webhookEventId: 'ghost-event' })),
+      processor.process(makeCtx({ webhookEventId: 'ghost-event' })),
     ).resolves.not.toThrow();
   });
 
   it('returns findingsPersisted = 0', async () => {
-    const result = await processor.process(makeJob({ webhookEventId: 'ghost-event' }));
+    const result = await processor.process(makeCtx({ webhookEventId: 'ghost-event' }));
     expect(result).toEqual({ findingsPersisted: 0 });
   });
 
   it('does not touch the DB beyond the initial lookup', async () => {
-    await processor.process(makeJob({ webhookEventId: 'ghost-event' }));
+    await processor.process(makeCtx({ webhookEventId: 'ghost-event' }));
     expect(prisma.webhookEvent.update).not.toHaveBeenCalled();
     expect(prisma.scan.create).not.toHaveBeenCalled();
     expect(findingPersister.upsert).not.toHaveBeenCalled();
@@ -341,16 +367,20 @@ describe('WebhookProcessor – findings count cap (>1000)', () => {
     });
 
     findingPersister = buildFindingPersister();
-    processor = new WebhookProcessor(prisma as unknown as PrismaService, findingPersister);
+    processor = new WebhookProcessor(
+      prisma as unknown as PrismaService,
+      findingPersister,
+      makeRegistrar(),
+    );
   });
 
   it('returns findingsPersisted = 0', async () => {
-    const result = await processor.process(makeJob({ webhookEventId }));
+    const result = await processor.process(makeCtx({ webhookEventId }));
     expect(result).toEqual({ findingsPersisted: 0 });
   });
 
   it('updates the event errorMessage with "too many findings" and sets processedAt', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(prisma.webhookEvent.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: webhookEventId },
@@ -363,12 +393,12 @@ describe('WebhookProcessor – findings count cap (>1000)', () => {
   });
 
   it('does NOT create a Scan', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(prisma.scan.create).not.toHaveBeenCalled();
   });
 
   it('does NOT call findingPersister.upsert', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(findingPersister.upsert).not.toHaveBeenCalled();
   });
 });
@@ -401,16 +431,20 @@ describe('WebhookProcessor – asset already exists', () => {
     prisma.asset.findFirst.mockResolvedValue({ id: 'existing-asset-id' });
 
     findingPersister = buildFindingPersister();
-    processor = new WebhookProcessor(prisma as unknown as PrismaService, findingPersister);
+    processor = new WebhookProcessor(
+      prisma as unknown as PrismaService,
+      findingPersister,
+      makeRegistrar(),
+    );
   });
 
   it('does not create a new asset when one already exists', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(prisma.asset.create).not.toHaveBeenCalled();
   });
 
   it('calls findingPersister.upsert with the existing asset id', async () => {
-    await processor.process(makeJob({ webhookEventId }));
+    await processor.process(makeCtx({ webhookEventId }));
     expect(findingPersister.upsert).toHaveBeenCalledTimes(1);
     expect(findingPersister.upsert.mock.calls[0][1]).toBe('existing-asset-id');
   });
