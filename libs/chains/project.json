@@ -1,0 +1,22 @@
+{
+  "name": "chains",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/chains/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/chains"],
+      "options": {
+        "jestConfig": "libs/chains/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/chains/tsconfig.lib.json"
+      }
+    }
+  }
+}

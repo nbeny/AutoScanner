@@ -1,0 +1,22 @@
+{
+  "name": "chain-engine",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/chain-engine/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/chain-engine"],
+      "options": {
+        "jestConfig": "libs/chain-engine/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/chain-engine/tsconfig.lib.json"
+      }
+    }
+  }
+}
