@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ScannerSdkModule, type ScannerRegistry } from '@autoscanner/scanner-sdk';
+import { ScannerSdkModule, ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { EmailrepScanner } from './emailrep.scanner';
 
 @Module({

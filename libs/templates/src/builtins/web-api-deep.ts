@@ -19,13 +19,18 @@ import type { TemplateDefinition } from '../types';
  *
  * Rate-limit acknowledgement: kiterunner uses maxConnPerHost=3 by default, but on
  * shared/aggressive targets the operator must opt-in via the banner below.
+ *
+ * Phase (breach/auth modern scanners) — appends mantra (secret-hunting over the
+ * discovered endpoints), then oauth-oidc + saml-recon (auth-protocol misconfig
+ * probes against the engagement root).
  */
 export const WebApiDeep: TemplateDefinition = {
   name: 'web-api-deep',
   displayName: 'Web API Deep',
   description:
     'Deep API recon: httpx probe → subjs JS discovery → linkfinder + jsluice URL/secret extraction → ' +
-    'kiterunner large-wordlist API brute → graphw00f GraphQL discovery → graphql-cop audit. ' +
+    'kiterunner large-wordlist API brute → graphw00f GraphQL discovery → graphql-cop audit → ' +
+    'mantra secret-hunting → oauth-oidc + saml-recon auth-protocol misconfig checks. ' +
     'kiterunner generates significant request volume.',
   scopeAcknowledgement:
     'kiterunner runs an API endpoint brute-force pass with ~970k routes. ' +
@@ -42,5 +47,8 @@ export const WebApiDeep: TemplateDefinition = {
     { scannerName: 'kiterunner', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'graphw00f', inputs: {}, target: { kind: 'context', path: 'target' } },
     { scannerName: 'graphql-cop', inputs: {}, target: { kind: 'context', path: 'endpoints' } },
+    { scannerName: 'mantra', inputs: {}, target: { kind: 'context', path: 'endpoints' } },
+    { scannerName: 'oauth-oidc', inputs: {}, target: { kind: 'context', path: 'target' } },
+    { scannerName: 'saml-recon', inputs: {}, target: { kind: 'context', path: 'target' } },
   ],
 };

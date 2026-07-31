@@ -28,4 +28,10 @@ export class AiRunNodeObject {
 
   @Field()
   createdAt!: Date;
+
+  @Field({ nullable: true })
+  stepId?: string;
+
+  @Field({ nullable: true })
+  skipReason?: string;
 }

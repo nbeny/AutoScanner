@@ -1,4 +1,5 @@
 import type { TemplateDefinition } from '../types';
+import { AiLlmSurface } from './ai-llm-surface';
 import { OsintPassive } from './osint-passive';
 import { OsintPassiveDeep } from './osint-passive-deep';
 import { OsintMetaDeep } from './osint-meta-deep';
@@ -29,6 +30,7 @@ import { EmailSurfaceRecon } from './email-surface-recon';
 
 export {
   ActiveDirectoryRecon,
+  AiLlmSurface,
   CloudExposure,
   EmailSurfaceRecon,
   IdentityOsint,
@@ -90,4 +92,5 @@ export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
   WebCrawlDeep,
   WebApiDeep,
   EmailSurfaceRecon,
+  AiLlmSurface,
 ];

@@ -134,11 +134,18 @@ export function ScanGraph({
                 height={NODE_HEIGHT}
                 rx={8}
                 ry={8}
-                fill={nodeFill(p.node.status)}
-                stroke={selected ? '#e2e8f0' : nodeStroke(p.node.status)}
+                fill={p.node.skipReason ? '#0f172a' : nodeFill(p.node.status)}
+                stroke={
+                  selected ? '#e2e8f0' : p.node.skipReason ? '#334155' : nodeStroke(p.node.status)
+                }
                 strokeWidth={selected ? 2.5 : 1.5}
-                className={p.node.status === 'RUNNING' ? 'hunt-node-pulse' : undefined}
-              />
+                strokeDasharray={p.node.skipReason ? '4 3' : undefined}
+                className={
+                  p.node.status === 'RUNNING' && !p.node.skipReason ? 'hunt-node-pulse' : undefined
+                }
+              >
+                {p.node.skipReason ? <title>{p.node.skipReason}</title> : null}
+              </rect>
               <text
                 x={NODE_WIDTH / 2}
                 y={NODE_HEIGHT / 2 + 4}

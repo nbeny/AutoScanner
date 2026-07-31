@@ -167,7 +167,9 @@
       "@autoscanner/scanners-leakix": ["libs/scanners/leakix/src/index.ts"],
       "@autoscanner/scanners-intelx": ["libs/scanners/intelx/src/index.ts"],
       "@autoscanner/storage": ["libs/storage/src/index.ts"],
-      "@autoscanner/templates": ["libs/templates/src/index.ts"]
+      "@autoscanner/templates": ["libs/templates/src/index.ts"],
+      "@autoscanner/chains": ["libs/chains/src/index.ts"],
+      "@autoscanner/chain-engine": ["libs/chain-engine/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

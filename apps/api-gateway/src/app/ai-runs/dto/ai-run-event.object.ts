@@ -33,4 +33,7 @@ export class AiRunEventObject {
 
   @Field(() => Int, { nullable: true })
   round?: number;
+
+  @Field({ nullable: true })
+  skipReason?: string;
 }

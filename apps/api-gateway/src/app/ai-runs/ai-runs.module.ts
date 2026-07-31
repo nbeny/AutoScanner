@@ -31,5 +31,6 @@ import { AiRunEventsSubscriber, AI_RUN_EVENTS_REDIS_SUBSCRIBER } from './ai-run-
       useFactory: (cfg: AppConfigService) => new IORedis(cfg.env.REDIS_URL, { lazyConnect: false }),
     },
   ],
+  exports: [QuickScanProvisioner],
 })
 export class AiRunsModule {}

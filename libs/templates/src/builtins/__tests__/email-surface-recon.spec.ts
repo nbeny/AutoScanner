@@ -6,13 +6,14 @@ describe('EmailSurfaceRecon template', () => {
     expect(BUILTIN_TEMPLATES.map((t) => t.name)).toContain('email-surface-recon');
   });
 
-  it('chains 5 steps in expected order', () => {
+  it('chains 6 steps in expected order', () => {
     expect(EmailSurfaceRecon.steps.map((s) => s.scannerName)).toEqual([
       'mailspoof',
       'spoofy',
       'swaks',
       'emailfinder',
       'emailrep',
+      'h8mail',
     ]);
   });
 
@@ -26,6 +27,12 @@ describe('EmailSurfaceRecon template', () => {
   it('emailrep consumes the emails context', () => {
     const step = EmailSurfaceRecon.steps.find((s) => s.scannerName === 'emailrep');
     expect(step?.target).toEqual({ kind: 'context', path: 'emails' });
+  });
+
+  it('h8mail consumes the emails context for breach checking', () => {
+    const step = EmailSurfaceRecon.steps.find((s) => s.scannerName === 'h8mail');
+    expect(step?.target).toEqual({ kind: 'context', path: 'emails' });
+    expect(step?.inputs).toEqual({});
   });
 
   it('swaks step is gated by active-mail-probe capability', () => {
