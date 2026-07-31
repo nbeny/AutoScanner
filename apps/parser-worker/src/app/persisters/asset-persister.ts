@@ -92,8 +92,26 @@ export class AssetPersister {
       });
       return existing.id;
     }
+
+    // A DOMAIN asset must point at a Domain row: the `asset_polymorphic_fk_check`
+    // constraint requires `domainId IS NOT NULL` for type=DOMAIN (mirroring how the
+    // SUBDOMAIN chain links `subdomainId`). Creating the pivot without it raises
+    // Postgres 23514 and the parse job fails. URL/NETWORK keep all three FKs null,
+    // which the same constraint allows.
+    const domainId =
+      type === 'DOMAIN'
+        ? (
+            await tx.domain.upsert({
+              where: { engagementId_canonicalValue: { engagementId, canonicalValue } },
+              create: { engagementId, value: asset.value, canonicalValue },
+              update: { lastSeenAt: new Date() },
+              select: { id: true },
+            })
+          ).id
+        : null;
+
     const created = await tx.asset.create({
-      data: { engagementId, type, value: asset.value, canonicalValue },
+      data: { engagementId, type, value: asset.value, canonicalValue, domainId },
       select: { id: true },
     });
     return created.id;

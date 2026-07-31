@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { Consumer, Producer, Kafka } from 'kafkajs';
 import { MAX_ATTEMPTS, nextAvailableAt } from '../backoff';
 import { retryTopic, dlqTopic } from '../topics';
@@ -58,6 +59,7 @@ export async function runConsumer(
   consumer: MessageConsumer,
 ): Promise<Consumer> {
   const base = consumer.topic;
+  const logger = new Logger('KafkaConsumer');
   const bus = new KafkaJobBus(producer);
   const c = kafka.consumer({ groupId: base });
   await c.connect();
@@ -94,12 +96,23 @@ export async function runConsumer(
         });
       } catch (err) {
         const outcome = decideOutcome(base, env.attempt, err as Error, now);
+        const reason = err instanceof Error ? (err.stack ?? err.message) : String(err);
         if (outcome.kind === 'retry') {
+          // A rate-limit re-drive is expected traffic, not a failure: log it quietly.
+          const retryLog =
+            err instanceof RetryAfterError
+              ? `${base} key=${env.key} rate-limited, re-driving at ${outcome.availableAt.toISOString()}`
+              : `${base} key=${env.key} attempt ${env.attempt} failed, retrying at ${outcome.availableAt.toISOString()}: ${reason}`;
+          if (err instanceof RetryAfterError) logger.log(retryLog);
+          else logger.warn(retryLog);
           await bus.publish(outcome.topic, env.key, env.payload, {
             attempt: outcome.nextAttempt,
             availableAt: outcome.availableAt,
           });
         } else {
+          logger.error(
+            `${base} key=${env.key} exhausted ${env.attempt} attempts, routing to DLQ: ${reason}`,
+          );
           await bus.publish(outcome.topic, env.key, env.payload, { attempt: env.attempt });
         }
       }
