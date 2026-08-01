@@ -12,6 +12,7 @@ import { evaluateGuardrails, DEFAULT_GUARDRAILS, type Guardrails } from './guard
 import { AiRunEventsPublisher } from './ai-run-events.publisher';
 import { ClaudeDecider } from './claude-decider';
 import { ChainDecider } from './chain-decider';
+import { FindingEnrichmentService } from './finding-enrichment.service';
 import type { NextStepDecider, DecisionAction } from './next-step-decider';
 
 const AI_RUN_TOPIC = 'security.ai.run.requested';
@@ -48,6 +49,7 @@ export class AiRunProcessor
     private readonly events: AiRunEventsPublisher,
     private readonly claudeDecider: ClaudeDecider,
     private readonly chainDecider: ChainDecider,
+    private readonly enrichment: FindingEnrichmentService,
     @Inject(ConsumerRegistrar) private readonly registrar: ConsumerRegistrar,
   ) {
     super();
@@ -118,12 +120,29 @@ export class AiRunProcessor
       await this.prisma.aiRun.update({ where: { id: aiRunId }, data: { status: 'AUDITING' } });
       await this.events.publish(aiRunId, { type: 'status', status: 'AUDITING' });
 
+      // Fleet enrichment (SP4c): run the analyst / false-positive / remediation agents over the
+      // run's findings and store the structured analysis. Best-effort — a fleet hiccup must not
+      // fail an otherwise-successful run, so we swallow and continue to the audit.
+      let analysisJson: unknown = undefined;
+      try {
+        analysisJson = await this.enrichment.enrich(aiRunId);
+      } catch (err) {
+        this.logger.warn(
+          `AiRun ${aiRunId} enrichment failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+
       const auditText = await decider.audit({ aiRunId, target: aiRun.target });
 
       const finalStatus = stoppedByCap ? 'STOPPED_CAP' : 'COMPLETED';
       await this.prisma.aiRun.update({
         where: { id: aiRunId },
-        data: { status: finalStatus, auditText, completedAt: new Date() },
+        data: {
+          status: finalStatus,
+          auditText,
+          ...(analysisJson ? { analysisJson: analysisJson as never } : {}),
+          completedAt: new Date(),
+        },
       });
       await this.events.publish(aiRunId, { type: 'audit-ready' });
       await this.events.publish(aiRunId, { type: 'status', status: finalStatus });
@@ -283,6 +302,8 @@ export class AiRunProcessor
           worldStateSnapshot: (outcome.snapshot ?? {}) as Prisma.InputJsonValue,
           responseJson: (outcome.snapshot ?? {}) as Prisma.InputJsonValue,
           degraded: outcome.degraded ?? false,
+          // SP4c: record which fleet agent drove this decision.
+          agentRole: chainName ? 'chain' : 'planner',
         },
       });
 
