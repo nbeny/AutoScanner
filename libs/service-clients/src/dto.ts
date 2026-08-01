@@ -93,3 +93,37 @@ export interface DiscoveryParseBatchResponse {
   /** Links actually created, so the caller can record the matching asset observations. */
   linkedHosts: string[];
 }
+
+export interface FindingBatchItem {
+  assetId: string;
+  assetCanonical: string;
+  scannerName: string;
+  title: string;
+  severity: string;
+  location?: string;
+  cveId?: string;
+  templateId?: string;
+  evidence?: Record<string, unknown>;
+}
+
+export interface FindingBatchRequest {
+  engagementId: string;
+  scanJobId: string;
+  scannerName: string;
+  findings: FindingBatchItem[];
+}
+
+export interface FindingBatchResponse {
+  findingsPersisted: number;
+  /** Assets touched, so the caller can trigger one risk recompute per asset. */
+  affectedAssetIds: string[];
+  /** FINDING_RAISED observations for asset-service to write (it owns AssetObservation). */
+  observations: Array<{ assetId: string; kind: string; payload: Record<string, unknown> }>;
+}
+
+export interface TriageRequest {
+  correlatedFindingId: string;
+  status: string;
+  actorId: string;
+  note?: string;
+}
