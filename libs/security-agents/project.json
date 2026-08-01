@@ -1,0 +1,22 @@
+{
+  "name": "security-agents",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/security-agents/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/security-agents"],
+      "options": {
+        "jestConfig": "libs/security-agents/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/security-agents/tsconfig.lib.json"
+      }
+    }
+  }
+}
