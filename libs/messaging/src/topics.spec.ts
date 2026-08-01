@@ -16,7 +16,7 @@ describe('topics', () => {
         'security.webhook.ingest.requested',
       ]),
     );
-    expect(Object.keys(TOPICS)).toHaveLength(13);
+    expect(Object.keys(TOPICS)).toHaveLength(20);
   });
 
   it('includes the SP1 asset and discovery lifecycle topics', () => {
@@ -25,6 +25,27 @@ describe('topics', () => {
         'security.asset.upserted',
         'security.asset.risk.changed',
         'security.discovery.entity.upserted',
+      ]),
+    );
+  });
+
+  it('includes the SP2a finding lifecycle topics', () => {
+    expect(Object.keys(TOPICS)).toEqual(
+      expect.arrayContaining([
+        'security.finding.created',
+        'security.finding.updated',
+        'security.finding.confirmed',
+        'security.finding.closed',
+      ]),
+    );
+  });
+
+  it('includes the SP2b risk lifecycle topics', () => {
+    expect(Object.keys(TOPICS)).toEqual(
+      expect.arrayContaining([
+        'security.risk.calculated',
+        'security.risk.changed',
+        'security.risk.alert',
       ]),
     );
   });
@@ -39,7 +60,7 @@ describe('topics', () => {
     expect(names).toContain('security.report.requested');
     expect(names).toContain('security.report.requested.retry');
     expect(names).toContain('security.report.requested.dlq');
-    expect(names).toHaveLength(13 * 3);
+    expect(names).toHaveLength(20 * 3);
   });
 
   it('gives dlq topics a single partition', () => {

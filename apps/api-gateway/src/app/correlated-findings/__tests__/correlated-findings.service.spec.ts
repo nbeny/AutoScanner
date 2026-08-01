@@ -6,6 +6,7 @@ import { CorrelatedFindingsService } from '../correlated-findings.service';
 
 describe('CorrelatedFindingsService', () => {
   let prisma: jest.Mocked<PrismaService>;
+  let findingClient: { setStatus: jest.Mock; annotate: jest.Mock };
   let svc: CorrelatedFindingsService;
   const userId = 'user_1';
   const engagementId = 'eng_1';
@@ -41,9 +42,15 @@ describe('CorrelatedFindingsService', () => {
         update: jest.fn(),
       },
       nvdCve: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
+      // resolveCvssScores falls through to CveCache when NvdCve has no score.
+      cveCache: { findMany: jest.fn().mockResolvedValue([]) },
       $transaction: jest.fn(),
     } as unknown as jest.Mocked<PrismaService>;
-    svc = new CorrelatedFindingsService(prisma);
+    findingClient = {
+      setStatus: jest.fn().mockResolvedValue({ id: correlatedId, status: 'CONFIRMED' }),
+      annotate: jest.fn().mockResolvedValue({ id: correlatedId }),
+    };
+    svc = new CorrelatedFindingsService(prisma, findingClient as never);
   });
 
   describe('list', () => {
@@ -155,32 +162,38 @@ describe('CorrelatedFindingsService', () => {
 
   describe('setNote / setRemediation', () => {
     beforeEach(() => {
-      (prisma.correlatedFinding.findUnique as jest.Mock).mockResolvedValue({ engagementId });
+      // First findUnique resolves the engagement for the ownership check.
       (prisma.engagement.findFirst as jest.Mock).mockResolvedValue({ id: engagementId });
     });
 
-    it('setNote updates the note and returns the mapped DTO', async () => {
-      (prisma.correlatedFinding.update as jest.Mock).mockResolvedValueOnce(
-        makeRow({ note: 'confirmed via curl' }),
-      );
+    it('setNote delegates the write to finding-service and returns the mapped DTO', async () => {
+      (prisma.correlatedFinding.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ engagementId })
+        .mockResolvedValueOnce(makeRow({ note: 'confirmed via curl' }));
+
       const result = await svc.setNote(userId, correlatedId, 'confirmed via curl');
-      expect(prisma.correlatedFinding.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: correlatedId },
-          data: { note: 'confirmed via curl' },
-        }),
-      );
+
+      // api-gateway must not write CorrelatedFinding itself — finding-service is the writer.
+      expect(prisma.correlatedFinding.update).not.toHaveBeenCalled();
+      expect(findingClient.annotate).toHaveBeenCalledWith({
+        correlatedFindingId: correlatedId,
+        note: 'confirmed via curl',
+      });
       expect(result.id).toBe(correlatedId);
     });
 
-    it('setRemediation updates the remediation field', async () => {
-      (prisma.correlatedFinding.update as jest.Mock).mockResolvedValueOnce(
-        makeRow({ remediation: 'Upgrade to 2.5.13' }),
-      );
+    it('setRemediation delegates the remediation write to finding-service', async () => {
+      (prisma.correlatedFinding.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ engagementId })
+        .mockResolvedValueOnce(makeRow({ remediation: 'Upgrade to 2.5.13' }));
+
       const result = await svc.setRemediation(userId, correlatedId, 'Upgrade to 2.5.13');
-      expect(prisma.correlatedFinding.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { remediation: 'Upgrade to 2.5.13' } }),
-      );
+
+      expect(prisma.correlatedFinding.update).not.toHaveBeenCalled();
+      expect(findingClient.annotate).toHaveBeenCalledWith({
+        correlatedFindingId: correlatedId,
+        remediation: 'Upgrade to 2.5.13',
+      });
       expect(result.id).toBe(correlatedId);
     });
   });
@@ -193,7 +206,7 @@ describe('CorrelatedFindingsService', () => {
         svc.setStatus(userId, correlatedId, FindingStatus.CONFIRMED),
       ).rejects.toBeInstanceOf(NotFoundError);
       expect(prisma.engagement.findFirst).not.toHaveBeenCalled();
-      expect(prisma.correlatedFinding.update).not.toHaveBeenCalled();
+      expect(findingClient.setStatus).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundError when the engagement is not owned by the user', async () => {
@@ -205,23 +218,17 @@ describe('CorrelatedFindingsService', () => {
       await expect(
         svc.setStatus(userId, correlatedId, FindingStatus.CONFIRMED),
       ).rejects.toBeInstanceOf(NotFoundError);
-      expect(prisma.correlatedFinding.update).not.toHaveBeenCalled();
+      // Authorization fails before the write is delegated: finding-service is never touched.
+      expect(findingClient.setStatus).not.toHaveBeenCalled();
     });
 
-    it('writes a FindingStatusEvent in the same transaction as the status update', async () => {
-      (prisma.correlatedFinding.findUnique as jest.Mock).mockResolvedValueOnce({
-        engagementId,
-        status: FindingStatus.OPEN,
-      });
+    it('delegates the write to finding-service (the single status writer) after the ownership check', async () => {
+      // First findUnique resolves the engagement for the ownership check; the second re-reads
+      // the row for the GraphQL response after finding-service has committed the change.
+      (prisma.correlatedFinding.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ engagementId })
+        .mockResolvedValueOnce(makeRow({ status: FindingStatus.CONFIRMED }));
       (prisma.engagement.findFirst as jest.Mock).mockResolvedValueOnce({ id: engagementId });
-
-      const tx = {
-        correlatedFinding: {
-          update: jest.fn().mockResolvedValue(makeRow({ status: FindingStatus.CONFIRMED })),
-        },
-        findingStatusEvent: { create: jest.fn().mockResolvedValue({}) },
-      };
-      (prisma.$transaction as jest.Mock).mockImplementationOnce(async (fn) => fn(tx));
 
       const result = await svc.setStatus(
         userId,
@@ -230,14 +237,13 @@ describe('CorrelatedFindingsService', () => {
         'looks real',
       );
 
-      expect(tx.findingStatusEvent.create).toHaveBeenCalledWith({
-        data: {
-          correlatedFindingId: correlatedId,
-          fromStatus: FindingStatus.OPEN,
-          toStatus: FindingStatus.CONFIRMED,
-          actorId: userId,
-          note: 'looks real',
-        },
+      // api-gateway must NOT write the status column itself — that is finding-service's job.
+      expect(prisma.correlatedFinding.update).not.toHaveBeenCalled();
+      expect(findingClient.setStatus).toHaveBeenCalledWith({
+        correlatedFindingId: correlatedId,
+        status: FindingStatus.CONFIRMED,
+        actorId: userId,
+        note: 'looks real',
       });
       expect(result.status).toBe(FindingStatus.CONFIRMED);
     });
@@ -368,14 +374,19 @@ describe('CorrelatedFindingsService', () => {
           },
         ],
       });
+      // The score resolves via the unified source (NvdCve → CveCache); only the vector still
+      // comes from the NvdCve findUnique.
+      (prisma.nvdCve.findMany as jest.Mock).mockResolvedValueOnce([
+        { cveId: 'CVE-2017-5638', cvssV3Score: 9.8 },
+      ]);
       (prisma.nvdCve.findUnique as jest.Mock).mockResolvedValueOnce({
-        cvssV3Score: 9.8,
         cvssV3Vector: 'AV:N/...',
       });
 
       const d = await svc.getDetail(userId, correlatedId);
 
       expect(d.cvssScore).toBe(9.8);
+      expect(d.cvssVector).toBe('AV:N/...');
       expect(d.assetValue).toBe('10.0.0.4');
       expect(d.sources).toEqual(['nuclei']);
       expect(d.evidence[0].evidenceJson).toBe(JSON.stringify({ payload: 'x' }));

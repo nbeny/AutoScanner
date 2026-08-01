@@ -33,7 +33,7 @@ export class FindingPersister {
     finding: NormalizedFinding,
     assetCanonical: string,
     tx?: Prisma.TransactionClient,
-  ): Promise<void> {
+  ): Promise<string> {
     const sig = finding.cveId ?? finding.templateId ?? finding.title;
     const dedupHash = findingDedupHash({
       scannerName: finding.scannerName,
@@ -45,7 +45,7 @@ export class FindingPersister {
 
     const now = new Date();
     const client = tx ?? this.prisma;
-    await client.finding.upsert({
+    const row = await client.finding.upsert({
       where: { assetId_dedupHash: { assetId, dedupHash } },
       create: {
         assetId,
@@ -61,6 +61,8 @@ export class FindingPersister {
         lastSeenAt: now,
       },
       update: { lastSeenAt: now },
+      select: { id: true },
     });
+    return row.id;
   }
 }

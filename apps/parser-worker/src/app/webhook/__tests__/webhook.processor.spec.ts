@@ -2,13 +2,12 @@
  * TDD spec for WebhookProcessor (T4.3).
  *
  * Mocks: PrismaService (webhookEvent, engagement, scan, scanJob, asset),
- *        FindingPersister.
+ *        FindingClient.
  * Does NOT mock canonicalize — it is a pure function imported directly.
  */
 import type { WebhookJobPayload } from '@autoscanner/queues';
 import type { PrismaService } from '@autoscanner/database';
 import type { ConsumerRegistrar, MessageContext } from '@autoscanner/messaging';
-import type { FindingPersister } from '../../persisters/finding-persister';
 import { WebhookProcessor } from '../webhook.processor';
 
 // ---------------------------------------------------------------------------
@@ -80,10 +79,17 @@ function defaultPrisma() {
   };
 }
 
-function buildFindingPersister(): jest.Mocked<FindingPersister> {
+function buildFindingClient() {
   return {
-    upsert: jest.fn().mockResolvedValue(undefined),
-  } as unknown as jest.Mocked<FindingPersister>;
+    // batch reports one persisted finding per item and no observations to relay back.
+    batch: jest.fn(async (req: { scanJobId: string; findings: Array<{ assetId: string }> }) => ({
+      findingsPersisted: req.findings.length,
+      observations: [] as Array<{ assetId: string; kind: string; payload: unknown }>,
+    })),
+    correlate: jest.fn().mockResolvedValue({ clusters: 0 }),
+    dedup: jest.fn().mockResolvedValue({ merged: 0 }),
+    setStatus: jest.fn().mockResolvedValue({ id: 'c1', status: 'OPEN' }),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +98,7 @@ function buildFindingPersister(): jest.Mocked<FindingPersister> {
 
 describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
-  let findingPersister: jest.Mocked<FindingPersister>;
+  let findingClient: ReturnType<typeof buildFindingClient>;
   let processor: WebhookProcessor;
   let assetClient: ReturnType<typeof makeAssetClient>;
 
@@ -125,7 +131,7 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
       payload,
     });
 
-    findingPersister = buildFindingPersister();
+    findingClient = buildFindingClient();
     assetClient = makeAssetClient({
       'app.example.com': 'asset-app.example.com',
       '10.0.0.5': 'asset-10.0.0.5',
@@ -133,7 +139,7 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
     });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
-      findingPersister,
+      findingClient as never,
       assetClient as never,
       makeRegistrar(),
     );
@@ -186,14 +192,16 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
     ]);
   });
 
-  it('calls findingPersister.upsert twice with scanJobId and assetId', async () => {
+  it('batches both findings to finding-service with the scanJob scope and resolved asset ids', async () => {
     await processor.process(makeCtx({ webhookEventId }));
-    expect(findingPersister.upsert).toHaveBeenCalledTimes(2);
+    // One batch, not one call per finding — finding-service is the single writer.
+    expect(findingClient.batch).toHaveBeenCalledTimes(1);
 
-    // Both calls use the scanJob id from prisma.scanJob.create result
-    for (const call of findingPersister.upsert.mock.calls) {
-      expect(call[0]).toBe('scanjob-1'); // scanJobId
-      expect(typeof call[1]).toBe('string'); // assetId
+    const req = findingClient.batch.mock.calls[0][0];
+    expect(req.scanJobId).toBe('scanjob-1');
+    expect(req.findings).toHaveLength(2);
+    for (const item of req.findings) {
+      expect(typeof item.assetId).toBe('string');
     }
   });
 
@@ -217,7 +225,7 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
 
 describe('WebhookProcessor – bad payload (normalizer throws)', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
-  let findingPersister: jest.Mocked<FindingPersister>;
+  let findingClient: ReturnType<typeof buildFindingClient>;
   let processor: WebhookProcessor;
   let assetClient: ReturnType<typeof makeAssetClient>;
 
@@ -232,7 +240,7 @@ describe('WebhookProcessor – bad payload (normalizer throws)', () => {
       payload: { findings: [] }, // no engagementId → normalizer will throw
     });
 
-    findingPersister = buildFindingPersister();
+    findingClient = buildFindingClient();
     assetClient = makeAssetClient({
       'app.example.com': 'asset-app.example.com',
       '10.0.0.5': 'asset-10.0.0.5',
@@ -240,7 +248,7 @@ describe('WebhookProcessor – bad payload (normalizer throws)', () => {
     });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
-      findingPersister,
+      findingClient as never,
       assetClient as never,
       makeRegistrar(),
     );
@@ -268,9 +276,9 @@ describe('WebhookProcessor – bad payload (normalizer throws)', () => {
     expect(prisma.scan.create).not.toHaveBeenCalled();
   });
 
-  it('does NOT call findingPersister.upsert', async () => {
+  it('does NOT call finding-service', async () => {
     await processor.process(makeCtx({ webhookEventId }));
-    expect(findingPersister.upsert).not.toHaveBeenCalled();
+    expect(findingClient.batch).not.toHaveBeenCalled();
   });
 });
 
@@ -280,7 +288,7 @@ describe('WebhookProcessor – bad payload (normalizer throws)', () => {
 
 describe('WebhookProcessor – unknown engagement', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
-  let findingPersister: jest.Mocked<FindingPersister>;
+  let findingClient: ReturnType<typeof buildFindingClient>;
   let processor: WebhookProcessor;
   let assetClient: ReturnType<typeof makeAssetClient>;
 
@@ -300,7 +308,7 @@ describe('WebhookProcessor – unknown engagement', () => {
     // Engagement does not exist
     prisma.engagement.findUnique.mockResolvedValue(null);
 
-    findingPersister = buildFindingPersister();
+    findingClient = buildFindingClient();
     assetClient = makeAssetClient({
       'app.example.com': 'asset-app.example.com',
       '10.0.0.5': 'asset-10.0.0.5',
@@ -308,7 +316,7 @@ describe('WebhookProcessor – unknown engagement', () => {
     });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
-      findingPersister,
+      findingClient as never,
       assetClient as never,
       makeRegistrar(),
     );
@@ -333,7 +341,7 @@ describe('WebhookProcessor – unknown engagement', () => {
 
   it('does NOT persist any findings', async () => {
     await processor.process(makeCtx({ webhookEventId }));
-    expect(findingPersister.upsert).not.toHaveBeenCalled();
+    expect(findingClient.batch).not.toHaveBeenCalled();
     expect(prisma.scan.create).not.toHaveBeenCalled();
   });
 });
@@ -344,7 +352,7 @@ describe('WebhookProcessor – unknown engagement', () => {
 
 describe('WebhookProcessor – missing WebhookEvent', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
-  let findingPersister: jest.Mocked<FindingPersister>;
+  let findingClient: ReturnType<typeof buildFindingClient>;
   let processor: WebhookProcessor;
   let assetClient: ReturnType<typeof makeAssetClient>;
 
@@ -353,7 +361,7 @@ describe('WebhookProcessor – missing WebhookEvent', () => {
     // findUnique returns null = event not found
     prisma.webhookEvent.findUnique.mockResolvedValue(null);
 
-    findingPersister = buildFindingPersister();
+    findingClient = buildFindingClient();
     assetClient = makeAssetClient({
       'app.example.com': 'asset-app.example.com',
       '10.0.0.5': 'asset-10.0.0.5',
@@ -361,7 +369,7 @@ describe('WebhookProcessor – missing WebhookEvent', () => {
     });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
-      findingPersister,
+      findingClient as never,
       assetClient as never,
       makeRegistrar(),
     );
@@ -382,7 +390,7 @@ describe('WebhookProcessor – missing WebhookEvent', () => {
     await processor.process(makeCtx({ webhookEventId: 'ghost-event' }));
     expect(prisma.webhookEvent.update).not.toHaveBeenCalled();
     expect(prisma.scan.create).not.toHaveBeenCalled();
-    expect(findingPersister.upsert).not.toHaveBeenCalled();
+    expect(findingClient.batch).not.toHaveBeenCalled();
   });
 });
 
@@ -392,7 +400,7 @@ describe('WebhookProcessor – missing WebhookEvent', () => {
 
 describe('WebhookProcessor – findings count cap (>1000)', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
-  let findingPersister: jest.Mocked<FindingPersister>;
+  let findingClient: ReturnType<typeof buildFindingClient>;
   let processor: WebhookProcessor;
   let assetClient: ReturnType<typeof makeAssetClient>;
 
@@ -416,7 +424,7 @@ describe('WebhookProcessor – findings count cap (>1000)', () => {
       payload,
     });
 
-    findingPersister = buildFindingPersister();
+    findingClient = buildFindingClient();
     assetClient = makeAssetClient({
       'app.example.com': 'asset-app.example.com',
       '10.0.0.5': 'asset-10.0.0.5',
@@ -424,7 +432,7 @@ describe('WebhookProcessor – findings count cap (>1000)', () => {
     });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
-      findingPersister,
+      findingClient as never,
       assetClient as never,
       makeRegistrar(),
     );
@@ -453,9 +461,9 @@ describe('WebhookProcessor – findings count cap (>1000)', () => {
     expect(prisma.scan.create).not.toHaveBeenCalled();
   });
 
-  it('does NOT call findingPersister.upsert', async () => {
+  it('does NOT call finding-service', async () => {
     await processor.process(makeCtx({ webhookEventId }));
-    expect(findingPersister.upsert).not.toHaveBeenCalled();
+    expect(findingClient.batch).not.toHaveBeenCalled();
   });
 });
 
@@ -465,7 +473,7 @@ describe('WebhookProcessor – findings count cap (>1000)', () => {
 
 describe('WebhookProcessor – asset already exists', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
-  let findingPersister: jest.Mocked<FindingPersister>;
+  let findingClient: ReturnType<typeof buildFindingClient>;
   let processor: WebhookProcessor;
   let assetClient: ReturnType<typeof makeAssetClient>;
 
@@ -488,7 +496,7 @@ describe('WebhookProcessor – asset already exists', () => {
     // with the id, and this path must use it.
     prisma.asset.findFirst.mockResolvedValue({ id: 'existing-asset-id' });
 
-    findingPersister = buildFindingPersister();
+    findingClient = buildFindingClient();
     assetClient = makeAssetClient({
       'app.example.com': 'asset-app.example.com',
       '10.0.0.5': 'asset-10.0.0.5',
@@ -496,7 +504,7 @@ describe('WebhookProcessor – asset already exists', () => {
     });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
-      findingPersister,
+      findingClient as never,
       assetClient as never,
       makeRegistrar(),
     );
@@ -508,9 +516,11 @@ describe('WebhookProcessor – asset already exists', () => {
     expect(assetClient.parseBatch).toHaveBeenCalledTimes(1);
   });
 
-  it('calls findingPersister.upsert with the id asset-service returned', async () => {
+  it('batches the finding with the id asset-service returned', async () => {
     await processor.process(makeCtx({ webhookEventId }));
-    expect(findingPersister.upsert).toHaveBeenCalledTimes(1);
-    expect(findingPersister.upsert.mock.calls[0][1]).toBe('asset-app.example.com');
+    expect(findingClient.batch).toHaveBeenCalledTimes(1);
+    const req = findingClient.batch.mock.calls[0][0];
+    expect(req.findings).toHaveLength(1);
+    expect(req.findings[0].assetId).toBe('asset-app.example.com');
   });
 });

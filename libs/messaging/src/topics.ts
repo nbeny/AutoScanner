@@ -17,6 +17,13 @@ export const TOPICS = {
   'security.asset.upserted': { partitions: 6, group: 'asset-upserted' },
   'security.asset.risk.changed': { partitions: 6, group: 'asset-risk-changed' },
   'security.discovery.entity.upserted': { partitions: 6, group: 'discovery-entity-upserted' },
+  'security.finding.created': { partitions: 6, group: 'finding-created' },
+  'security.finding.updated': { partitions: 6, group: 'finding-updated' },
+  'security.finding.confirmed': { partitions: 6, group: 'finding-confirmed' },
+  'security.finding.closed': { partitions: 6, group: 'finding-closed' },
+  'security.risk.calculated': { partitions: 6, group: 'risk-calculated' },
+  'security.risk.changed': { partitions: 6, group: 'risk-changed' },
+  'security.risk.alert': { partitions: 6, group: 'risk-alert' },
 } as const satisfies Record<string, TopicDef>;
 
 export type TopicName = keyof typeof TOPICS;

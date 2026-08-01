@@ -1,0 +1,52 @@
+{
+  "name": "threat-intel-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/threat-intel-service/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "webpack-cli build",
+        "args": ["node-env=production"],
+        "cwd": "apps/threat-intel-service"
+      },
+      "configurations": {
+        "development": {
+          "args": ["node-env=development"]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "threat-intel-service:build",
+        "runBuildTargetDependencies": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "threat-intel-service:build:development"
+        },
+        "production": {
+          "buildTarget": "threat-intel-service:build:production"
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/threat-intel-service"],
+      "options": {
+        "jestConfig": "apps/threat-intel-service/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/threat-intel-service/tsconfig.app.json --noEmit"
+      }
+    }
+  },
+  "tags": ["scope:app"]
+}

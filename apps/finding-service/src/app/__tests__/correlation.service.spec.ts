@@ -1,6 +1,6 @@
 import type { PrismaService } from '@autoscanner/database';
-import { CorrelateFindingsService } from '../correlate-findings.service';
-import { structuralFindingHash } from '../structural-finding-hash';
+import { CorrelationService } from '../correlation.service';
+import { structuralFindingHash } from '@autoscanner/correlation';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -42,9 +42,9 @@ function makeFinding(
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('CorrelateFindingsService', () => {
+describe('CorrelationService', () => {
   let prisma: jest.Mocked<PrismaService>;
-  let service: CorrelateFindingsService;
+  let service: CorrelationService;
 
   function buildPrisma(findings: ReturnType<typeof makeFinding>[]) {
     let clusterSeq = 0;
@@ -59,8 +59,11 @@ describe('CorrelateFindingsService', () => {
           return Promise.resolve({ id: `cf_${clusterSeq}` });
         }),
       },
+      // SP2a: the cluster upsert and the member relink now commit together, so the service
+      // writes through the transaction client. Route it back to the same mocks.
+      $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
     } as unknown as jest.Mocked<PrismaService>;
-    service = new CorrelateFindingsService(prisma);
+    service = new CorrelationService(prisma);
   }
 
   // -------------------------------------------------------------------------

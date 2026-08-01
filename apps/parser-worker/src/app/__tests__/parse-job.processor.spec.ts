@@ -6,7 +6,9 @@
  * tested here:
  *   - parse mechanics (registry lookup, empty/oversize raw output)
  *   - delegating each entity group to the right batch client, with the right payload
- *   - Finding persistence (moves in SP2) and CVE enrichment publishing
+ *   - resolving each finding to an asset and batching it to finding-service (SP2a: the
+ *     Finding writes moved out; parser-worker only assembles the batch now)
+ *   - CVE enrichment publishing
  *   - the engagement-wide correlation passes and their best-effort failure semantics
  *   - engagement event publication
  *
@@ -28,10 +30,8 @@ import {
 import type { ParseJobPayload } from '@autoscanner/queues';
 import type { ObjectStorage } from '@autoscanner/storage';
 import type { ConsumerRegistrar, MessageContext } from '@autoscanner/messaging';
-import { AssetMergeService, CorrelateFindingsService } from '@autoscanner/correlation';
 
 import { ParseJobProcessor } from '../parse-job.processor';
-import { FindingPersister } from '../persisters/finding-persister';
 
 const NMAP_XML = `<?xml version="1.0"?>
 <nmaprun scanner="nmap">
@@ -84,14 +84,18 @@ describe('ParseJobProcessor', () => {
   let processor: ParseJobProcessor;
   let prisma: {
     asset: { findFirst: jest.Mock };
-    finding: { upsert: jest.Mock };
+    finding: { upsert: jest.Mock; findMany: jest.Mock };
     assetObservation: { create: jest.Mock; count: jest.Mock };
     $transaction: jest.Mock;
   };
   let storage: jest.Mocked<ObjectStorage>;
   let registry: ParserRegistry;
-  let assetMerge: AssetMergeService;
-  let correlateFindingsSvc: CorrelateFindingsService;
+  let findingClient: {
+    batch: jest.Mock;
+    correlate: jest.Mock;
+    dedup: jest.Mock;
+    setStatus: jest.Mock;
+  };
   let busMock: { publish: jest.Mock };
   let eventsMock: { publish: jest.Mock };
   let assetClient: { parseBatch: jest.Mock; recomputeRisk: jest.Mock };
@@ -106,7 +110,11 @@ describe('ParseJobProcessor', () => {
 
     prisma = {
       asset: { findFirst: jest.fn().mockResolvedValue(null) },
-      finding: { upsert: jest.fn().mockResolvedValue({}) },
+      finding: {
+        upsert: jest.fn().mockResolvedValue({}),
+        // runRiskRecomputePass reads distinct assetIds that have findings.
+        findMany: jest.fn().mockResolvedValue([{ assetId: 'asset_web' }]),
+      },
       assetObservation: {
         create: jest.fn().mockResolvedValue({}),
         count: jest.fn().mockResolvedValue(0),
@@ -128,11 +136,17 @@ describe('ParseJobProcessor', () => {
     registry.register(new DnsxJsonParser());
     registry.register(new NucleiJsonParser());
 
-    assetMerge = new AssetMergeService(prisma as never);
-    jest.spyOn(assetMerge, 'dedupFindings').mockResolvedValue({ merged: 0 });
-
-    correlateFindingsSvc = new CorrelateFindingsService(prisma as never);
-    jest.spyOn(correlateFindingsSvc, 'correlateFindings').mockResolvedValue({ clusters: 0 });
+    findingClient = {
+      // batch echoes one persisted finding per item so findingsPersisted stays meaningful.
+      batch: jest.fn(async (req: { findings: unknown[] }) => ({
+        findingsPersisted: req.findings.length,
+        affectedAssetIds: [],
+        observations: [],
+      })),
+      correlate: jest.fn().mockResolvedValue({ clusters: 0 }),
+      dedup: jest.fn().mockResolvedValue({ merged: 0 }),
+      setStatus: jest.fn().mockResolvedValue({ id: 'c1', status: 'OPEN' }),
+    };
 
     busMock = { publish: jest.fn().mockResolvedValue(undefined) };
     eventsMock = { publish: jest.fn().mockResolvedValue(undefined) };
@@ -149,12 +163,10 @@ describe('ParseJobProcessor', () => {
     processor = new ParseJobProcessor(
       registry,
       storage,
-      assetMerge,
-      correlateFindingsSvc,
-      new FindingPersister(prisma as never),
       prisma as unknown as PrismaService,
       assetClient as never,
       discoveryClient as never,
+      findingClient as never,
       busMock as never,
       eventsMock as never,
       { register: jest.fn() } as unknown as ConsumerRegistrar,
@@ -287,18 +299,27 @@ describe('ParseJobProcessor', () => {
       expect(discoveryClient.mergeIpAddresses).toHaveBeenCalledWith('eng_1');
     });
 
+    it('correlates only the touched assets, not the whole engagement (SP2c)', async () => {
+      await processor.process(job(payload));
+      // nmap payload touches the IP asset the batch returned.
+      expect(findingClient.correlate).toHaveBeenCalledWith('eng_1', ['asset_ip']);
+    });
+
+    it('does NOT run cross-asset Finding dedup per parse job (moved to the scheduled sweep)', async () => {
+      await processor.process(job(payload));
+      expect(findingClient.dedup).not.toHaveBeenCalled();
+    });
+
     it('does not rethrow when a correlation pass fails — persistence already succeeded', async () => {
       discoveryClient.mergeSubdomains.mockRejectedValue(new Error('merge boom'));
-      (correlateFindingsSvc.correlateFindings as jest.Mock).mockRejectedValue(
-        new Error('corr boom'),
-      );
+      findingClient.correlate.mockRejectedValue(new Error('corr boom'));
       await expect(processor.process(job(payload))).resolves.toBeDefined();
     });
   });
 
-  // ─── findings (still owned here until SP2) ─────────────────────────────────
+  // ─── findings (assembled here, written by finding-service since SP2a) ───────
 
-  describe('Finding persistence', () => {
+  describe('Finding batching', () => {
     const nucleiPayload: ParseJobPayload = {
       ...payload,
       rawOutputKey: 'eng_1/scan_1/job_2/nuclei.json',
@@ -321,11 +342,11 @@ describe('ParseJobProcessor', () => {
       const res = await processor.process(job(nucleiPayload));
 
       expect(res.findingsPersisted).toBe(1);
-      expect(prisma.finding.upsert).toHaveBeenCalledWith(
+      // finding-service is the writer now: the processor hands it a batch keyed on the
+      // asset id the asset batch already resolved, not a per-finding DB lookup.
+      expect(findingClient.batch).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({
-            assetId_dedupHash: expect.objectContaining({ assetId: 'asset_web' }),
-          }),
+          findings: expect.arrayContaining([expect.objectContaining({ assetId: 'asset_web' })]),
         }),
       );
       // The batch map answered, so the DB fallback was not needed.
@@ -349,7 +370,8 @@ describe('ParseJobProcessor', () => {
       const res = await processor.process(job(nucleiPayload));
 
       expect(res.findingsPersisted).toBe(0);
-      expect(prisma.finding.upsert).not.toHaveBeenCalled();
+      // No asset matched, so there is nothing to batch — finding-service is never called.
+      expect(findingClient.batch).not.toHaveBeenCalled();
     });
 
     it('recomputes risk through asset-service so Asset.riskScore keeps one writer', async () => {

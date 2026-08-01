@@ -135,6 +135,10 @@ services:
       KAFKA_BROKERS: redpanda:9092
       ASSET_SERVICE_URL: http://asset-service:4010
       DISCOVERY_SERVICE_URL: http://discovery-service:4011
+      FINDING_SERVICE_URL: http://finding-service:4012
+      RISK_ENGINE_URL: http://risk-engine:4013
+      THREAT_INTEL_SERVICE_URL: http://threat-intel-service:4014
+      COMPLIANCE_SERVICE_URL: http://compliance-service:4015
     # Apply migrations, then boot the API.
     command: sh -c "pnpm prisma migrate deploy && node dist/apps/api-gateway/main.js"
     ports:
@@ -169,6 +173,8 @@ services:
       # localhost from inside a container.
       ASSET_SERVICE_URL: http://asset-service:4010
       DISCOVERY_SERVICE_URL: http://discovery-service:4011
+      # asset-service proxies risk recompute to risk-engine (SP2b).
+      RISK_ENGINE_URL: http://risk-engine:4013
     command: node dist/apps/asset-service/main.js
     ports:
       - '4010:4010'
@@ -201,6 +207,110 @@ services:
     command: node dist/apps/discovery-service/main.js
     ports:
       - '4011:4011'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  finding-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+      args:
+        APP: finding-service
+    container_name: autoscanner-finding-service
+    profiles: ['app']
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: '4012'
+      DATABASE_URL: postgresql://autoscanner:dev@postgres:5432/autoscanner
+      REDIS_URL: redis://redis:6379
+      # finding-service publishes security.finding.created after each batch commits.
+      KAFKA_BROKERS: redpanda:9092
+    command: node dist/apps/finding-service/main.js
+    ports:
+      - '4012:4012'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  risk-engine:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+      args:
+        APP: risk-engine
+    container_name: autoscanner-risk-engine
+    profiles: ['app']
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: '4013'
+      DATABASE_URL: postgresql://autoscanner:dev@postgres:5432/autoscanner
+      REDIS_URL: redis://redis:6379
+      # risk-engine is the sole writer of Asset.riskScore and publishes security.risk.* events.
+      KAFKA_BROKERS: redpanda:9092
+    command: node dist/apps/risk-engine/main.js
+    ports:
+      - '4013:4013'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  threat-intel-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+      args:
+        APP: threat-intel-service
+    container_name: autoscanner-threat-intel-service
+    profiles: ['app']
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: '4014'
+      DATABASE_URL: postgresql://autoscanner:dev@postgres:5432/autoscanner
+      REDIS_URL: redis://redis:6379
+      # Consumes security.finding.created and writes ThreatIntel rows.
+      KAFKA_BROKERS: redpanda:9092
+    command: node dist/apps/threat-intel-service/main.js
+    ports:
+      - '4014:4014'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  compliance-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+      args:
+        APP: compliance-service
+    container_name: autoscanner-compliance-service
+    profiles: ['app']
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: '4015'
+      DATABASE_URL: postgresql://autoscanner:dev@postgres:5432/autoscanner
+      REDIS_URL: redis://redis:6379
+      # Consumes security.finding.created and writes ComplianceMapping rows.
+      KAFKA_BROKERS: redpanda:9092
+    command: node dist/apps/compliance-service/main.js
+    ports:
+      - '4015:4015'
     depends_on:
       postgres:
         condition: service_healthy

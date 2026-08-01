@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@autoscanner/database';
-import { structuralFindingHash } from './structural-finding-hash';
+import { structuralFindingHash } from '@autoscanner/correlation';
 
 type Severity = 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -44,23 +44,40 @@ interface ClusterGroup {
 }
 
 @Injectable()
-export class CorrelateFindingsService {
-  private readonly logger = new Logger(CorrelateFindingsService.name);
+export class CorrelationService {
+  private readonly logger = new Logger(CorrelationService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Group all findings in the engagement by structural hash and upsert a
-   * CorrelatedFinding cluster for each group. Findings are then linked back to
-   * their cluster via `correlatedFindingId` and `structuralHash`.
+   * Group findings by structural hash and upsert a CorrelatedFinding cluster for each group.
+   * Findings are linked back to their cluster via `correlatedFindingId` and `structuralHash`.
+   *
+   * Clustering is per-asset (`CorrelatedFinding @@unique([assetId, structuralHash])`), so a
+   * caller that just touched a known set of assets can pass `assetIds` to re-cluster only those
+   * — the result is identical to an engagement-wide run for those assets, at a fraction of the
+   * cost (SP2c defect 6). Omit `assetIds` for the scheduled engagement-wide sweep.
    *
    * CRITICAL: `status` is intentionally absent from both the `create` and
    * `update` payloads so that operator triage (OPEN → ACKNOWLEDGED → FIXED)
    * is never overwritten by re-scans.
    */
-  async correlateFindings(engagementId: string): Promise<{ clusters: number }> {
+  async correlateFindings(
+    engagementId: string,
+    assetIds?: string[],
+  ): Promise<{ clusters: number }> {
+    // An explicit empty scope means "nothing was touched" — not "the whole engagement".
+    if (assetIds && assetIds.length === 0) {
+      return { clusters: 0 };
+    }
+
+    const where =
+      assetIds && assetIds.length > 0
+        ? { asset: { engagementId, id: { in: assetIds } } }
+        : { asset: { engagementId } };
+
     const findings = await this.prisma.finding.findMany({
-      where: { asset: { engagementId } },
+      where,
       select: {
         id: true,
         title: true,
@@ -131,46 +148,52 @@ export class CorrelateFindingsService {
       const title = firstCveId ?? group.category ?? group.titles[0];
 
       try {
-        const cluster = await this.prisma.correlatedFinding.upsert({
-          where: {
-            assetId_structuralHash: {
+        // Defect 5 (SP2 spec §2.4.5): the cluster upsert and the member relink used to be
+        // two separate statements — a crash in between left a cluster with sourceCount set
+        // and no members. They now commit together.
+        const clusterId = await this.prisma.$transaction(async (tx) => {
+          const cluster = await tx.correlatedFinding.upsert({
+            where: {
+              assetId_structuralHash: {
+                assetId: group.assetId,
+                structuralHash: group.structuralHash,
+              },
+            },
+            create: {
+              engagementId: group.engagementId,
               assetId: group.assetId,
               structuralHash: group.structuralHash,
+              category: group.category,
+              title,
+              severity,
+              cveId: firstCveId,
+              sourceCount: distinctScanners,
+              firstSeenAt: group.minFirstSeenAt,
+              lastSeenAt: group.maxLastSeenAt,
             },
-          },
-          create: {
-            engagementId: group.engagementId,
-            assetId: group.assetId,
-            structuralHash: group.structuralHash,
-            category: group.category,
-            title,
-            severity,
-            cveId: firstCveId,
-            sourceCount: distinctScanners,
-            firstSeenAt: group.minFirstSeenAt,
-            lastSeenAt: group.maxLastSeenAt,
-          },
-          update: {
-            category: group.category,
-            title,
-            severity,
-            cveId: firstCveId,
-            sourceCount: distinctScanners,
-            lastSeenAt: group.maxLastSeenAt,
-            // firstSeenAt intentionally NOT updated: the row was created with the
-            // historical min and re-scan findings are never older, so the stored
-            // value is already the earliest. status is likewise omitted to
-            // preserve operator triage across re-runs.
-          },
-        });
+            update: {
+              category: group.category,
+              title,
+              severity,
+              cveId: firstCveId,
+              sourceCount: distinctScanners,
+              lastSeenAt: group.maxLastSeenAt,
+              // firstSeenAt intentionally NOT updated: the row was created with the
+              // historical min and re-scan findings are never older, so the stored
+              // value is already the earliest. status is likewise omitted to
+              // preserve operator triage across re-runs.
+            },
+          });
 
-        await this.prisma.finding.updateMany({
-          where: { id: { in: group.memberIds } },
-          data: { correlatedFindingId: cluster.id, structuralHash: group.structuralHash },
+          await tx.finding.updateMany({
+            where: { id: { in: group.memberIds } },
+            data: { correlatedFindingId: cluster.id, structuralHash: group.structuralHash },
+          });
+          return cluster.id;
         });
 
         this.logger.debug(
-          `correlated ${group.memberIds.length} finding(s) into cluster ${cluster.id} (hash=${group.structuralHash.slice(0, 12)}…, engagement=${engagementId})`,
+          `correlated ${group.memberIds.length} finding(s) into cluster ${clusterId} (hash=${group.structuralHash.slice(0, 12)}…, engagement=${engagementId})`,
         );
       } catch (err) {
         const code = (err as { code?: string }).code;

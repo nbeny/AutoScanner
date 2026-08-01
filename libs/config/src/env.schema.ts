@@ -54,6 +54,12 @@ export const EnvSchema = z.object({
 
   ASSET_SERVICE_URL: z.string().url().default('http://localhost:4010'),
   DISCOVERY_SERVICE_URL: z.string().url().default('http://localhost:4011'),
+  FINDING_SERVICE_URL: z.string().url().default('http://localhost:4012'),
+  RISK_ENGINE_URL: z.string().url().default('http://localhost:4013'),
+  THREAT_INTEL_SERVICE_URL: z.string().url().default('http://localhost:4014'),
+  COMPLIANCE_SERVICE_URL: z.string().url().default('http://localhost:4015'),
+  // How often the scheduler runs the engagement-wide correlation sweep (SP2c).
+  CORRELATION_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
 
   S3_ENDPOINT: z.string().url(),
   S3_REGION: z.string(),
