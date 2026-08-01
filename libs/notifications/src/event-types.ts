@@ -2,6 +2,7 @@ export enum NotificationEventType {
   SCAN_COMPLETED = 'scan.completed',
   SCAN_FAILED = 'scan.failed',
   FINDING_CRITICAL = 'finding.critical',
+  RISK_ALERT = 'risk.alert',
   REPORT_READY = 'report.ready',
   SCHEDULE_FINISHED = 'schedule.finished',
 }
@@ -14,6 +15,9 @@ export interface NotificationEventPayload {
   reportId?: string;
   findingId?: string;
   severity?: string;
+  title?: string;
+  assetId?: string;
+  riskScore?: number;
   [k: string]: unknown;
 }
 
@@ -41,7 +45,16 @@ export function renderNotificationMessage(
     case NotificationEventType.FINDING_CRITICAL:
       return {
         subject: `Critical finding — ${eng}`,
-        body: `A CRITICAL finding was raised for engagement "${eng}".`,
+        body: `A CRITICAL finding was raised for engagement "${eng}"${
+          payload.title ? `: ${String(payload.title)}` : ''
+        }. Action required.`,
+      };
+    case NotificationEventType.RISK_ALERT:
+      return {
+        subject: `Risk alert — ${eng}`,
+        body: `An asset in engagement "${eng}" crossed the high-risk threshold (score ${
+          payload.riskScore ?? 'n/a'
+        }). Action required.`,
       };
     case NotificationEventType.REPORT_READY:
       return {

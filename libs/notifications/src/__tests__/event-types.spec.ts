@@ -5,13 +5,14 @@ import {
 } from '../event-types';
 
 describe('NotificationEventType', () => {
-  it('has the 5 expected values', () => {
+  it('has the 6 expected values', () => {
     expect(NotificationEventType.SCAN_COMPLETED).toBe('scan.completed');
     expect(NotificationEventType.SCAN_FAILED).toBe('scan.failed');
     expect(NotificationEventType.FINDING_CRITICAL).toBe('finding.critical');
+    expect(NotificationEventType.RISK_ALERT).toBe('risk.alert');
     expect(NotificationEventType.REPORT_READY).toBe('report.ready');
     expect(NotificationEventType.SCHEDULE_FINISHED).toBe('schedule.finished');
-    expect(Object.keys(NotificationEventType)).toHaveLength(5);
+    expect(Object.keys(NotificationEventType)).toHaveLength(6);
   });
 });
 
