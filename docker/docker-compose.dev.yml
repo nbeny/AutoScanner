@@ -133,6 +133,8 @@ services:
       # In-network Redpanda listener (host-published 19092 is not reachable as
       # localhost from inside the container). Redpanda advertises internal://redpanda:9092.
       KAFKA_BROKERS: redpanda:9092
+      ASSET_SERVICE_URL: http://asset-service:4010
+      DISCOVERY_SERVICE_URL: http://discovery-service:4011
     # Apply migrations, then boot the API.
     command: sh -c "pnpm prisma migrate deploy && node dist/apps/api-gateway/main.js"
     ports:
@@ -143,6 +145,64 @@ services:
       redis:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  asset-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+      args:
+        APP: asset-service
+    container_name: autoscanner-asset-service
+    profiles: ['app']
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: '4010'
+      DATABASE_URL: postgresql://autoscanner:dev@postgres:5432/autoscanner
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+      # In-network service URLs: the host-published ports are not reachable as
+      # localhost from inside a container.
+      ASSET_SERVICE_URL: http://asset-service:4010
+      DISCOVERY_SERVICE_URL: http://discovery-service:4011
+    command: node dist/apps/asset-service/main.js
+    ports:
+      - '4010:4010'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  discovery-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+      args:
+        APP: discovery-service
+    container_name: autoscanner-discovery-service
+    profiles: ['app']
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: '4011'
+      DATABASE_URL: postgresql://autoscanner:dev@postgres:5432/autoscanner
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+      # In-network service URLs: the host-published ports are not reachable as
+      # localhost from inside a container.
+      ASSET_SERVICE_URL: http://asset-service:4010
+      DISCOVERY_SERVICE_URL: http://discovery-service:4011
+    command: node dist/apps/discovery-service/main.js
+    ports:
+      - '4011:4011'
+    depends_on:
+      postgres:
         condition: service_healthy
       redpanda:
         condition: service_healthy

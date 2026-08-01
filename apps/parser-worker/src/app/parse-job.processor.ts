@@ -34,7 +34,6 @@ import {
   AssetMergeService,
   CorrelateFindingsService,
   canonicalize,
-  recomputeRiskScoreForAsset,
   writeObservation,
 } from '@autoscanner/correlation';
 import { Prisma } from '@prisma/client';
@@ -319,11 +318,9 @@ export class ParseJobProcessor
 
       for (const assetId of assetIds) {
         try {
-          await this.withRetryOnSerializationConflict(() =>
-            this.prisma.$transaction(async (tx) => {
-              await recomputeRiskScoreForAsset(tx, assetId);
-            }),
-          );
+          // Asset.riskScore is asset-service state — recompute through the service so the
+          // column keeps a single writer.
+          await this.assetClient.recomputeRisk(assetId);
           this.publish(engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, { assetId });
         } catch (err) {
           this.logger.warn(
