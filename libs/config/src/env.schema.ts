@@ -55,6 +55,7 @@ export const EnvSchema = z.object({
   ASSET_SERVICE_URL: z.string().url().default('http://localhost:4010'),
   DISCOVERY_SERVICE_URL: z.string().url().default('http://localhost:4011'),
   FINDING_SERVICE_URL: z.string().url().default('http://localhost:4012'),
+  RISK_ENGINE_URL: z.string().url().default('http://localhost:4013'),
 
   S3_ENDPOINT: z.string().url(),
   S3_REGION: z.string(),
