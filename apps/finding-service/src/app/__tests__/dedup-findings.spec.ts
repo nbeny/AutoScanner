@@ -1,25 +1,25 @@
 import type { PrismaService } from '@autoscanner/database';
 
-import { AssetMergeService } from '../asset-merge.service';
+import { DedupFindingsService } from '../dedup-findings.service';
 
 // NOTE: the mergeSubdomains/mergeIpAddresses suites moved to discovery-service with the
 // code itself (SP1a) — see apps/discovery-service/src/app/__tests__/merge.service.spec.ts.
 
-describe('AssetMergeService.dedupFindings()', () => {
+describe('DedupFindingsService.dedupFindings()', () => {
   type Prisma = {
     $queryRaw: jest.Mock;
     finding: { deleteMany: jest.Mock };
   };
 
   let prisma: Prisma;
-  let service: AssetMergeService;
+  let service: DedupFindingsService;
 
   beforeEach(() => {
     prisma = {
       $queryRaw: jest.fn(),
       finding: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     };
-    service = new AssetMergeService(prisma as unknown as PrismaService);
+    service = new DedupFindingsService(prisma as unknown as PrismaService);
   });
 
   it('returns merged=0 when there are no cross-asset duplicate hashes', async () => {

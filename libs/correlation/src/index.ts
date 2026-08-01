@@ -2,9 +2,6 @@ export { canonicalDomain, canonicalIp, canonicalize, canonicalizeUrl } from './c
 export type { CanonicalizeOptions } from './canonical';
 export { findingDedupHash } from './finding-dedup';
 export type { FindingDedupHashInput } from './finding-dedup';
-export { AssetMergeService } from './asset-merge.service';
-export { CorrelateFindingsService } from './correlate-findings.service';
-export { CorrelationModule } from './correlation.module';
 export { clusterWeight, computeRiskScore, SENSITIVE_PORTS, ADMIN_TOKENS } from './risk-score';
 export type { RiskScoreInput } from './risk-score';
 export { recomputeRiskScoreForAsset } from './recompute-risk-score';
