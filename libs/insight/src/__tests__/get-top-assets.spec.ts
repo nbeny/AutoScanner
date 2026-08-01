@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { getTopAssets } from '../get-top-assets';
 
-describe('getTopAssets (Phase 3.1 — sorted by findings count)', () => {
+describe('getTopAssets (ranked by Asset.riskScore)', () => {
   const engagementId = 'eng_1';
 
   it('returns top N assets sorted by total findings count desc', async () => {
@@ -49,33 +49,18 @@ describe('getTopAssets (Phase 3.1 — sorted by findings count)', () => {
     });
   });
 
-  it('respects the limit', async () => {
-    const prisma = {
-      asset: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'a1',
-            type: 'IP_ADDRESS',
-            canonicalValue: '10.0.0.1',
-            firstSeenAt: new Date(),
-            lastSeenAt: new Date(),
-            findings: [{ severity: 'HIGH' }],
-          },
-          {
-            id: 'a2',
-            type: 'IP_ADDRESS',
-            canonicalValue: '10.0.0.2',
-            firstSeenAt: new Date(),
-            lastSeenAt: new Date(),
-            findings: [{ severity: 'HIGH' }],
-          },
-        ]),
-      },
-    } as unknown as PrismaClient;
+  it('lets the query do the ranking and limiting instead of loading the whole engagement', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = { asset: { findMany } } as unknown as PrismaClient;
 
-    const result = await getTopAssets(prisma, engagementId, 1);
+    await getTopAssets(prisma, engagementId, 5);
 
-    expect(result).toHaveLength(1);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 5,
+        orderBy: [{ riskScore: 'desc' }, { canonicalValue: 'asc' }],
+      }),
+    );
   });
 
   it('filters by engagementId + non-soft-deleted', async () => {

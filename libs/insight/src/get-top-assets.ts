@@ -6,15 +6,19 @@ export interface TopAsset {
   canonicalValue: string;
   firstSeenAt: Date;
   lastSeenAt: Date;
+  riskScore: number;
   findingsCount: number;
   criticalCount: number;
   highCount: number;
 }
 
 /**
- * Phase 3.1 placeholder: assets are sorted by total findings count desc.
- * Phase 3.2 will swap this for Asset.riskScore desc once the score is
- * actually computed by parser-worker.
+ * Ranks an engagement's assets by `Asset.riskScore`, which asset-service now maintains
+ * (it was not computed when this was written, hence the old findings-count placeholder).
+ *
+ * Ordering and limiting happen in SQL: the previous version loaded every asset in the
+ * engagement together with every one of its findings, ranked in JS and then sliced — so a
+ * large engagement paid for the whole graph to return a handful of rows.
  */
 export async function getTopAssets(
   prisma: PrismaClient,
@@ -23,12 +27,15 @@ export async function getTopAssets(
 ): Promise<TopAsset[]> {
   const assets = await prisma.asset.findMany({
     where: { engagementId, deletedAt: null },
+    orderBy: [{ riskScore: 'desc' }, { canonicalValue: 'asc' }],
+    take: limit,
     select: {
       id: true,
       type: true,
       canonicalValue: true,
       firstSeenAt: true,
       lastSeenAt: true,
+      riskScore: true,
       findings: { select: { severity: true } },
     },
   });
@@ -46,16 +53,13 @@ export async function getTopAssets(
       canonicalValue: a.canonicalValue,
       firstSeenAt: a.firstSeenAt,
       lastSeenAt: a.lastSeenAt,
+      riskScore: a.riskScore,
       findingsCount: a.findings.length,
       criticalCount: critical,
       highCount: high,
     };
   });
 
-  enriched.sort((x, y) => {
-    if (y.findingsCount !== x.findingsCount) return y.findingsCount - x.findingsCount;
-    return x.canonicalValue.localeCompare(y.canonicalValue);
-  });
-
-  return enriched.slice(0, limit);
+  // Already ordered and limited by the query.
+  return enriched;
 }
