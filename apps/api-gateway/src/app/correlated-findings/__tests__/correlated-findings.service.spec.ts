@@ -42,6 +42,8 @@ describe('CorrelatedFindingsService', () => {
         update: jest.fn(),
       },
       nvdCve: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
+      // resolveCvssScores falls through to CveCache when NvdCve has no score.
+      cveCache: { findMany: jest.fn().mockResolvedValue([]) },
       $transaction: jest.fn(),
     } as unknown as jest.Mocked<PrismaService>;
     findingClient = {
@@ -372,14 +374,19 @@ describe('CorrelatedFindingsService', () => {
           },
         ],
       });
+      // The score resolves via the unified source (NvdCve → CveCache); only the vector still
+      // comes from the NvdCve findUnique.
+      (prisma.nvdCve.findMany as jest.Mock).mockResolvedValueOnce([
+        { cveId: 'CVE-2017-5638', cvssV3Score: 9.8 },
+      ]);
       (prisma.nvdCve.findUnique as jest.Mock).mockResolvedValueOnce({
-        cvssV3Score: 9.8,
         cvssV3Vector: 'AV:N/...',
       });
 
       const d = await svc.getDetail(userId, correlatedId);
 
       expect(d.cvssScore).toBe(9.8);
+      expect(d.cvssVector).toBe('AV:N/...');
       expect(d.assetValue).toBe('10.0.0.4');
       expect(d.sources).toEqual(['nuclei']);
       expect(d.evidence[0].evidenceJson).toBe(JSON.stringify({ payload: 'x' }));

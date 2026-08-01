@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Severity } from '@prisma/client';
 import { NotFoundError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
-import { clusterWeight } from '@autoscanner/correlation';
+import { clusterWeight, resolveCvssScores } from '@autoscanner/correlation';
 import { FindingClient } from '@autoscanner/service-clients';
 import { CorrelatedFindingObject } from './dto/correlated-finding.object';
 import { CorrelatedFindingDetailObject } from './dto/correlated-finding-detail.object';
@@ -80,13 +80,9 @@ export class CorrelatedFindingsService {
     })) as CorrelatedFindingRow[];
 
     const cveIds = [...new Set(rows.map((r) => r.cveId).filter((c): c is string => !!c))];
-    const cves = cveIds.length
-      ? await this.prisma.nvdCve.findMany({
-          where: { cveId: { in: cveIds } },
-          select: { cveId: true, cvssV3Score: true },
-        })
-      : [];
-    const cvssByCve = new Map(cves.map((c) => [c.cveId, c.cvssV3Score]));
+    // Defect 3 (SP2 §2.4.3): resolve CVSS from the SAME source risk-engine uses (NvdCve →
+    // CveCache), so the list score and Asset.riskScore can't disagree for the same CVE.
+    const cvssByCve = await resolveCvssScores(this.prisma, cveIds);
 
     const scored = rows.map((row) => ({
       row,
@@ -266,11 +262,17 @@ export class CorrelatedFindingsService {
     if (!row) throw new NotFoundError('CorrelatedFinding', id);
     await this.assertEngagementOwned(userId, row.engagementId);
 
-    const cve = row.cveId
-      ? await this.prisma.nvdCve.findUnique({
-          where: { cveId: row.cveId },
-          select: { cvssV3Score: true, cvssV3Vector: true },
-        })
+    // Defect 3: the displayed CVSS and the cluster score resolve from the unified source
+    // (NvdCve → CveCache); only the human-readable vector still comes from the NVD mirror.
+    const cvssMap = row.cveId ? await resolveCvssScores(this.prisma, [row.cveId]) : null;
+    const cvssScore = row.cveId ? (cvssMap?.get(row.cveId) ?? null) : null;
+    const cvssVector = row.cveId
+      ? ((
+          await this.prisma.nvdCve.findUnique({
+            where: { cveId: row.cveId },
+            select: { cvssV3Vector: true },
+          })
+        )?.cvssV3Vector ?? null)
       : null;
 
     const sources = [...new Set(row.findings.map((f) => f.scanJob.scannerName))];
@@ -284,13 +286,13 @@ export class CorrelatedFindingsService {
         severity: row.severity,
         cveId: row.cveId,
         status: row.status,
-        cvss: cve?.cvssV3Score ?? null,
+        cvss: cvssScore,
       }),
       assetId: row.assetId,
       assetValue: row.asset.value,
       cveId: row.cveId,
-      cvssScore: cve?.cvssV3Score ?? null,
-      cvssVector: cve?.cvssV3Vector ?? null,
+      cvssScore,
+      cvssVector,
       sources,
       evidence: row.findings.map((f) => ({
         scannerName: f.scanJob.scannerName,
