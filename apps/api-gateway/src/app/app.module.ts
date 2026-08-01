@@ -34,6 +34,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { CopilotModule } from './copilot/copilot.module';
+import { AttackPathsModule } from './attack-paths/attack-paths.module';
 import { TlsModule } from './tls/tls.module';
 import { ReportsModule } from './reports/reports.module';
 import { QueueHealthModule } from './queue-health/queue-health.module';
@@ -102,6 +103,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     NotificationsModule,
     IntegrationsModule,
     CopilotModule,
+    AttackPathsModule,
     OsintModule,
     ReportsModule,
     TlsModule,
