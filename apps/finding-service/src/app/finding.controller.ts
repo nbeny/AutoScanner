@@ -35,8 +35,10 @@ export class FindingController {
   }
 
   @Post('internal/findings/correlate')
-  correlate(@Body() body: { engagementId: string }): Promise<{ clusters: number }> {
-    return this.correlation.correlateFindings(body.engagementId);
+  correlate(
+    @Body() body: { engagementId: string; assetIds?: string[] },
+  ): Promise<{ clusters: number }> {
+    return this.correlation.correlateFindings(body.engagementId, body.assetIds);
   }
 
   @Post('internal/findings/dedup')

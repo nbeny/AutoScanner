@@ -50,17 +50,34 @@ export class CorrelationService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Group all findings in the engagement by structural hash and upsert a
-   * CorrelatedFinding cluster for each group. Findings are then linked back to
-   * their cluster via `correlatedFindingId` and `structuralHash`.
+   * Group findings by structural hash and upsert a CorrelatedFinding cluster for each group.
+   * Findings are linked back to their cluster via `correlatedFindingId` and `structuralHash`.
+   *
+   * Clustering is per-asset (`CorrelatedFinding @@unique([assetId, structuralHash])`), so a
+   * caller that just touched a known set of assets can pass `assetIds` to re-cluster only those
+   * — the result is identical to an engagement-wide run for those assets, at a fraction of the
+   * cost (SP2c defect 6). Omit `assetIds` for the scheduled engagement-wide sweep.
    *
    * CRITICAL: `status` is intentionally absent from both the `create` and
    * `update` payloads so that operator triage (OPEN → ACKNOWLEDGED → FIXED)
    * is never overwritten by re-scans.
    */
-  async correlateFindings(engagementId: string): Promise<{ clusters: number }> {
+  async correlateFindings(
+    engagementId: string,
+    assetIds?: string[],
+  ): Promise<{ clusters: number }> {
+    // An explicit empty scope means "nothing was touched" — not "the whole engagement".
+    if (assetIds && assetIds.length === 0) {
+      return { clusters: 0 };
+    }
+
+    const where =
+      assetIds && assetIds.length > 0
+        ? { asset: { engagementId, id: { in: assetIds } } }
+        : { asset: { engagementId } };
+
     const findings = await this.prisma.finding.findMany({
-      where: { asset: { engagementId } },
+      where,
       select: {
         id: true,
         title: true,

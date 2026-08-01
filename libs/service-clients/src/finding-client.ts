@@ -20,8 +20,11 @@ export class FindingClient {
     return this.post<FindingBatchResponse>('/internal/findings/batch', req);
   }
 
-  async correlate(engagementId: string): Promise<{ clusters: number }> {
-    return this.post<{ clusters: number }>('/internal/findings/correlate', { engagementId });
+  async correlate(engagementId: string, assetIds?: string[]): Promise<{ clusters: number }> {
+    return this.post<{ clusters: number }>('/internal/findings/correlate', {
+      engagementId,
+      assetIds,
+    });
   }
 
   async dedup(engagementId: string): Promise<{ merged: number }> {
