@@ -11,6 +11,10 @@ export class AiDecisionObject {
   @Field()
   degraded!: boolean;
 
+  /** Which fleet agent produced this decision (SP4c): 'planner' | 'chain'. */
+  @Field({ nullable: true })
+  agentRole?: string;
+
   @Field()
   createdAt!: Date;
 }
