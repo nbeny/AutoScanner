@@ -21,6 +21,9 @@ export const TOPICS = {
   'security.finding.updated': { partitions: 6, group: 'finding-updated' },
   'security.finding.confirmed': { partitions: 6, group: 'finding-confirmed' },
   'security.finding.closed': { partitions: 6, group: 'finding-closed' },
+  'security.risk.calculated': { partitions: 6, group: 'risk-calculated' },
+  'security.risk.changed': { partitions: 6, group: 'risk-changed' },
+  'security.risk.alert': { partitions: 6, group: 'risk-alert' },
 } as const satisfies Record<string, TopicDef>;
 
 export type TopicName = keyof typeof TOPICS;

@@ -3,7 +3,7 @@ import { config as loadEnv } from 'dotenv';
 loadEnv();
 
 import { PrismaClient } from '@prisma/client';
-import { recomputeRiskScoreForAsset } from '@autoscanner/correlation';
+import { computeAssetRiskScore } from '@autoscanner/correlation';
 
 const BATCH = 200;
 
@@ -28,7 +28,11 @@ async function main(): Promise<void> {
     });
     if (rows.length === 0) break;
     for (const row of rows) {
-      await recomputeRiskScoreForAsset(prisma, row.id);
+      // Offline maintenance script — an explicit, documented exception to the "risk-engine is
+      // the only Asset.riskScore writer" rule (SP2b). It may need to run with risk-engine down,
+      // so it computes with the shared helper and writes the column directly.
+      const score = await computeAssetRiskScore(prisma, row.id);
+      await prisma.asset.update({ where: { id: row.id }, data: { riskScore: score } });
       processed++;
     }
     cursor = rows[rows.length - 1]!.id;

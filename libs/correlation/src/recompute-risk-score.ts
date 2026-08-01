@@ -1,30 +1,23 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { computeRiskScore } from './risk-score';
+import { resolveCvssScores } from './resolve-cvss';
 
 export type PrismaLike = PrismaClient | Prisma.TransactionClient;
 
 /**
- * Recompute Asset.riskScore using the v2 formula in `libs/correlation/risk-score.ts`.
+ * Compute (do NOT write) an asset's v2 risk score using the formula in `risk-score.ts`.
  *
- * v2 changes vs v1:
- * - Reads CorrelatedFinding clusters instead of raw findings (count-once semantics).
- * - Resolves CVSS v3 scores from CveCache for each distinct cveId in the clusters
- *   and passes them to computeRiskScore.  Clusters without a CVE or an unresolved
- *   CVSS fall back to the SEVERITY_WEIGHT bucket.
- * - Excludes clusters with status FALSE_POSITIVE or RESOLVED.
+ * v2 semantics:
+ * - Reads CorrelatedFinding clusters instead of raw findings (count-once).
+ * - Resolves each distinct cveId's CVSS v3 score via `resolveCvssScores` (NvdCve → CveCache,
+ *   one source of truth — SP2b defect 3). Clusters without a CVE or an unresolved CVSS fall
+ *   back to the SEVERITY_WEIGHT bucket.
+ * - `computeRiskScore` excludes clusters with status FALSE_POSITIVE or RESOLVED.
  *
- * Caller contract (unchanged from v1):
- * - Read-modify-write. Caller is expected to wrap this in the same transaction as
- *   the persister upsert (see parser-worker for the retry-on-P2034 pattern).
- * - Throws if the asset id is unknown.
- * - Does not soft-delete-check (callers in parser-worker are always operating on
- *   the asset they just upserted; the backfill script filters `deletedAt = null`
- *   before iterating).
+ * Contract: read-only. It returns the score; the ONLY writer of `Asset.riskScore` is
+ * risk-engine (SP2b), which calls this then persists. Throws if the asset id is unknown.
  */
-export async function recomputeRiskScoreForAsset(
-  prisma: PrismaLike,
-  assetId: string,
-): Promise<number> {
+export async function computeAssetRiskScore(prisma: PrismaLike, assetId: string): Promise<number> {
   const asset = await prisma.asset.findUnique({
     where: { id: assetId },
     select: {
@@ -41,29 +34,11 @@ export async function recomputeRiskScoreForAsset(
   });
   if (!asset) throw new Error(`Asset not found: ${assetId}`);
 
-  // Collect the distinct non-null cveIds from correlated clusters.
-  const cveIds = [
-    ...new Set(
-      asset.correlatedFindings.filter((cf) => cf.cveId !== null).map((cf) => cf.cveId as string),
-    ),
-  ];
+  const cveIds = asset.correlatedFindings
+    .filter((cf) => cf.cveId !== null)
+    .map((cf) => cf.cveId as string);
+  const cvssMap = await resolveCvssScores(prisma, cveIds);
 
-  // Look up CVSS v3 scores from the cache for each distinct CVE.
-  // We use cvssV3Score as the primary score (the CVE enricher stores this field).
-  // Any CVE not yet in the cache (or with fetchStatus=ERROR) simply won't appear
-  // in the result set — those clusters will fall back to severity-bucket weight.
-  const cvssMap = new Map<string, number | null>();
-  if (cveIds.length > 0) {
-    const cves = await prisma.cveCache.findMany({
-      where: { cveId: { in: cveIds } },
-      select: { cveId: true, cvssV3Score: true },
-    });
-    for (const row of cves) {
-      cvssMap.set(row.cveId, row.cvssV3Score ?? null);
-    }
-  }
-
-  // Build the CorrelatedFindingInput array with resolved CVSS scores.
   const correlatedFindings = asset.correlatedFindings.map((cf) => ({
     severity: cf.severity,
     cveId: cf.cveId,
@@ -71,15 +46,5 @@ export async function recomputeRiskScoreForAsset(
     cvss: cf.cveId !== null ? (cvssMap.get(cf.cveId) ?? null) : null,
   }));
 
-  const score = computeRiskScore({
-    correlatedFindings,
-    ports: asset.ports,
-  });
-
-  await prisma.asset.update({
-    where: { id: assetId },
-    data: { riskScore: score },
-  });
-
-  return score;
+  return computeRiskScore({ correlatedFindings, ports: asset.ports });
 }
