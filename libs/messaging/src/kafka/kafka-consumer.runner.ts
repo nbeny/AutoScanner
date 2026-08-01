@@ -59,9 +59,12 @@ export async function runConsumer(
   consumer: MessageConsumer,
 ): Promise<Consumer> {
   const base = consumer.topic;
+  // Group defaults to the topic (one owning consumer per queue); a consumer overrides it when
+  // several services fan out from the same topic and each needs the full stream.
+  const groupId = consumer.groupId ?? base;
   const logger = new Logger('KafkaConsumer');
   const bus = new KafkaJobBus(producer);
-  const c = kafka.consumer({ groupId: base });
+  const c = kafka.consumer({ groupId });
   await c.connect();
   await c.subscribe({ topic: base, fromBeginning: false });
   await c.subscribe({ topic: retryTopic(base), fromBeginning: false });

@@ -12,6 +12,8 @@ export class FindingCreatedConsumer
   implements OnApplicationBootstrap
 {
   readonly topic = FINDING_CREATED_TOPIC;
+  // Distinct group so this service AND threat-intel-service each receive every finding.created.
+  readonly groupId = 'compliance:finding-created';
 
   constructor(
     private readonly compliance: ComplianceService,

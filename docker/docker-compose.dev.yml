@@ -137,6 +137,8 @@ services:
       DISCOVERY_SERVICE_URL: http://discovery-service:4011
       FINDING_SERVICE_URL: http://finding-service:4012
       RISK_ENGINE_URL: http://risk-engine:4013
+      THREAT_INTEL_SERVICE_URL: http://threat-intel-service:4014
+      COMPLIANCE_SERVICE_URL: http://compliance-service:4015
     # Apply migrations, then boot the API.
     command: sh -c "pnpm prisma migrate deploy && node dist/apps/api-gateway/main.js"
     ports:
@@ -257,6 +259,58 @@ services:
     command: node dist/apps/risk-engine/main.js
     ports:
       - '4013:4013'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  threat-intel-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+      args:
+        APP: threat-intel-service
+    container_name: autoscanner-threat-intel-service
+    profiles: ['app']
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: '4014'
+      DATABASE_URL: postgresql://autoscanner:dev@postgres:5432/autoscanner
+      REDIS_URL: redis://redis:6379
+      # Consumes security.finding.created and writes ThreatIntel rows.
+      KAFKA_BROKERS: redpanda:9092
+    command: node dist/apps/threat-intel-service/main.js
+    ports:
+      - '4014:4014'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  compliance-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+      args:
+        APP: compliance-service
+    container_name: autoscanner-compliance-service
+    profiles: ['app']
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: '4015'
+      DATABASE_URL: postgresql://autoscanner:dev@postgres:5432/autoscanner
+      REDIS_URL: redis://redis:6379
+      # Consumes security.finding.created and writes ComplianceMapping rows.
+      KAFKA_BROKERS: redpanda:9092
+    command: node dist/apps/compliance-service/main.js
+    ports:
+      - '4015:4015'
     depends_on:
       postgres:
         condition: service_healthy
