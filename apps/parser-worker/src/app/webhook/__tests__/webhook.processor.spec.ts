@@ -29,6 +29,21 @@ function makeRegistrar(): ConsumerRegistrar {
   return { register: jest.fn() } as unknown as ConsumerRegistrar;
 }
 
+/** asset-service now owns Asset rows; the webhook path resolves ids through it. */
+function makeAssetClient(ids: Record<string, string> = {}) {
+  return {
+    parseBatch: jest.fn().mockResolvedValue({
+      assetIdsByCanonicalValue: ids,
+      assetsPersisted: Object.keys(ids).length,
+      portsPersisted: 0,
+      servicesPersisted: 0,
+      technologiesPersisted: 0,
+      observationsPersisted: 0,
+    }),
+    recomputeRisk: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Mock factory
 // ---------------------------------------------------------------------------
@@ -79,6 +94,7 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
   let findingPersister: jest.Mocked<FindingPersister>;
   let processor: WebhookProcessor;
+  let assetClient: ReturnType<typeof makeAssetClient>;
 
   const webhookEventId = 'event-1';
   const engagementId = 'eng-1';
@@ -110,9 +126,15 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
     });
 
     findingPersister = buildFindingPersister();
+    assetClient = makeAssetClient({
+      'app.example.com': 'asset-app.example.com',
+      '10.0.0.5': 'asset-10.0.0.5',
+      'host.example.com': 'asset-host.example.com',
+    });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
       findingPersister,
+      assetClient as never,
       makeRegistrar(),
     );
   });
@@ -147,15 +169,21 @@ describe('WebhookProcessor – happy path (generic, 2 findings)', () => {
     });
   });
 
-  it('upserts 2 assets (DOMAIN for app.example.com, IP_ADDRESS for 10.0.0.5)', async () => {
+  it('sends both assets to asset-service instead of writing them here', async () => {
     await processor.process(makeCtx({ webhookEventId }));
-    // Both assets will call findFirst first (returns null) then create
-    expect(prisma.asset.findFirst).toHaveBeenCalledTimes(2);
-    expect(prisma.asset.create).toHaveBeenCalledTimes(2);
 
-    const createCalls = prisma.asset.create.mock.calls.map((c) => c[0].data);
-    const types = createCalls.map((d) => d.type).sort();
-    expect(types).toEqual(['DOMAIN', 'IP_ADDRESS']);
+    // asset-service owns Asset rows now: this path must not touch them directly. That is
+    // also what fixes the old orphan IP pivot (no IpAddress row was ever created here).
+    expect(prisma.asset.create).not.toHaveBeenCalled();
+    expect(prisma.asset.findFirst).not.toHaveBeenCalled();
+
+    expect(assetClient.parseBatch).toHaveBeenCalledTimes(1);
+    const req = assetClient.parseBatch.mock.calls[0][0];
+    expect(req.assets.map((a: { type: string }) => a.type).sort()).toEqual(['DOMAIN', 'IP']);
+    expect(req.assets.map((a: { value: string }) => a.value).sort()).toEqual([
+      '10.0.0.5',
+      'app.example.com',
+    ]);
   });
 
   it('calls findingPersister.upsert twice with scanJobId and assetId', async () => {
@@ -191,6 +219,7 @@ describe('WebhookProcessor – bad payload (normalizer throws)', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
   let findingPersister: jest.Mocked<FindingPersister>;
   let processor: WebhookProcessor;
+  let assetClient: ReturnType<typeof makeAssetClient>;
 
   const webhookEventId = 'event-bad';
 
@@ -204,9 +233,15 @@ describe('WebhookProcessor – bad payload (normalizer throws)', () => {
     });
 
     findingPersister = buildFindingPersister();
+    assetClient = makeAssetClient({
+      'app.example.com': 'asset-app.example.com',
+      '10.0.0.5': 'asset-10.0.0.5',
+      'host.example.com': 'asset-host.example.com',
+    });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
       findingPersister,
+      assetClient as never,
       makeRegistrar(),
     );
   });
@@ -247,6 +282,7 @@ describe('WebhookProcessor – unknown engagement', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
   let findingPersister: jest.Mocked<FindingPersister>;
   let processor: WebhookProcessor;
+  let assetClient: ReturnType<typeof makeAssetClient>;
 
   const webhookEventId = 'event-noeng';
   const payload = {
@@ -265,9 +301,15 @@ describe('WebhookProcessor – unknown engagement', () => {
     prisma.engagement.findUnique.mockResolvedValue(null);
 
     findingPersister = buildFindingPersister();
+    assetClient = makeAssetClient({
+      'app.example.com': 'asset-app.example.com',
+      '10.0.0.5': 'asset-10.0.0.5',
+      'host.example.com': 'asset-host.example.com',
+    });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
       findingPersister,
+      assetClient as never,
       makeRegistrar(),
     );
   });
@@ -304,6 +346,7 @@ describe('WebhookProcessor – missing WebhookEvent', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
   let findingPersister: jest.Mocked<FindingPersister>;
   let processor: WebhookProcessor;
+  let assetClient: ReturnType<typeof makeAssetClient>;
 
   beforeEach(() => {
     prisma = defaultPrisma();
@@ -311,9 +354,15 @@ describe('WebhookProcessor – missing WebhookEvent', () => {
     prisma.webhookEvent.findUnique.mockResolvedValue(null);
 
     findingPersister = buildFindingPersister();
+    assetClient = makeAssetClient({
+      'app.example.com': 'asset-app.example.com',
+      '10.0.0.5': 'asset-10.0.0.5',
+      'host.example.com': 'asset-host.example.com',
+    });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
       findingPersister,
+      assetClient as never,
       makeRegistrar(),
     );
   });
@@ -345,6 +394,7 @@ describe('WebhookProcessor – findings count cap (>1000)', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
   let findingPersister: jest.Mocked<FindingPersister>;
   let processor: WebhookProcessor;
+  let assetClient: ReturnType<typeof makeAssetClient>;
 
   const webhookEventId = 'event-cap';
   const engagementId = 'eng-1';
@@ -367,9 +417,15 @@ describe('WebhookProcessor – findings count cap (>1000)', () => {
     });
 
     findingPersister = buildFindingPersister();
+    assetClient = makeAssetClient({
+      'app.example.com': 'asset-app.example.com',
+      '10.0.0.5': 'asset-10.0.0.5',
+      'host.example.com': 'asset-host.example.com',
+    });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
       findingPersister,
+      assetClient as never,
       makeRegistrar(),
     );
   });
@@ -411,6 +467,7 @@ describe('WebhookProcessor – asset already exists', () => {
   let prisma: ReturnType<typeof defaultPrisma>;
   let findingPersister: jest.Mocked<FindingPersister>;
   let processor: WebhookProcessor;
+  let assetClient: ReturnType<typeof makeAssetClient>;
 
   const webhookEventId = 'event-exists';
   const engagementId = 'eng-1';
@@ -427,25 +484,33 @@ describe('WebhookProcessor – asset already exists', () => {
       source: 'generic',
       payload,
     });
-    // Simulate an existing asset
+    // Whether the Asset already existed is asset-service's concern now; it simply answers
+    // with the id, and this path must use it.
     prisma.asset.findFirst.mockResolvedValue({ id: 'existing-asset-id' });
 
     findingPersister = buildFindingPersister();
+    assetClient = makeAssetClient({
+      'app.example.com': 'asset-app.example.com',
+      '10.0.0.5': 'asset-10.0.0.5',
+      'host.example.com': 'asset-host.example.com',
+    });
     processor = new WebhookProcessor(
       prisma as unknown as PrismaService,
       findingPersister,
+      assetClient as never,
       makeRegistrar(),
     );
   });
 
-  it('does not create a new asset when one already exists', async () => {
+  it('never creates assets locally — asset-service resolves them', async () => {
     await processor.process(makeCtx({ webhookEventId }));
     expect(prisma.asset.create).not.toHaveBeenCalled();
+    expect(assetClient.parseBatch).toHaveBeenCalledTimes(1);
   });
 
-  it('calls findingPersister.upsert with the existing asset id', async () => {
+  it('calls findingPersister.upsert with the id asset-service returned', async () => {
     await processor.process(makeCtx({ webhookEventId }));
     expect(findingPersister.upsert).toHaveBeenCalledTimes(1);
-    expect(findingPersister.upsert.mock.calls[0][1]).toBe('existing-asset-id');
+    expect(findingPersister.upsert.mock.calls[0][1]).toBe('asset-app.example.com');
   });
 });
