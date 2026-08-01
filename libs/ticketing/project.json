@@ -1,0 +1,22 @@
+{
+  "name": "ticketing",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ticketing/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/ticketing"],
+      "options": {
+        "jestConfig": "libs/ticketing/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/ticketing/tsconfig.lib.json"
+      }
+    }
+  }
+}

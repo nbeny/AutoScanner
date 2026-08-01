@@ -38,6 +38,7 @@ model User {
   azureCredential      AzureCredential?
   gcpCredential        GcpCredential?
   notificationChannels NotificationChannel[]
+  integrationCredentials IntegrationCredential[]
   agentsCreated        Agent[]
   findingStatusEvents  FindingStatusEvent[]
   capabilities         UserCapability[]
@@ -123,6 +124,7 @@ model Engagement {
   aiRuns             AiRun[]
   threatIntel        ThreatIntel[]
   complianceMappings ComplianceMapping[]
+  tickets            Ticket[]
 
   @@index([ownerId])
   @@index([status])
@@ -1079,6 +1081,68 @@ model Notification {
 
   @@index([channelId, createdAt(sort: Desc)])
   @@index([deliveryStatus])
+}
+
+// =====================================================================
+// SP5 — TICKETING & INTEGRATIONS (Part 4 §13)
+// =====================================================================
+
+enum TicketProvider {
+  JIRA
+  GITHUB
+  GITLAB
+  AZURE_DEVOPS
+}
+
+enum TicketStatus {
+  PENDING
+  CREATED
+  FAILED
+}
+
+// A per-user, per-provider issue-tracker credential. Config (base URL, project/repo, token) is
+// AES-256-GCM SecretBox-sealed in `configEncrypted`, decrypted in-memory only when creating a
+// ticket — same pattern as NotificationChannel.
+model IntegrationCredential {
+  id              String         @id @default(cuid())
+  userId          String
+  provider        TicketProvider
+  name            String
+  configEncrypted Bytes
+  enabled         Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+// A finding pushed to an external issue tracker.
+model Ticket {
+  id                  String         @id @default(cuid())
+  engagementId        String
+  findingId           String?
+  correlatedFindingId String?
+  credentialId        String
+  provider            TicketProvider
+  status              TicketStatus   @default(PENDING)
+  title               String
+  externalId          String?
+  externalUrl         String?
+  errorMessage        String?
+  createdById         String
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  engagement Engagement            @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  credential IntegrationCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  @@index([engagementId])
+  @@index([correlatedFindingId])
 }
 
 // =====================================================================
