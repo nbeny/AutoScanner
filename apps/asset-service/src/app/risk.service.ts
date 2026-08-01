@@ -1,20 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@autoscanner/database';
-import { recomputeRiskScoreForAsset } from '@autoscanner/correlation';
+import { RiskClient } from '@autoscanner/service-clients';
 
 /**
- * `Asset.riskScore` is asset-service state. cve-enricher-worker used to call
- * `recomputeRiskScoreForAsset` directly, making it a second writer of the column; it now
- * goes through this service instead.
+ * Thin proxy to risk-engine, the single writer of `Asset.riskScore` (SP2b).
+ *
+ * asset-service keeps the `/internal/assets/:id/recompute-risk` route so its callers
+ * (parser-worker, cve-discovery via `AssetClient.recomputeRisk`) don't change in lockstep; the
+ * actual read-compute-write lives in risk-engine now.
  */
 @Injectable()
 export class RiskService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly riskClient: RiskClient) {}
 
   async recompute(assetId: string): Promise<{ assetId: string }> {
-    await this.prisma.$transaction(async (tx) => {
-      await recomputeRiskScoreForAsset(tx, assetId);
-    });
-    return { assetId };
+    const { assetId: id } = await this.riskClient.recompute(assetId);
+    return { assetId: id };
   }
 }

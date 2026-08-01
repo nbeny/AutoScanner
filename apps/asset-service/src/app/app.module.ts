@@ -5,6 +5,8 @@ import { AppLoggingModule } from '@autoscanner/logging';
 import { PrismaModule } from '@autoscanner/database';
 import { MessagingModule } from '@autoscanner/messaging';
 
+import { RiskClient } from '@autoscanner/service-clients';
+
 import { AssetController } from './asset.controller';
 import { DiscoveryClient } from './discovery.client';
 import { ParseBatchService } from './parse-batch.service';
@@ -19,6 +21,7 @@ import { TechnologyPersister } from './persisters/technology-persister';
   controllers: [AssetController],
   providers: [
     DiscoveryClient,
+    RiskClient,
     ParseBatchService,
     RiskService,
     AssetPersister,
