@@ -299,6 +299,17 @@ describe('ParseJobProcessor', () => {
       expect(discoveryClient.mergeIpAddresses).toHaveBeenCalledWith('eng_1');
     });
 
+    it('correlates only the touched assets, not the whole engagement (SP2c)', async () => {
+      await processor.process(job(payload));
+      // nmap payload touches the IP asset the batch returned.
+      expect(findingClient.correlate).toHaveBeenCalledWith('eng_1', ['asset_ip']);
+    });
+
+    it('does NOT run cross-asset Finding dedup per parse job (moved to the scheduled sweep)', async () => {
+      await processor.process(job(payload));
+      expect(findingClient.dedup).not.toHaveBeenCalled();
+    });
+
     it('does not rethrow when a correlation pass fails — persistence already succeeded', async () => {
       discoveryClient.mergeSubdomains.mockRejectedValue(new Error('merge boom'));
       findingClient.correlate.mockRejectedValue(new Error('corr boom'));

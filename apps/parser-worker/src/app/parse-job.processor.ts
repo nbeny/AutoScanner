@@ -147,94 +147,91 @@ export class ParseJobProcessor
       }
     }
 
-    // Enqueue CVE_DISCOVERY jobs for each (service, cpe) pair in this engagement.
-    // We query by engagement scope (port.asset.engagementId) so any service-with-CPE
-    // persisted by earlier parse jobs in the same engagement is also covered. This is
-    // intentionally engagement-wide: re-publishing an already-discovered pair is
-    // harmless because the discovery consumer is idempotent — it reads the
-    // CpeCveCache (keyed by cpe) and upserts findings by (assetId, dedupHash).
-    try {
-      const cpeServices = await this.prisma.service.findMany({
-        where: {
-          cpe: { isEmpty: false },
-          port: { asset: { engagementId: payload.engagementId } },
-        },
-        select: {
-          id: true,
-          cpe: true,
-          product: true,
-          version: true,
-          port: {
-            select: {
-              assetId: true,
-              number: true,
-              protocol: true,
-              asset: { select: { value: true, canonicalValue: true } },
+    // Enqueue CVE_DISCOVERY jobs for each (service, cpe) pair on the assets THIS job touched
+    // (SP2c defect 6). A CPE only appears once its service is (re)persisted, which touches its
+    // asset — so scoping to the touched assets covers every newly-discovered pair without
+    // re-scanning the whole engagement on every parse job. Re-publishing an already-discovered
+    // pair stays harmless: the discovery consumer is idempotent (CpeCveCache keyed by cpe,
+    // findings upserted by (assetId, dedupHash)).
+    const touchedAssetIds = result.touchedAssetIds;
+    if (touchedAssetIds.length > 0) {
+      try {
+        const cpeServices = await this.prisma.service.findMany({
+          where: {
+            cpe: { isEmpty: false },
+            port: { asset: { engagementId: payload.engagementId, id: { in: touchedAssetIds } } },
+          },
+          select: {
+            id: true,
+            cpe: true,
+            product: true,
+            version: true,
+            port: {
+              select: {
+                assetId: true,
+                number: true,
+                protocol: true,
+                asset: { select: { value: true, canonicalValue: true } },
+              },
             },
           },
-        },
-      });
-      for (const svc of cpeServices) {
-        const assetId = svc.port.assetId;
-        const assetCanonical = svc.port.asset.canonicalValue;
-        const location = `${svc.port.asset.value}:${svc.port.number}/${svc.port.protocol.toLowerCase()}`;
-        for (const cpe of svc.cpe) {
-          try {
-            await this.bus.publish<CveDiscoveryPayload>(CVE_DISCOVERY_TOPIC, `${svc.id}:${cpe}`, {
-              scanJobId: payload.scanJobId,
-              engagementId: payload.engagementId,
-              assetId,
-              assetCanonical,
-              serviceId: svc.id,
-              cpe,
-              location,
-              product: svc.product ?? undefined,
-              version: svc.version ?? undefined,
-            });
-          } catch (err) {
-            this.logger.warn(
-              `CVE_DISCOVERY enqueue failed for ${svc.id}:${cpe}: ${err instanceof Error ? err.message : String(err)}`,
-            );
+        });
+        for (const svc of cpeServices) {
+          const assetId = svc.port.assetId;
+          const assetCanonical = svc.port.asset.canonicalValue;
+          const location = `${svc.port.asset.value}:${svc.port.number}/${svc.port.protocol.toLowerCase()}`;
+          for (const cpe of svc.cpe) {
+            try {
+              await this.bus.publish<CveDiscoveryPayload>(CVE_DISCOVERY_TOPIC, `${svc.id}:${cpe}`, {
+                scanJobId: payload.scanJobId,
+                engagementId: payload.engagementId,
+                assetId,
+                assetCanonical,
+                serviceId: svc.id,
+                cpe,
+                location,
+                product: svc.product ?? undefined,
+                version: svc.version ?? undefined,
+              });
+            } catch (err) {
+              this.logger.warn(
+                `CVE_DISCOVERY enqueue failed for ${svc.id}:${cpe}: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
           }
         }
+      } catch (err) {
+        this.logger.warn(
+          `CVE_DISCOVERY service query failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
-    } catch (err) {
-      this.logger.warn(
-        `CVE_DISCOVERY service query failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
     }
 
-    // Correlation v1: defensive merges/dedups. Each pass is best-effort —
-    // persistence already succeeded, so the BullMQ job reports success even
-    // if a pass fails. Unique constraints prevent the duplicates these target
-    // today; they will become load-bearing in Phase 3+. Run them in declared
-    // order: Subdomain merge, IP merge, cross-asset Finding dedup.
-    // Subdomain/IpAddress dedup is discovery-row hygiene and now runs in discovery-service,
-    // which owns those rows (and can repoint the Asset pivot FKs atomically with the delete).
+    // Correlation v1: defensive discovery-row merges. Best-effort — persistence already
+    // succeeded, so the job reports success even if a pass fails.
+    // Subdomain/IpAddress dedup is discovery-row hygiene and runs in discovery-service, which
+    // owns those rows (and can repoint the Asset pivot FKs atomically with the delete).
+    // Cross-asset Finding dedup is NO LONGER run per parse job (SP2c defect 6): it is the one
+    // genuinely engagement-wide pass, so it moved to the scheduled correlation sweep.
     await this.runMergePass('subdomains', () =>
       this.discoveryClient.mergeSubdomains(payload.engagementId),
     );
     await this.runMergePass('IpAddress rows', () =>
       this.discoveryClient.mergeIpAddresses(payload.engagementId),
     );
-    await this.runMergePass('Finding rows', () => this.findingClient.dedup(payload.engagementId));
 
-    // Correlation v2: structural-hash clustering. Groups findings by CVE /
-    // category / raw-scanner bucket across scanner sources and upserts
-    // CorrelatedFinding clusters. Best-effort — parse job reports success
-    // even if this pass fails.
+    // Correlation v2: structural-hash clustering, scoped to the assets this job touched.
+    // Clustering is per-asset, so re-clustering just the touched assets is complete (SP2c
+    // defect 6). Best-effort — parse job reports success even if this pass fails.
     let correlatedFindings = 0;
-    await this.runCorrelatePass(payload.engagementId, (n) => {
+    await this.runCorrelatePass(payload.engagementId, touchedAssetIds, (n) => {
       correlatedFindings = n;
     });
 
-    // Risk-score v2: recompute risk for all assets in the engagement that have
-    // findings, AFTER the correlate pass, so computeRiskScore sees the updated
-    // CorrelatedFinding clusters (count-once + CVSS). The per-persist calls
-    // above keep port/service bonuses up-to-date during ingestion; this pass
-    // finalises the cluster-based contribution. Best-effort — parse job reports
-    // success even if this pass fails.
-    await this.runRiskRecomputePass(payload.engagementId);
+    // Risk-score v2: recompute risk for the touched assets that have findings, AFTER the
+    // correlate pass, so computeRiskScore sees the updated clusters (count-once + CVSS).
+    // Best-effort — parse job reports success even if this pass fails.
+    await this.runRiskRecomputePass(payload.engagementId, touchedAssetIds);
 
     const finalResult = { ...result, correlatedFindings };
     this.logger.log(
@@ -269,10 +266,12 @@ export class ParseJobProcessor
    */
   private async runCorrelatePass(
     engagementId: string,
+    assetIds: string[],
     onSuccess: (clusters: number) => void,
   ): Promise<void> {
+    if (assetIds.length === 0) return;
     try {
-      const { clusters } = await this.findingClient.correlate(engagementId);
+      const { clusters } = await this.findingClient.correlate(engagementId, assetIds);
       if (clusters > 0) {
         this.logger.log(`correlated ${clusters} clusters`);
       }
@@ -295,14 +294,15 @@ export class ParseJobProcessor
    * does not abort the whole pass.  Best-effort: failures are logged as
    * warnings and do NOT fail the parse job.
    */
-  private async runRiskRecomputePass(engagementId: string): Promise<void> {
+  private async runRiskRecomputePass(engagementId: string, scopeAssetIds: string[]): Promise<void> {
+    if (scopeAssetIds.length === 0) return;
     try {
-      // Find all distinct assets that have at least one finding in this
-      // engagement.  We use the findings table rather than correlatedFindings
-      // because an asset may have findings that haven't been clustered yet (e.g.
-      // if the correlate pass failed) and we still want to recompute them.
+      // Of the assets this job touched, recompute only those that actually have a finding.
+      // We read the findings table rather than correlatedFindings because an asset may have
+      // findings that haven't been clustered yet (e.g. if the correlate pass failed) and we
+      // still want its score recomputed.
       const assetRows = await this.prisma.finding.findMany({
-        where: { asset: { engagementId } },
+        where: { asset: { engagementId }, assetId: { in: scopeAssetIds } },
         select: { assetId: true },
         distinct: ['assetId'],
       });
@@ -352,7 +352,7 @@ export class ParseJobProcessor
   private async persist(
     payload: ParseJobPayload,
     out: NormalizedOutput,
-  ): Promise<Omit<ParseJobResult, 'correlatedFindings'>> {
+  ): Promise<Omit<ParseJobResult, 'correlatedFindings'> & { touchedAssetIds: string[] }> {
     // SP1a: asset- and discovery-side entities are no longer persisted here. They go as
     // batches to their owning services, each applying its batch in one transaction. What
     // stays local is Findings (they move in SP2) — they attach using the asset id map the
@@ -525,6 +525,11 @@ export class ParseJobProcessor
     // It is gone — `runRiskRecomputePass` after the correlate pass already recomputes every
     // asset that has findings, and it is best-effort like the other passes.
 
+    // Assets this job actually touched: every asset the asset batch upserted, plus every asset
+    // a finding attached to. The engagement-wide passes scope to this set (SP2c defect 6).
+    const touched = new Set<string>(assetIdByValue.values());
+    for (const item of batchItems) touched.add(item.assetId);
+
     return {
       assetsPersisted: assetBatch.assetsPersisted,
       portsPersisted: assetBatch.portsPersisted,
@@ -542,6 +547,7 @@ export class ParseJobProcessor
       breachExposuresPersisted: discoveryBatch.breachExposuresPersisted,
       orgMetadataPersisted: discoveryBatch.orgMetadataPersisted,
       tlsCertificatesPersisted: discoveryBatch.tlsCertificatesPersisted,
+      touchedAssetIds: [...touched],
     };
   }
 }
