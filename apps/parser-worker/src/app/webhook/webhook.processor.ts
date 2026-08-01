@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs
 import { PrismaService } from '@autoscanner/database';
 import type { WebhookJobPayload } from '@autoscanner/queues';
 import { canonicalize } from '@autoscanner/correlation';
+import { AssetClient } from '@autoscanner/service-clients';
 import { ConsumerRegistrar, MessageConsumer, type MessageContext } from '@autoscanner/messaging';
 
 import { FindingPersister } from '../persisters/finding-persister';
@@ -27,6 +28,7 @@ export class WebhookProcessor
   constructor(
     private readonly prisma: PrismaService,
     private readonly findingPersister: FindingPersister,
+    private readonly assetClient: AssetClient,
     @Inject(ConsumerRegistrar) private readonly registrar: ConsumerRegistrar,
   ) {
     super();
@@ -146,35 +148,36 @@ export class WebhookProcessor
     // -----------------------------------------------------------------------
     let findingsPersisted = 0;
 
+    // Assets go through asset-service like every other ingest path. Before SP1a this
+    // method created Asset rows itself and never created the matching IpAddress row, so an
+    // IP finding produced a pivot that violated the polymorphic-FK invariant; delegating
+    // fixes that by construction.
+    const assetBatch = await this.assetClient.parseBatch({
+      engagementId: batch.engagementId,
+      scanJobId: scanJob.id,
+      scannerName: `webhook:${event.source}`,
+      assets: batch.findings.map((f) => ({
+        type: IPV4_RE.test(f.assetValue) ? 'IP' : 'DOMAIN',
+        value: f.assetValue,
+      })),
+      ports: [],
+      services: [],
+      technologies: [],
+    });
+
     for (const finding of batch.findings) {
       const { assetValue } = finding;
-
-      // Determine asset type
       const type = IPV4_RE.test(assetValue) ? 'IP_ADDRESS' : 'DOMAIN';
       const canonicalValue = canonicalize(assetValue, { type });
 
-      // Find-or-create the Asset
-      let asset = await this.prisma.asset.findFirst({
-        where: {
-          engagementId: batch.engagementId,
-          type,
-          canonicalValue,
-          deletedAt: null,
-        },
-        select: { id: true },
-      });
-
-      if (!asset) {
-        asset = await this.prisma.asset.create({
-          data: {
-            engagementId: batch.engagementId,
-            type,
-            value: assetValue,
-            canonicalValue,
-          },
-          select: { id: true },
-        });
+      const assetId = assetBatch.assetIdsByCanonicalValue[canonicalValue];
+      if (!assetId) {
+        this.logger.warn(
+          `WebhookProcessor: asset-service returned no id for ${canonicalValue} — skipping finding`,
+        );
+        continue;
       }
+      const asset = { id: assetId };
 
       // Persist the finding via FindingPersister (handles dedup hash)
       await this.findingPersister.upsert(

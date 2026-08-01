@@ -14,6 +14,9 @@ export const TOPICS = {
   'security.report.requested': { partitions: 2, group: 'report-worker' },
   'security.notification.requested': { partitions: 2, group: 'notification-worker' },
   'security.webhook.ingest.requested': { partitions: 2, group: 'webhook-worker' },
+  'security.asset.upserted': { partitions: 6, group: 'asset-upserted' },
+  'security.asset.risk.changed': { partitions: 6, group: 'asset-risk-changed' },
+  'security.discovery.entity.upserted': { partitions: 6, group: 'discovery-entity-upserted' },
 } as const satisfies Record<string, TopicDef>;
 
 export type TopicName = keyof typeof TOPICS;

@@ -1,0 +1,22 @@
+{
+  "name": "service-clients",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/service-clients/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/service-clients"],
+      "options": {
+        "jestConfig": "libs/service-clients/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/service-clients/tsconfig.lib.json"
+      }
+    }
+  }
+}

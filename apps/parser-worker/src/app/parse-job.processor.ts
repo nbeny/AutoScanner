@@ -12,6 +12,7 @@ import type {
 } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 import { PrismaService } from '@autoscanner/database';
+import { AssetClient, DiscoveryClient } from '@autoscanner/service-clients';
 import {
   ConsumerRegistrar,
   JOB_BUS,
@@ -33,24 +34,10 @@ import {
   AssetMergeService,
   CorrelateFindingsService,
   canonicalize,
-  recomputeRiskScoreForAsset,
   writeObservation,
 } from '@autoscanner/correlation';
 import { Prisma } from '@prisma/client';
-import { AssetPersister } from './persisters/asset-persister';
-import { DnsRecordPersister } from './persisters/dns-record-persister';
 import { FindingPersister } from './persisters/finding-persister';
-import { IpAddressPersister } from './persisters/ip-address-persister';
-import { PortPersister } from './persisters/port-persister';
-import { ServicePersister } from './persisters/service-persister';
-import { SubdomainIpPersister } from './persisters/subdomain-ip-persister';
-import { TechnologyPersister } from './persisters/technology-persister';
-import { EndpointPersister } from './persisters/endpoint-persister';
-import { EmailPersister } from './persisters/email-persister';
-import { IdentityPersister } from './persisters/identity-persister';
-import { BreachExposurePersister } from './persisters/breach-exposure-persister';
-import { OrgMetadataPersister } from './persisters/org-metadata-persister';
-import { TlsCertificatePersister } from './persisters/tls-certificate-persister';
 
 export interface ParseJobResult {
   assetsPersisted: number;
@@ -83,21 +70,10 @@ export class ParseJobProcessor
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly assetMerge: AssetMergeService,
     private readonly correlateFindings: CorrelateFindingsService,
-    private readonly assetPersister: AssetPersister,
-    private readonly portPersister: PortPersister,
-    private readonly servicePersister: ServicePersister,
-    private readonly technologyPersister: TechnologyPersister,
     private readonly findingPersister: FindingPersister,
-    private readonly ipAddressPersister: IpAddressPersister,
-    private readonly dnsRecordPersister: DnsRecordPersister,
-    private readonly subdomainIpPersister: SubdomainIpPersister,
-    private readonly endpointPersister: EndpointPersister,
-    private readonly emailPersister: EmailPersister,
-    private readonly identityPersister: IdentityPersister,
-    private readonly breachExposurePersister: BreachExposurePersister,
-    private readonly orgMetadataPersister: OrgMetadataPersister,
-    private readonly tlsCertificatePersister: TlsCertificatePersister,
     private readonly prisma: PrismaService,
+    private readonly assetClient: AssetClient,
+    private readonly discoveryClient: DiscoveryClient,
     @Inject(JOB_BUS) private readonly bus: JobBus,
     @Inject(ENGAGEMENT_EVENTS_PUBLISHER)
     private readonly events: EngagementEventsPublisher,
@@ -342,11 +318,9 @@ export class ParseJobProcessor
 
       for (const assetId of assetIds) {
         try {
-          await this.withRetryOnSerializationConflict(() =>
-            this.prisma.$transaction(async (tx) => {
-              await recomputeRiskScoreForAsset(tx, assetId);
-            }),
-          );
+          // Asset.riskScore is asset-service state — recompute through the service so the
+          // column keeps a single writer.
+          await this.assetClient.recomputeRisk(assetId);
           this.publish(engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, { assetId });
         } catch (err) {
           this.logger.warn(
@@ -404,201 +378,97 @@ export class ParseJobProcessor
     payload: ParseJobPayload,
     out: NormalizedOutput,
   ): Promise<Omit<ParseJobResult, 'correlatedFindings'>> {
-    // assetIdByValue maps lowercased asset value → Asset.id for all asset types.
-    // Both AssetPersister (non-IP) and IpAddressPersister (IP) contribute to this map,
-    // so that port/service/technology persisters can resolve any asset value to an Asset id.
-    const assetIdByValue = new Map<string, string>();
-    let assetsPersisted = 0;
-
-    // Index HTTP probes by canonical assetValue so SUBDOMAIN upserts can
-    // atomically update Subdomain.httpStatus/httpTitle/httpServer inside the
-    // same transaction as the Domain/Subdomain/Asset upserts.
+    // SP1a: asset- and discovery-side entities are no longer persisted here. They go as
+    // batches to their owning services, each applying its batch in one transaction. What
+    // stays local is Findings (they move in SP2) — they attach using the asset id map the
+    // asset batch returns, which replaces the old per-finding DB lookup.
     const httpProbeByValue = new Map<string, NormalizedHttpProbe>();
     for (const probe of out.httpProbes) {
       httpProbeByValue.set(probe.assetValue.toLowerCase(), probe);
     }
 
-    // Non-IP assets: handled by AssetPersister. IP assets are owned by
-    // IpAddressPersister (which also creates the Asset pivot with ipAddressId set)
-    // — skipping them here avoids double-persistence.
-    for (const asset of out.assets) {
-      if (asset.type === 'IP') continue;
-      const probe = httpProbeByValue.get(asset.value.toLowerCase());
-      const id = await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction(async (tx) => {
-          const upsertedId = await this.assetPersister.upsert(
-            payload.engagementId,
-            asset,
-            probe,
-            tx,
-          );
-          if (!upsertedId) return null;
-          await writeObservation(tx, {
-            assetId: upsertedId,
-            scanJobId: payload.scanJobId,
-            scannerName: payload.scannerName,
-            kind: 'DISCOVERED',
-            payload: { assetValue: asset.value, assetType: asset.type },
-          });
-          if (
-            probe &&
-            (probe.status !== undefined || probe.title !== undefined || probe.server !== undefined)
-          ) {
-            await writeObservation(tx, {
-              assetId: upsertedId,
-              scanJobId: payload.scanJobId,
-              scannerName: payload.scannerName,
-              kind: 'HTTP_PROBED',
-              payload: { status: probe.status, title: probe.title, server: probe.server },
-            });
-          }
-          return upsertedId;
-        }),
-      );
-      if (!id) continue;
-      assetIdByValue.set(asset.value.toLowerCase(), id);
-      assetsPersisted++;
-      this.publish(payload.engagementId, EngagementUpdateKind.ASSET_ADDED, { assetId: id });
-      this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId: id });
-    }
+    const assetBatch = await this.assetClient.parseBatch({
+      engagementId: payload.engagementId,
+      scanJobId: payload.scanJobId,
+      scannerName: payload.scannerName,
+      assets: out.assets.map((a) => ({
+        type: a.type,
+        value: a.value,
+        httpProbe: httpProbeByValue.get(a.value.toLowerCase()) as
+          | Record<string, unknown>
+          | undefined,
+      })),
+      ports: out.ports as unknown as Array<Record<string, unknown>>,
+      services: out.services as unknown as Array<Record<string, unknown>>,
+      technologies: out.technologies as unknown as Array<Record<string, unknown>>,
+    });
 
-    // IP assets: IpAddressPersister owns the IpAddress row + Asset pivot.
-    // Processed before ports so that assetIdByValue is fully populated when
-    // portPersister resolves IP assetValues (e.g. nmap emits IP + ports together).
-    const ipAssetIdByValue = new Map<string, string>();
-    let ipAddressesPersisted = 0;
-    for (const asset of out.assets) {
-      if (asset.type !== 'IP') continue;
-      const id = await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction(async (tx) => {
-          const upsertedId = await this.ipAddressPersister.upsert(payload.engagementId, asset, tx);
-          if (!upsertedId) return null;
-          await writeObservation(tx, {
-            assetId: upsertedId,
-            scanJobId: payload.scanJobId,
-            scannerName: payload.scannerName,
-            kind: 'DISCOVERED',
-            payload: { assetValue: asset.value, assetType: 'IP' },
-          });
-          return upsertedId;
-        }),
-      );
-      if (!id) continue;
-      const canonicalIpKey = canonicalize(asset.value, { type: 'IP_ADDRESS' });
-      ipAssetIdByValue.set(canonicalIpKey, id);
-      // Merge into assetIdByValue so ports/services can resolve the IP's Asset id.
-      assetIdByValue.set(asset.value.toLowerCase(), id);
-      ipAddressesPersisted++;
-      this.publish(payload.engagementId, EngagementUpdateKind.ASSET_ADDED, { assetId: id });
-      this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId: id });
-    }
-
-    const portIdByKey = new Map<string, string>();
-    let portsPersisted = 0;
-    for (const port of out.ports) {
-      const assetId = assetIdByValue.get(port.assetValue.toLowerCase());
-      if (!assetId) continue;
-      const id = await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction(async (tx) => {
-          const portId = await this.portPersister.upsert(assetId, port, tx);
-          await writeObservation(tx, {
-            assetId,
-            scanJobId: payload.scanJobId,
-            scannerName: payload.scannerName,
-            kind: 'PORT_OPEN',
-            payload: { number: port.number, protocol: port.protocol, state: port.state },
-          });
-          await recomputeRiskScoreForAsset(tx, assetId);
-          return portId;
-        }),
-      );
-      portIdByKey.set(portKey(port), id);
-      portsPersisted++;
-      this.publish(payload.engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, { assetId });
+    const assetIdByValue = new Map<string, string>(
+      Object.entries(assetBatch.assetIdsByCanonicalValue),
+    );
+    for (const assetId of new Set(assetIdByValue.values())) {
+      this.publish(payload.engagementId, EngagementUpdateKind.ASSET_ADDED, { assetId });
       this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId });
     }
 
-    let servicesPersisted = 0;
-    for (const svc of out.services) {
-      const portId = portIdByKey.get(
-        portKey({ assetValue: svc.assetValue, number: svc.portNumber, protocol: svc.protocol }),
-      );
-      if (!portId) continue;
-      const svcAssetId = await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction(async (tx) => {
-          await this.servicePersister.upsert(portId, svc, tx);
-          const port = await tx.port.findUnique({
-            where: { id: portId },
-            select: { assetId: true },
-          });
-          if (port) {
-            await writeObservation(tx, {
-              assetId: port.assetId,
-              scanJobId: payload.scanJobId,
-              scannerName: payload.scannerName,
-              kind: 'SERVICE_DETECTED',
-              payload: {
-                portNumber: svc.portNumber,
-                protocol: svc.protocol,
-                name: svc.name,
-                product: svc.product,
-                version: svc.version,
-              },
-            });
-            await recomputeRiskScoreForAsset(tx, port.assetId);
-            return port.assetId;
-          }
-          return null;
-        }),
-      );
-      servicesPersisted++;
-      if (svcAssetId) {
-        this.publish(payload.engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, {
-          assetId: svcAssetId,
-        });
-        this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, {
-          assetId: svcAssetId,
-        });
-      }
+    // Subdomain <-> IP links come from A/AAAA records; discovery-service resolves both
+    // sides and skips pairs whose rows do not exist.
+    const subdomainIpLinks = out.dnsRecords
+      .filter((r) => r.recordType === 'A' || r.recordType === 'AAAA')
+      .map((r) => ({
+        canonicalHost: canonicalize(r.assetValue, { type: 'SUBDOMAIN' }),
+        canonicalIp: canonicalize(r.value, { type: 'IP_ADDRESS' }),
+      }));
+
+    const discoveryBatch = await this.discoveryClient.parseBatch({
+      engagementId: payload.engagementId,
+      scanJobId: payload.scanJobId,
+      scannerName: payload.scannerName,
+      target: payload.target,
+      dnsRecords: out.dnsRecords as unknown as Array<Record<string, unknown>>,
+      endpoints: out.endpoints as unknown as Array<Record<string, unknown>>,
+      emails: out.emails as unknown as Array<Record<string, unknown>>,
+      identities: out.identities as unknown as Array<Record<string, unknown>>,
+      breachExposures: out.breachExposures as unknown as Array<Record<string, unknown>>,
+      orgMetadata: out.orgMetadata as unknown as Array<Record<string, unknown>>,
+      tlsCertificates: out.tlsCertificates as unknown as Array<Record<string, unknown>>,
+      subdomainIpLinks,
+    });
+
+    // AssetObservation is asset-owned, so the rows the pre-split parser wrote for DNS
+    // records and subdomain<->IP links go back through asset-service rather than being
+    // written here (or silently dropped).
+    const extraObservations = [
+      ...out.dnsRecords.map((r) => ({
+        assetValue: canonicalize(r.assetValue, { type: 'SUBDOMAIN' }),
+        kind: 'DNS_RECORD',
+        payload: { recordType: r.recordType, value: r.value } as Record<string, unknown>,
+      })),
+      ...discoveryBatch.linkedHosts.map((host: string) => ({
+        assetValue: host,
+        kind: 'DNS_RECORD',
+        payload: { link: 'subdomain-ip' } as Record<string, unknown>,
+      })),
+    ];
+    if (extraObservations.length > 0) {
+      await this.assetClient.parseBatch({
+        engagementId: payload.engagementId,
+        scanJobId: payload.scanJobId,
+        scannerName: payload.scannerName,
+        assets: [],
+        ports: [],
+        services: [],
+        technologies: [],
+        extraObservations,
+      });
     }
 
-    let technologiesPersisted = 0;
-    for (const tech of out.technologies) {
-      const assetId = assetIdByValue.get(tech.assetValue.toLowerCase());
-      if (!assetId) continue;
-      await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction(async (tx) => {
-          await this.technologyPersister.upsert(assetId, tech, payload.scannerName, tx);
-          await writeObservation(tx, {
-            assetId,
-            scanJobId: payload.scanJobId,
-            scannerName: payload.scannerName,
-            kind: 'TECH_DETECTED',
-            payload: { name: tech.name, version: tech.version, categories: tech.categories },
-          });
-        }),
-      );
-      technologiesPersisted++;
-      this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId });
-    }
-
+    // --- Findings (still owned by parser-worker until SP2) ---------------------
     let findingsPersisted = 0;
     for (const finding of out.findings) {
-      // Findings from URL-anchored scanners (e.g. nuclei) carry `location` as a
-      // full URL — resolve it to the canonical host so the Finding attaches to
-      // the matching SUBDOMAIN/DOMAIN/IP asset.
-      //
-      // Resolution order:
-      //   1. In-memory map (assets emitted by *this* parse job).
-      //   2. DB lookup by canonical host within the engagement, filtered to
-      //      live (non-soft-deleted) Asset rows — nuclei usually runs after
-      //      subfinder/httpx so the row already exists.
-      //
-      // No "pick a random asset" fallback: silently attaching a finding to an
-      // unrelated asset corrupts attribution downstream (per-asset finding
-      // counts, severity rollups, the unified asset view). When resolution
-      // fails we log and skip; BullMQ retains the raw output for re-processing
-      // once the missing Asset row lands.
+      // Resolution order: the id map returned by the asset batch, then a DB lookup for
+      // assets persisted by an earlier parse job in this engagement. No "pick any asset"
+      // fallback: mis-attributing a finding corrupts per-asset rollups downstream.
       const canonicalHost = urlToCanonicalHost(finding.location);
       let assetId: string | undefined;
       if (canonicalHost) {
@@ -643,7 +513,6 @@ export class ParseJobProcessor
               location: finding.location,
             },
           });
-          await recomputeRiskScoreForAsset(tx, assetId!);
         }),
       );
       findingsPersisted++;
@@ -652,174 +521,31 @@ export class ParseJobProcessor
         severity: finding.severity,
         title: finding.title,
       });
-      this.publish(payload.engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, { assetId });
       this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId });
-    }
-
-    // DNS records: look up Subdomain/Domain and create DnsRecord rows.
-    let dnsRecordsPersisted = 0;
-    for (const record of out.dnsRecords) {
-      await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction(async (tx) => {
-          await this.dnsRecordPersister.upsert(payload.engagementId, record, tx);
-          const canonicalHost = canonicalize(record.assetValue, { type: 'SUBDOMAIN' });
-          let observationAssetId = assetIdByValue.get(canonicalHost);
-          if (!observationAssetId) {
-            const fallback = await tx.asset.findFirst({
-              where: {
-                engagementId: payload.engagementId,
-                canonicalValue: canonicalHost,
-                deletedAt: null,
-              },
-              select: { id: true },
-            });
-            observationAssetId = fallback?.id;
-          }
-          if (observationAssetId) {
-            await writeObservation(tx, {
-              assetId: observationAssetId,
-              scanJobId: payload.scanJobId,
-              scannerName: payload.scannerName,
-              kind: 'DNS_RECORD',
-              payload: {
-                recordType: record.recordType,
-                name: record.assetValue,
-                value: record.value,
-                ttl: record.ttl,
-              },
-            });
-          }
-        }),
-      );
-      dnsRecordsPersisted++;
-    }
-
-    // SubdomainIp joins: for each A/AAAA record whose host is a known Subdomain
-    // and whose IP was just persisted, create the join row.
-    let subdomainIpsPersisted = 0;
-    for (const record of out.dnsRecords) {
-      if (record.recordType !== 'A' && record.recordType !== 'AAAA') continue;
-      const canonicalIp = canonicalize(record.value, { type: 'IP_ADDRESS' });
-      if (!ipAssetIdByValue.has(canonicalIp)) continue;
-
-      const canonicalHost = canonicalize(record.assetValue, { type: 'SUBDOMAIN' });
-
-      await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction(async (tx) => {
-          const subdomain = await tx.subdomain.findFirst({
-            where: { engagementId: payload.engagementId, canonicalValue: canonicalHost },
-            select: { id: true },
-          });
-          if (!subdomain) return;
-
-          const ipAddress = await tx.ipAddress.findFirst({
-            where: { engagementId: payload.engagementId, canonicalValue: canonicalIp },
-            select: { id: true },
-          });
-          if (!ipAddress) return;
-
-          await this.subdomainIpPersister.upsert(subdomain.id, ipAddress.id, tx);
-
-          const subdomainAssetId = assetIdByValue.get(canonicalHost);
-          if (subdomainAssetId) {
-            await writeObservation(tx, {
-              assetId: subdomainAssetId,
-              scanJobId: payload.scanJobId,
-              scannerName: payload.scannerName,
-              kind: 'RESOLVED',
-              payload: { ip: canonicalIp },
-            });
-          }
-        }),
-      );
-      subdomainIpsPersisted++;
-    }
-
-    // Endpoints: persisted after subdomain/IP rows exist so that host-linking
-    // (subdomainId resolution inside EndpointPersister) finds the Subdomain row.
-    let endpointsPersisted = 0;
-    if (out.endpoints?.length > 0) {
-      endpointsPersisted = await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction(async (tx) => {
-          return this.endpointPersister.upsert(
-            out.endpoints,
-            {
-              scanJobId: payload.scanJobId,
-              scannerName: payload.scannerName,
-              target: payload.target,
-              engagementId: payload.engagementId,
-            },
-            tx,
-          );
-        }),
-      );
-    }
-
-    // OSINT entities (emails / org metadata) — independent of host linking.
-    const ctx = {
-      scanJobId: payload.scanJobId,
-      scannerName: payload.scannerName,
-      target: payload.target,
-      engagementId: payload.engagementId,
-    };
-    let emailsPersisted = 0;
-    if (out.emails?.length > 0) {
-      emailsPersisted = await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction((tx) => this.emailPersister.upsert(out.emails, ctx, tx)),
-      );
-    }
-    let identitiesPersisted = 0;
-    if (out.identities?.length > 0) {
-      identitiesPersisted = await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction((tx) => this.identityPersister.upsert(out.identities, ctx, tx)),
-      );
-    }
-    let breachExposuresPersisted = 0;
-    if (out.breachExposures?.length > 0) {
-      breachExposuresPersisted = await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction((tx) =>
-          this.breachExposurePersister.upsert(out.breachExposures, ctx, tx),
-        ),
-      );
-    }
-    let orgMetadataPersisted = 0;
-    if (out.orgMetadata?.length > 0) {
-      orgMetadataPersisted = await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction((tx) =>
-          this.orgMetadataPersister.upsert(out.orgMetadata, ctx, tx),
-        ),
-      );
-    }
-    let tlsCertificatesPersisted = 0;
-    if (out.tlsCertificates?.length > 0) {
-      tlsCertificatesPersisted = await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction((tx) =>
-          this.tlsCertificatePersister.upsert(out.tlsCertificates, ctx, tx),
-        ),
-      );
+      // A new finding changes the risk score, which is asset-service state.
+      await this.assetClient.recomputeRisk(assetId);
+      this.publish(payload.engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, { assetId });
     }
 
     return {
-      assetsPersisted,
-      portsPersisted,
-      servicesPersisted,
+      assetsPersisted: assetBatch.assetsPersisted,
+      portsPersisted: assetBatch.portsPersisted,
+      servicesPersisted: assetBatch.servicesPersisted,
       findingsPersisted,
-      technologiesPersisted,
-      ipAddressesPersisted,
-      dnsRecordsPersisted,
-      subdomainIpsPersisted,
-      endpointsPersisted,
-      emailsPersisted,
-      identitiesPersisted,
-      breachExposuresPersisted,
-      orgMetadataPersisted,
-      tlsCertificatesPersisted,
+      technologiesPersisted: assetBatch.technologiesPersisted,
+      // IP assets are now created by the asset batch like any other type; the separate
+      // counter is kept in the result shape for log/API compatibility.
+      ipAddressesPersisted: 0,
+      dnsRecordsPersisted: discoveryBatch.dnsRecordsPersisted,
+      subdomainIpsPersisted: discoveryBatch.subdomainIpsPersisted,
+      endpointsPersisted: discoveryBatch.endpointsPersisted,
+      emailsPersisted: discoveryBatch.emailsPersisted,
+      identitiesPersisted: discoveryBatch.identitiesPersisted,
+      breachExposuresPersisted: discoveryBatch.breachExposuresPersisted,
+      orgMetadataPersisted: discoveryBatch.orgMetadataPersisted,
+      tlsCertificatesPersisted: discoveryBatch.tlsCertificatesPersisted,
     };
   }
-}
-
-function portKey(p: { assetValue: string; number: number; protocol: string }): string {
-  return `${p.assetValue.toLowerCase()}|${p.number}|${p.protocol}`;
 }
 
 /**

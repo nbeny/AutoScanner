@@ -52,6 +52,9 @@ export const EnvSchema = z.object({
   KAFKA_SASL_USERNAME: z.string().optional(),
   KAFKA_SASL_PASSWORD: z.string().optional(),
 
+  ASSET_SERVICE_URL: z.string().url().default('http://localhost:4010'),
+  DISCOVERY_SERVICE_URL: z.string().url().default('http://localhost:4011'),
+
   S3_ENDPOINT: z.string().url(),
   S3_REGION: z.string(),
   S3_ACCESS_KEY: z.string(),
