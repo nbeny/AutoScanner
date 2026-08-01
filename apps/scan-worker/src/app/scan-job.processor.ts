@@ -2,8 +2,10 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { SecretBox } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
+import { ScanJobDonePublisher } from '@autoscanner/scan-events';
 import {
   DOCKER_RUNNER,
   type DockerRunner,
@@ -55,12 +57,27 @@ export class ScanJobProcessor
     @Inject(LOG_STREAM_PUBLISHER) private readonly logStream: LogStreamPublisher,
     @Inject(SECRET_BOX) private readonly secretBox: SecretBox,
     private readonly scanControlSubscriber: ScanControlSubscriber,
+    private readonly scanJobDone: ScanJobDonePublisher,
   ) {
     super();
   }
 
   async onApplicationBootstrap(): Promise<void> {
     await this.registrar.register(this);
+  }
+
+  /**
+   * Writes a terminal ScanJob status AND publishes the `scanjob:done:<id>` wake-up (SP3), so the
+   * orchestrator/AutoHunt waiters settle on the push instead of their fallback poll. The publish
+   * is internally best-effort; if the DB update itself throws, the caller's `.catch` handles it
+   * and no wake-up is sent (correct — the row isn't terminal).
+   */
+  private async finalizeScanJob(args: {
+    where: Prisma.ScanJobWhereUniqueInput;
+    data: Prisma.ScanJobUpdateInput;
+  }): Promise<void> {
+    await this.prisma.scanJob.update(args);
+    await this.scanJobDone.publishDone(String(args.where.id), String(args.data.status));
   }
 
   async process(
@@ -85,6 +102,9 @@ export class ScanJobProcessor
       this.logger.log(
         `scanJob=${payload.scanJobId} already ${scanJob.status} — skipping (cancelled or already processed)`,
       );
+      // Re-wake any waiter that missed the original push (SP3): a redelivered message for an
+      // already-terminal job must not leave the orchestrator/AutoHunt loop polling.
+      await this.scanJobDone.publishDone(payload.scanJobId, scanJob.status);
       return { rawOutputKey: scanJob.rawOutputKey ?? '', exitCode: 0 };
     }
 
@@ -179,7 +199,7 @@ export class ScanJobProcessor
           const message = eng
             ? `missing ${provider} API credential for engagement owner`
             : `engagement ${payload.engagementId} not found; cannot resolve ${provider} API credential`;
-          await this.prisma.scanJob.update({
+          await this.finalizeScanJob({
             where: { id: payload.scanJobId },
             data: { status: 'FAILED', completedAt: new Date(), errorMessage: message },
           });
@@ -279,7 +299,7 @@ export class ScanJobProcessor
         });
       } catch (err) {
         this.logger.error(`scanJob=${payload.scanJobId} failed: ${(err as Error).message}`);
-        await this.prisma.scanJob.update({
+        await this.finalizeScanJob({
           where: { id: payload.scanJobId },
           data: {
             status: 'FAILED',
@@ -299,22 +319,20 @@ export class ScanJobProcessor
       if (oversized) {
         const streamName = typeof capturedStream === 'string' ? capturedStream : 'output';
         const message = `${streamName} output exceeded ${MAX_RAW_OUTPUT_BYTES} bytes`;
-        await this.prisma.scanJob
-          .update({
-            where: { id: payload.scanJobId },
-            data: {
-              status: 'FAILED',
-              completedAt: new Date(),
-              exitCode: result.exitCode,
-              durationMs: result.durationMs,
-              errorMessage: message,
-            },
-          })
-          .catch((updateErr) => {
-            this.logger.warn(
-              `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
-            );
-          });
+        await this.finalizeScanJob({
+          where: { id: payload.scanJobId },
+          data: {
+            status: 'FAILED',
+            completedAt: new Date(),
+            exitCode: result.exitCode,
+            durationMs: result.durationMs,
+            errorMessage: message,
+          },
+        }).catch((updateErr) => {
+          this.logger.warn(
+            `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
+          );
+        });
         throw new Error(`scanJob=${payload.scanJobId} ${message}`);
       }
 
@@ -337,7 +355,7 @@ export class ScanJobProcessor
           ? files.find((f) => f === fileCapture.path || f.endsWith(fileCapture.path))
           : files[0];
         if (!wanted) {
-          await this.prisma.scanJob.update({
+          await this.finalizeScanJob({
             where: { id: payload.scanJobId },
             data: {
               status: 'FAILED',
@@ -351,7 +369,7 @@ export class ScanJobProcessor
         }
         storeBody = await readFile(join(artifactHostDir, wanted));
         if (storeBody.byteLength > MAX_RAW_OUTPUT_BYTES) {
-          await this.prisma.scanJob.update({
+          await this.finalizeScanJob({
             where: { id: payload.scanJobId },
             data: {
               status: 'FAILED',
@@ -381,22 +399,20 @@ export class ScanJobProcessor
       } catch (err) {
         const message = (err as Error).message;
         this.logger.error(`scanJob=${payload.scanJobId} storage upload failed: ${message}`);
-        await this.prisma.scanJob
-          .update({
-            where: { id: payload.scanJobId },
-            data: {
-              status: 'FAILED',
-              completedAt: new Date(),
-              exitCode: result.exitCode,
-              durationMs: result.durationMs,
-              errorMessage: `storage upload failed: ${message}`,
-            },
-          })
-          .catch((updateErr) => {
-            this.logger.warn(
-              `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
-            );
-          });
+        await this.finalizeScanJob({
+          where: { id: payload.scanJobId },
+          data: {
+            status: 'FAILED',
+            completedAt: new Date(),
+            exitCode: result.exitCode,
+            durationMs: result.durationMs,
+            errorMessage: `storage upload failed: ${message}`,
+          },
+        }).catch((updateErr) => {
+          this.logger.warn(
+            `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
+          );
+        });
         throw err;
       }
 
@@ -427,28 +443,26 @@ export class ScanJobProcessor
         } catch (err) {
           const message = (err as Error).message;
           this.logger.error(`scanJob=${payload.scanJobId} parse enqueue failed: ${message}`);
-          await this.prisma.scanJob
-            .update({
-              where: { id: payload.scanJobId },
-              data: {
-                status: 'FAILED',
-                completedAt: new Date(),
-                exitCode: result.exitCode,
-                durationMs: result.durationMs,
-                rawOutputKey: key,
-                errorMessage: `parse enqueue failed: ${message}`,
-              },
-            })
-            .catch((updateErr) => {
-              this.logger.warn(
-                `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
-              );
-            });
+          await this.finalizeScanJob({
+            where: { id: payload.scanJobId },
+            data: {
+              status: 'FAILED',
+              completedAt: new Date(),
+              exitCode: result.exitCode,
+              durationMs: result.durationMs,
+              rawOutputKey: key,
+              errorMessage: `parse enqueue failed: ${message}`,
+            },
+          }).catch((updateErr) => {
+            this.logger.warn(
+              `scanJob=${payload.scanJobId} FAILED-status reconciliation failed: ${(updateErr as Error).message}`,
+            );
+          });
           throw err;
         }
       }
 
-      await this.prisma.scanJob.update({
+      await this.finalizeScanJob({
         where: { id: payload.scanJobId },
         data: {
           status,

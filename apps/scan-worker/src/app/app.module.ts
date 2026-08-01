@@ -10,6 +10,7 @@ import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { StorageModule } from '@autoscanner/storage';
 import { AllScannersModule } from '@autoscanner/scanners-all';
 import { MessagingModule } from '@autoscanner/messaging';
+import { ScanEventsModule } from '@autoscanner/scan-events';
 
 import { ScanJobProcessor } from './scan-job.processor';
 import { secretBoxProvider } from './secret-box.provider';
@@ -32,6 +33,7 @@ const scanControlSubRedisProvider: Provider = {
     ScannerSdkModule,
     AllScannersModule,
     MessagingModule.forRoot(),
+    ScanEventsModule.forRoot(),
   ],
   providers: [
     ScanJobProcessor,

@@ -24,8 +24,8 @@ import { TemplateRunProcessor } from './template-run.processor';
  * must use a connection separate from any client running commands, hence the
  * private provider here (`LogStreamModule` owns a different pair).
  *
- * Today nothing publishes to `scanjob:done:<id>` — the subscribe is a
- * future-proof hook. Polling is the load-bearing completion strategy. See
+ * Since SP3 scan-worker publishes `scanjob:done:<id>` on every terminal outcome, so this
+ * subscribe drives the primary completion path; the poll is a 30 s fallback. See
  * {@link StepExecutor} for details.
  */
 const redisSubscriber: Provider = {

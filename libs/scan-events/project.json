@@ -1,0 +1,22 @@
+{
+  "name": "scan-events",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scan-events/src",
+  "projectType": "library",
+  "tags": ["scope:lib"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scan-events"],
+      "options": {
+        "jestConfig": "libs/scan-events/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scan-events/tsconfig.lib.json"
+      }
+    }
+  }
+}

@@ -25,6 +25,7 @@ describe('ScanJobProcessor', () => {
   let registry: ScannerRegistry;
   let secretBox: jest.Mocked<SecretBox>;
   let scanControlSubscriber: jest.Mocked<ScanControlSubscriber>;
+  let scanJobDone: { publishDone: jest.Mock };
   let processor: ScanJobProcessor;
 
   beforeEach(() => {
@@ -98,6 +99,8 @@ describe('ScanJobProcessor', () => {
       onModuleInit: jest.fn(),
     } as unknown as jest.Mocked<ScanControlSubscriber>;
 
+    scanJobDone = { publishDone: jest.fn().mockResolvedValue(undefined) };
+
     processor = new ScanJobProcessor(
       prisma,
       registry,
@@ -108,6 +111,7 @@ describe('ScanJobProcessor', () => {
       logStream,
       secretBox,
       scanControlSubscriber,
+      scanJobDone as never,
     );
   });
 
@@ -173,6 +177,8 @@ describe('ScanJobProcessor', () => {
     );
 
     expect(result).toEqual({ rawOutputKey: 'eng_1/scan_1/job_1/nmap-xml.xml', exitCode: 0 });
+    // SP3: the completion wake-up fires so the orchestrator/AutoHunt waiters don't poll.
+    expect(scanJobDone.publishDone).toHaveBeenCalledWith('job_1', 'COMPLETED');
   });
 
   it('marks TIMEOUT and does NOT enqueue parse when runner times out', async () => {
@@ -315,6 +321,8 @@ describe('ScanJobProcessor', () => {
         data: expect.objectContaining({ status: 'FAILED', errorMessage: 'boom' }),
       }),
     );
+    // SP3: a FAILED terminal also wakes the waiters (they re-read Postgres and see FAILED).
+    expect(scanJobDone.publishDone).toHaveBeenCalledWith('job_1', 'FAILED');
   });
 
   it('warns only once per scan-job when log stream publish keeps failing (no flood)', async () => {

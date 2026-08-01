@@ -60,6 +60,8 @@ export const EnvSchema = z.object({
   COMPLIANCE_SERVICE_URL: z.string().url().default('http://localhost:4015'),
   // How often the scheduler runs the engagement-wide correlation sweep (SP2c).
   CORRELATION_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  // Fallback poll for ScanJob completion when the scanjob:done push is missed (SP3).
+  SCANJOB_DONE_FALLBACK_POLL_MS: z.coerce.number().int().positive().default(30_000),
 
   S3_ENDPOINT: z.string().url(),
   S3_REGION: z.string(),
