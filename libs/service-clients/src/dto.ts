@@ -121,7 +121,12 @@ export interface FindingBatchResponse {
   /** Assets touched, so the caller can trigger one risk recompute per asset. */
   affectedAssetIds: string[];
   /** FINDING_RAISED observations for asset-service to write (it owns AssetObservation). */
-  observations: Array<{ assetId: string; kind: string; payload: Record<string, unknown> }>;
+  observations: Array<{
+    assetId: string;
+    findingId?: string;
+    kind: string;
+    payload: Record<string, unknown>;
+  }>;
 }
 
 export interface TriageRequest {

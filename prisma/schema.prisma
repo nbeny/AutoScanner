@@ -121,6 +121,8 @@ model Engagement {
   correlatedFindings CorrelatedFinding[]
   authProfile        EngagementAuthProfile?
   aiRuns             AiRun[]
+  threatIntel        ThreatIntel[]
+  complianceMappings ComplianceMapping[]
 
   @@index([ownerId])
   @@index([status])
@@ -404,6 +406,71 @@ model FindingStatusEvent {
   actor             User              @relation(fields: [actorId], references: [id])
 
   @@index([correlatedFindingId])
+}
+
+// =====================================================================
+// SP2d — THREAT INTELLIGENCE & COMPLIANCE
+// =====================================================================
+
+enum ThreatIntelKind {
+  IP_REPUTATION
+  EXPLOIT_AVAILABLE
+  ACTIVE_EXPLOITATION
+  KEV
+  LEAK
+}
+
+// Reputation / exploitation signal attached to a finding or CVE by threat-intel-service.
+model ThreatIntel {
+  id           String          @id @default(cuid())
+  engagementId String
+  findingId    String?
+  cveId        String?
+  indicator    String
+  kind         ThreatIntelKind
+  source       String
+  severity     Severity
+  payload      Json?
+  observedAt   DateTime        @default(now())
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@unique([engagementId, indicator, source, kind])
+  @@index([engagementId])
+  @@index([cveId])
+  @@index([findingId])
+}
+
+enum ComplianceFramework {
+  OWASP_TOP10
+  MITRE_ATTACK
+  CWE
+  CIS
+  ISO27001
+  PCI_DSS
+  GDPR
+  NIS2
+}
+
+// Control-framework mapping produced by compliance-service for a finding.
+model ComplianceMapping {
+  id                  String              @id @default(cuid())
+  engagementId        String
+  correlatedFindingId String?
+  findingId           String?
+  framework           ComplianceFramework
+  controlId           String
+  controlTitle        String
+  confidence          Float               @default(1)
+  source              String
+  createdAt           DateTime            @default(now())
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@unique([engagementId, findingId, framework, controlId])
+  @@index([engagementId])
+  @@index([correlatedFindingId])
+  @@index([findingId])
 }
 
 // =====================================================================

@@ -7,7 +7,7 @@ function makeHarness() {
   const prisma = {
     $transaction: jest.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
   };
-  const findings = { upsert: jest.fn().mockResolvedValue(undefined) };
+  const findings = { upsert: jest.fn().mockResolvedValue('finding_1') };
   const bus = { publish: jest.fn().mockResolvedValue(undefined) };
   const svc = new FindingBatchService(prisma as never, findings as never, bus as never);
   return { svc, prisma, findings, bus, tx };
@@ -107,6 +107,11 @@ describe('FindingBatchService.persist', () => {
     expect(order[0]).toBe('commit');
     expect(bus.publish).toHaveBeenCalledTimes(3);
     expect(bus.publish.mock.calls[0][0]).toBe('security.finding.created');
+    // SP2d: threat-intel/compliance consumers key rows on these without a lookup.
+    expect(bus.publish.mock.calls[0][2]).toMatchObject({
+      engagementId: 'eng_1',
+      findingId: 'finding_1',
+    });
   });
 
   it('never fails the batch when publishing an event throws', async () => {

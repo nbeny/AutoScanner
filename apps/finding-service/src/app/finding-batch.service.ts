@@ -41,7 +41,7 @@ export class FindingBatchService {
       let findingsPersisted = 0;
 
       for (const item of req.findings) {
-        await this.findings.upsert(
+        const findingId = await this.findings.upsert(
           scanJobId,
           item.assetId,
           {
@@ -61,6 +61,7 @@ export class FindingBatchService {
 
         observations.push({
           assetId: item.assetId,
+          findingId,
           kind: 'FINDING_RAISED',
           payload: {
             title: item.title,
@@ -79,12 +80,16 @@ export class FindingBatchService {
       };
     });
 
-    // Lifecycle events go out only once the batch is durable.
+    // Lifecycle events go out only once the batch is durable. engagementId + findingId are
+    // included so downstream consumers (threat-intel, compliance) can key their rows without a
+    // lookup (SP2d).
     for (const obs of result.observations) {
       try {
         await this.bus.publish(FINDING_CREATED_TOPIC, obs.assetId, {
           scanJobId,
+          engagementId: req.engagementId,
           assetId: obs.assetId,
+          findingId: obs.findingId,
           ...obs.payload,
         });
       } catch (err) {
