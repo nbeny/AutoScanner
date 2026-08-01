@@ -22,10 +22,9 @@ export interface ScanDispatchRedisSubscriber {
 }
 
 /**
- * Builds the Redis pub/sub channel name used to notify completion of a ScanJob.
- * Today nothing publishes to this channel — the subscribe is a future-proof
- * hook. Polling is the load-bearing completion strategy.
+ * The Redis pub/sub channel used to notify completion of a ScanJob. Since SP3 scan-worker
+ * publishes to it on every terminal outcome, so the push is the primary completion path and the
+ * poll is a lost-message fallback. Re-exported from `@autoscanner/scan-events` so producer and
+ * consumers share ONE definition.
  */
-export function scanJobDoneChannel(scanJobId: string): string {
-  return `scanjob:done:${scanJobId}`;
-}
+export { scanJobDoneChannel } from '@autoscanner/scan-events';

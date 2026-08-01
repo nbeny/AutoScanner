@@ -136,6 +136,33 @@ describe('ScanDispatcher', () => {
     expect(results[1].errorMessage).toBe('nope');
   });
 
+  it('settles on the scanjob:done PUSH without waiting for the fallback poll (SP3)', async () => {
+    // A 60s fallback poll would never fire inside this test — so if the dispatch resolves, it
+    // resolved because the push handler drove checkOnce (proving push is the primary path).
+    const h = makeHarness(() => ({ id: 'x', status: 'COMPLETED' }), {});
+    const dispatcher = new ScanDispatcher(
+      h.prisma as never,
+      h.registry as never,
+      h.bus as never,
+      h.subscriber as never,
+      { pollIntervalMs: 60_000 },
+    );
+
+    const pending = dispatcher.dispatchMany([baseItem()]);
+
+    // Let dispatchOne subscribe + create the rows and register its channel handler.
+    await new Promise((r) => setImmediate(r));
+    const messageHandler = h.subscriber.on.mock.calls[0][1] as (ch: string, msg: string) => void;
+    const channel = h.subscriber.subscribe.mock.calls[0][0] as string;
+    expect(channel).toMatch(/^scanjob:done:/);
+
+    // Fire the push scan-worker now sends.
+    messageHandler(channel, JSON.stringify({ scanJobId: 'x', status: 'COMPLETED' }));
+
+    const results = await pending;
+    expect(results[0].status).toBe('COMPLETED');
+  });
+
   it('reconciles both rows to FAILED when enqueue rejects', async () => {
     const h = makeHarness(() => ({ id: 'x', status: 'COMPLETED' }), { enqueueRejects: true });
 

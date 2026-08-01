@@ -17,8 +17,12 @@ import {
 
 const SCANNER_TOPIC = 'security.scanner.requested';
 
-/** Default polling interval (ms) between ScanJob status checks. */
-const DEFAULT_POLL_INTERVAL_MS = 5_000;
+/**
+ * Fallback poll interval (ms). Since SP3 the `scanjob:done` push is the primary completion path;
+ * this poll only catches a lost at-most-once Redis message, so it is a slow safety net (30 s)
+ * rather than the old 5 s hot loop. Overridable via `SCANJOB_DONE_FALLBACK_POLL_MS`.
+ */
+const DEFAULT_FALLBACK_POLL_MS = Number(process.env['SCANJOB_DONE_FALLBACK_POLL_MS']) || 30_000;
 /** Extra time on top of the scanner's docker timeout before we give up. */
 const STEP_TIMEOUT_GRACE_MS = 60_000;
 
@@ -62,7 +66,7 @@ class WaitAbortedError extends Error {
 }
 
 export interface StepExecutorOptions {
-  /** Override polling interval. Defaults to 5_000 ms. */
+  /** Override the fallback poll interval. Defaults to 30 s (SP3); tests inject a small value. */
   pollIntervalMs?: number;
 }
 
@@ -84,11 +88,11 @@ export interface RunStepArgs {
  *
  * **Completion strategy**: we subscribe to the Redis pub/sub channel
  * `scanjob:done:<scanJobId>` AND poll `prisma.scanJob.findUnique` every
- * `pollIntervalMs`. Whichever fires first wins. **Note (Phase 2)**: nothing
- * publishes to `scanjob:done:*` today — the subscribe is a future-proof hook
- * intended for a later push-based completion signal. Polling is the
- * load-bearing path. The polling promise resolves as soon as
- * `scanJob.status` is in `{COMPLETED, FAILED, TIMEOUT, CANCELLED}`.
+ * `pollIntervalMs`. Whichever fires first wins. **Since SP3** scan-worker
+ * publishes `scanjob:done:*` on every terminal outcome, so the push is the
+ * primary path and the poll is a 30 s lost-message fallback (Redis pub/sub is
+ * at-most-once). The wait resolves as soon as `scanJob.status` is in
+ * `{COMPLETED, FAILED, TIMEOUT, CANCELLED}`.
  *
  * **Subscribe-before-create**: the subscribe must complete *before* the row
  * exists so any future publisher emitting between row insert and subscribe
@@ -138,16 +142,15 @@ export class StepExecutor implements OnModuleDestroy {
     private readonly contextBuilder: ContextBuilder,
     @Optional() options?: StepExecutorOptions,
   ) {
-    this.pollIntervalMs = options?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+    this.pollIntervalMs = options?.pollIntervalMs ?? DEFAULT_FALLBACK_POLL_MS;
   }
 
   private bindListenerOnce(): void {
     if (this.listenerBound) return;
     this.listenerBound = true;
     this.redis.on('message', (channel: string) => {
-      // No payload parsing — the future `scanjob:done:<id>` push is just a
-      // wake-up; `checkOnce` always re-reads the authoritative status from
-      // Postgres.
+      // No payload parsing — the `scanjob:done:<id>` push is just a wake-up;
+      // `checkOnce` always re-reads the authoritative status from Postgres.
       this.channelHandlers.get(channel)?.();
     });
   }

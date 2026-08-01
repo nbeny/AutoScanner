@@ -15,8 +15,12 @@ import {
 
 const SCANNER_TOPIC = 'security.scanner.requested';
 
-/** Default polling interval (ms) between ScanJob status checks. */
-const DEFAULT_POLL_INTERVAL_MS = 5_000;
+/**
+ * Fallback poll interval (ms). Since SP3 the `scanjob:done` push is the primary completion path;
+ * this poll only needs to catch a lost at-most-once Redis message, so it is a slow safety net
+ * (30 s) rather than the old 5 s hot loop. Overridable via `SCANJOB_DONE_FALLBACK_POLL_MS`.
+ */
+const DEFAULT_FALLBACK_POLL_MS = Number(process.env['SCANJOB_DONE_FALLBACK_POLL_MS']) || 30_000;
 /** Extra time on top of the scanner's docker timeout before we give up. */
 const DISPATCH_TIMEOUT_GRACE_MS = 60_000;
 
@@ -46,7 +50,7 @@ export interface DispatchResult {
 }
 
 export interface ScanDispatcherOptions {
-  /** Override polling interval. Defaults to 5_000 ms. */
+  /** Override the fallback poll interval. Defaults to 30 s (SP3); tests inject a small value. */
   pollIntervalMs?: number;
 }
 
@@ -65,8 +69,8 @@ export interface ScanDispatcherOptions {
  *
  * **Completion strategy**: subscribe to `scanjob:done:<scanJobId>` AND poll
  * `prisma.scanJob.findUnique` every `pollIntervalMs`. Whichever fires first
- * wins. Nothing publishes to the channel today — the subscribe is a
- * future-proof hook; polling is load-bearing.
+ * wins. Since SP3 scan-worker publishes the channel on every terminal outcome,
+ * so the push is the primary path and the poll is a 30 s lost-message fallback.
  */
 @Injectable()
 export class ScanDispatcher implements OnModuleDestroy {
@@ -85,7 +89,7 @@ export class ScanDispatcher implements OnModuleDestroy {
     private readonly subscriber: ScanDispatchRedisSubscriber,
     @Optional() options?: ScanDispatcherOptions,
   ) {
-    this.pollIntervalMs = options?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+    this.pollIntervalMs = options?.pollIntervalMs ?? DEFAULT_FALLBACK_POLL_MS;
   }
 
   async onModuleDestroy(): Promise<void> {
