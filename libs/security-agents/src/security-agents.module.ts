@@ -4,6 +4,9 @@ import { ClaudeAgentModule, ClaudeAgentService } from '@autoscanner/claude-agent
 import { FindingAnalystAgent } from './agents/finding-analyst.agent';
 import { FalsePositiveAgent } from './agents/false-positive.agent';
 import { RemediationAgent } from './agents/remediation.agent';
+import { TechnologyIdAgent } from './agents/technology-id.agent';
+import { PlannerAgent } from './agents/planner.agent';
+import { AssetDiscoveryAgent } from './agents/asset-discovery.agent';
 
 /**
  * Provides the role-specialised AI agents over the shared Claude bridge (SP4). Each agent is a
@@ -28,7 +31,29 @@ import { RemediationAgent } from './agents/remediation.agent';
       useFactory: (c: ClaudeAgentService) => new RemediationAgent(c),
       inject: [ClaudeAgentService],
     },
+    {
+      provide: TechnologyIdAgent,
+      useFactory: (c: ClaudeAgentService) => new TechnologyIdAgent(c),
+      inject: [ClaudeAgentService],
+    },
+    {
+      provide: PlannerAgent,
+      useFactory: (c: ClaudeAgentService) => new PlannerAgent(c),
+      inject: [ClaudeAgentService],
+    },
+    {
+      provide: AssetDiscoveryAgent,
+      useFactory: (c: ClaudeAgentService) => new AssetDiscoveryAgent(c),
+      inject: [ClaudeAgentService],
+    },
   ],
-  exports: [FindingAnalystAgent, FalsePositiveAgent, RemediationAgent],
+  exports: [
+    FindingAnalystAgent,
+    FalsePositiveAgent,
+    RemediationAgent,
+    TechnologyIdAgent,
+    PlannerAgent,
+    AssetDiscoveryAgent,
+  ],
 })
 export class SecurityAgentsModule {}

@@ -1,4 +1,4 @@
-import type { ZodType } from 'zod';
+import type { ZodType, ZodTypeDef } from 'zod';
 import type { ClaudeAgentService } from '@autoscanner/claude-agent';
 
 export interface AgentResult<Output> {
@@ -17,7 +17,9 @@ export interface AgentResult<Output> {
  */
 export abstract class SecurityAgent<Input, Output> {
   abstract readonly role: string;
-  protected abstract readonly outputSchema: ZodType<Output>;
+  // Input type param left open (`any`) so schemas using `.default()` — whose parsed input differs
+  // from their output — still satisfy the contract; `safeParse().data` is still `Output`.
+  protected abstract readonly outputSchema: ZodType<Output, ZodTypeDef, any>;
   protected abstract buildSystemPrompt(): string;
   protected abstract buildUserPrompt(input: Input): string;
   protected abstract fallback(input: Input): Output;
