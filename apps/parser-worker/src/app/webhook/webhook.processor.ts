@@ -2,10 +2,10 @@ import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs
 import { PrismaService } from '@autoscanner/database';
 import type { WebhookJobPayload } from '@autoscanner/queues';
 import { canonicalize } from '@autoscanner/correlation';
-import { AssetClient } from '@autoscanner/service-clients';
+import { AssetClient, FindingClient } from '@autoscanner/service-clients';
+import type { FindingBatchItem } from '@autoscanner/service-clients';
 import { ConsumerRegistrar, MessageConsumer, type MessageContext } from '@autoscanner/messaging';
 
-import { FindingPersister } from '../persisters/finding-persister';
 import { normalizeWebhook, WebhookNormalizationError } from './webhook-normalizer';
 
 /** Matches a bare IPv4 address (e.g. "192.168.1.1" or "10.0.0.5"). */
@@ -27,7 +27,7 @@ export class WebhookProcessor
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly findingPersister: FindingPersister,
+    private readonly findingClient: FindingClient,
     private readonly assetClient: AssetClient,
     @Inject(ConsumerRegistrar) private readonly registrar: ConsumerRegistrar,
   ) {
@@ -165,6 +165,9 @@ export class WebhookProcessor
       technologies: [],
     });
 
+    // finding-service owns the writes (SP2a). Resolve each finding to the asset id the
+    // batch just returned; skip — never mis-attribute — anything asset-service didn't create.
+    const batchItems: FindingBatchItem[] = [];
     for (const finding of batch.findings) {
       const { assetValue } = finding;
       const type = IPV4_RE.test(assetValue) ? 'IP_ADDRESS' : 'DOMAIN';
@@ -177,24 +180,46 @@ export class WebhookProcessor
         );
         continue;
       }
-      const asset = { id: assetId };
 
-      // Persist the finding via FindingPersister (handles dedup hash)
-      await this.findingPersister.upsert(
-        scanJob.id,
-        asset.id,
-        {
-          scannerName: finding.scannerName,
-          title: finding.title,
-          severity: finding.severity,
-          location: finding.location,
-          cveId: finding.cveId,
-          evidence: finding.evidence,
-        },
-        canonicalValue,
-      );
+      batchItems.push({
+        assetId,
+        assetCanonical: canonicalValue,
+        scannerName: finding.scannerName,
+        title: finding.title,
+        severity: finding.severity,
+        location: finding.location,
+        cveId: finding.cveId,
+        evidence: finding.evidence as Record<string, unknown> | undefined,
+      });
+    }
 
-      findingsPersisted++;
+    if (batchItems.length > 0) {
+      const findingBatch = await this.findingClient.batch({
+        engagementId: batch.engagementId,
+        scanJobId: scanJob.id,
+        scannerName: `webhook:${event.source}`,
+        findings: batchItems,
+      });
+      findingsPersisted = findingBatch.findingsPersisted;
+
+      // FINDING_RAISED observations are asset-service's to write.
+      if (findingBatch.observations.length > 0) {
+        await this.assetClient.parseBatch({
+          engagementId: batch.engagementId,
+          scanJobId: scanJob.id,
+          scannerName: `webhook:${event.source}`,
+          assets: [],
+          ports: [],
+          services: [],
+          technologies: [],
+          extraObservations: findingBatch.observations.map((o) => ({
+            assetValue: '',
+            assetId: o.assetId,
+            kind: o.kind,
+            payload: o.payload,
+          })) as never,
+        });
+      }
     }
 
     // -----------------------------------------------------------------------

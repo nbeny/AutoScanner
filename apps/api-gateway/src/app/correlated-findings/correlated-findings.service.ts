@@ -3,6 +3,7 @@ import type { Severity } from '@prisma/client';
 import { NotFoundError } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import { clusterWeight } from '@autoscanner/correlation';
+import { FindingClient } from '@autoscanner/service-clients';
 import { CorrelatedFindingObject } from './dto/correlated-finding.object';
 import { CorrelatedFindingDetailObject } from './dto/correlated-finding-detail.object';
 import { FindingStatus } from './dto/finding-status.enum';
@@ -26,7 +27,10 @@ type CorrelatedFindingRow = {
 
 @Injectable()
 export class CorrelatedFindingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly findingClient: FindingClient,
+  ) {}
 
   private async assertEngagementOwned(userId: string, engagementId: string): Promise<void> {
     const engagement = await this.prisma.engagement.findFirst({
@@ -152,28 +156,25 @@ export class CorrelatedFindingsService {
   ): Promise<CorrelatedFindingObject> {
     const cluster = await this.prisma.correlatedFinding.findUnique({
       where: { id },
-      select: { engagementId: true, status: true },
+      select: { engagementId: true },
     });
     if (!cluster) throw new NotFoundError('CorrelatedFinding', id);
 
+    // Authorization stays here (api-gateway owns the request/user context); the write itself
+    // is delegated to finding-service, the single writer of CorrelatedFinding.status. It
+    // records the fromStatus and the FindingStatusEvent audit row inside one transaction.
     await this.assertEngagementOwned(userId, cluster.engagementId);
 
-    const updated = (await this.prisma.$transaction(async (tx) => {
-      const row = await tx.correlatedFinding.update({
-        where: { id },
-        data: { status },
-        include: { findings: { select: { scanJob: { select: { scannerName: true } } } } },
-      });
-      await tx.findingStatusEvent.create({
-        data: {
-          correlatedFindingId: id,
-          fromStatus: cluster.status,
-          toStatus: status,
-          actorId: userId,
-          note: note ?? null,
-        },
-      });
-      return row;
+    await this.findingClient.setStatus({
+      correlatedFindingId: id,
+      status,
+      actorId: userId,
+      note: note ?? undefined,
+    });
+
+    const updated = (await this.prisma.correlatedFinding.findUnique({
+      where: { id },
+      include: { findings: { select: { scanJob: { select: { scannerName: true } } } } },
     })) as CorrelatedFindingRow;
 
     return this.mapRow(updated, this.scoreForRow(updated));
@@ -191,9 +192,12 @@ export class CorrelatedFindingsService {
     if (!cluster) throw new NotFoundError('CorrelatedFinding', id);
     await this.assertEngagementOwned(userId, cluster.engagementId);
 
-    const updated = (await this.prisma.correlatedFinding.update({
+    // The write goes through finding-service — the single writer of CorrelatedFinding — even
+    // for operator annotations; api-gateway only owns the authorization above.
+    await this.findingClient.annotate({ correlatedFindingId: id, ...data });
+
+    const updated = (await this.prisma.correlatedFinding.findUnique({
       where: { id },
-      data,
       include: { findings: { select: { scanJob: { select: { scannerName: true } } } } },
     })) as CorrelatedFindingRow;
 

@@ -11,6 +11,7 @@ import { FindingBatchService } from './finding-batch.service';
 import { CorrelationService } from './correlation.service';
 import { DedupFindingsService } from './dedup-findings.service';
 import { TriageService } from './triage.service';
+import { AnnotationService } from './annotation.service';
 
 @Module({
   imports: [AppConfigModule, AppLoggingModule, PrismaModule, MessagingModule.forRoot()],
@@ -21,6 +22,7 @@ import { TriageService } from './triage.service';
     CorrelationService,
     DedupFindingsService,
     TriageService,
+    AnnotationService,
   ],
 })
 export class AppModule {}

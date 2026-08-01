@@ -168,7 +168,9 @@ export class ParseBatchService {
       // AssetObservation is asset-owned, so DNS-record and subdomain<->IP observations are
       // written here rather than by discovery-service, keeping a single writer per table.
       for (const obs of req.extraObservations ?? []) {
-        const assetId = assetIdByValue.get(obs.assetValue.toLowerCase());
+        // Callers that already hold the id (finding-service) pass it directly; parser-side
+        // entities are still resolved through the canonical-value map built above.
+        const assetId = obs.assetId ?? assetIdByValue.get((obs.assetValue ?? '').toLowerCase());
         if (!assetId) continue;
         await writeObservation(tx, {
           assetId,

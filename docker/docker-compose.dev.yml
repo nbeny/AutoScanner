@@ -135,6 +135,7 @@ services:
       KAFKA_BROKERS: redpanda:9092
       ASSET_SERVICE_URL: http://asset-service:4010
       DISCOVERY_SERVICE_URL: http://discovery-service:4011
+      FINDING_SERVICE_URL: http://finding-service:4012
     # Apply migrations, then boot the API.
     command: sh -c "pnpm prisma migrate deploy && node dist/apps/api-gateway/main.js"
     ports:
@@ -201,6 +202,32 @@ services:
     command: node dist/apps/discovery-service/main.js
     ports:
       - '4011:4011'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+
+  finding-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+      args:
+        APP: finding-service
+    container_name: autoscanner-finding-service
+    profiles: ['app']
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: '4012'
+      DATABASE_URL: postgresql://autoscanner:dev@postgres:5432/autoscanner
+      REDIS_URL: redis://redis:6379
+      # finding-service publishes security.finding.created after each batch commits.
+      KAFKA_BROKERS: redpanda:9092
+    command: node dist/apps/finding-service/main.js
+    ports:
+      - '4012:4012'
     depends_on:
       postgres:
         condition: service_healthy

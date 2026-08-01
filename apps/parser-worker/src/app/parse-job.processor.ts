@@ -12,7 +12,8 @@ import type {
 } from '@autoscanner/queues';
 import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
 import { PrismaService } from '@autoscanner/database';
-import { AssetClient, DiscoveryClient } from '@autoscanner/service-clients';
+import { AssetClient, DiscoveryClient, FindingClient } from '@autoscanner/service-clients';
+import type { FindingBatchItem } from '@autoscanner/service-clients';
 import {
   ConsumerRegistrar,
   JOB_BUS,
@@ -30,14 +31,7 @@ const PARSE_TOPIC = 'security.parse.requested';
 const CVE_ENRICH_TOPIC = 'security.cve.enrich.requested';
 const CVE_DISCOVERY_TOPIC = 'security.cve.discovery.requested';
 
-import {
-  AssetMergeService,
-  CorrelateFindingsService,
-  canonicalize,
-  writeObservation,
-} from '@autoscanner/correlation';
-import { Prisma } from '@prisma/client';
-import { FindingPersister } from './persisters/finding-persister';
+import { canonicalize } from '@autoscanner/correlation';
 
 export interface ParseJobResult {
   assetsPersisted: number;
@@ -68,12 +62,10 @@ export class ParseJobProcessor
   constructor(
     private readonly registry: ParserRegistry,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
-    private readonly assetMerge: AssetMergeService,
-    private readonly correlateFindings: CorrelateFindingsService,
-    private readonly findingPersister: FindingPersister,
     private readonly prisma: PrismaService,
     private readonly assetClient: AssetClient,
     private readonly discoveryClient: DiscoveryClient,
+    private readonly findingClient: FindingClient,
     @Inject(JOB_BUS) private readonly bus: JobBus,
     @Inject(ENGAGEMENT_EVENTS_PUBLISHER)
     private readonly events: EngagementEventsPublisher,
@@ -225,9 +217,7 @@ export class ParseJobProcessor
     await this.runMergePass('IpAddress rows', () =>
       this.discoveryClient.mergeIpAddresses(payload.engagementId),
     );
-    await this.runMergePass('Finding rows', () =>
-      this.assetMerge.dedupFindings(payload.engagementId),
-    );
+    await this.runMergePass('Finding rows', () => this.findingClient.dedup(payload.engagementId));
 
     // Correlation v2: structural-hash clustering. Groups findings by CVE /
     // category / raw-scanner bucket across scanner sources and upserts
@@ -282,7 +272,7 @@ export class ParseJobProcessor
     onSuccess: (clusters: number) => void,
   ): Promise<void> {
     try {
-      const { clusters } = await this.correlateFindings.correlateFindings(engagementId);
+      const { clusters } = await this.findingClient.correlate(engagementId);
       if (clusters > 0) {
         this.logger.log(`correlated ${clusters} clusters`);
       }
@@ -351,23 +341,6 @@ export class ParseJobProcessor
       this.logger.warn(
         `observation volume check failed for scanJob=${scanJobId}: ${err instanceof Error ? err.message : String(err)}`,
       );
-    }
-  }
-
-  private async withRetryOnSerializationConflict<T>(fn: () => Promise<T>): Promise<T> {
-    try {
-      return await fn();
-    } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034') {
-        this.logger.warn('P2034 serialization conflict; retrying once');
-        return await fn();
-      }
-      // P2002 (unique constraint) can occur when concurrent workers race on the
-      // same asset. Retry once so the loser can fall back to the update branch.
-      if ((err as { code?: string }).code === 'P2002') {
-        return await fn();
-      }
-      throw err;
     }
   }
 
@@ -465,12 +438,12 @@ export class ParseJobProcessor
       });
     }
 
-    // --- Findings (still owned by parser-worker until SP2) ---------------------
-    let findingsPersisted = 0;
+    // --- Findings ------------------------------------------------------------
+    // finding-service owns the writes (SP2a). Resolution order is unchanged: the id map the
+    // asset batch returned, then a DB lookup for assets persisted by an earlier parse job.
+    // No "pick any asset" fallback — mis-attributing a finding corrupts per-asset rollups.
+    const batchItems: FindingBatchItem[] = [];
     for (const finding of out.findings) {
-      // Resolution order: the id map returned by the asset batch, then a DB lookup for
-      // assets persisted by an earlier parse job in this engagement. No "pick any asset"
-      // fallback: mis-attributing a finding corrupts per-asset rollups downstream.
       const canonicalHost = urlToCanonicalHost(finding.location);
       let assetId: string | undefined;
       if (canonicalHost) {
@@ -493,41 +466,64 @@ export class ParseJobProcessor
         );
         continue;
       }
-      await this.withRetryOnSerializationConflict(() =>
-        this.prisma.$transaction(async (tx) => {
-          await this.findingPersister.upsert(
-            payload.scanJobId,
-            assetId!,
-            finding,
-            canonicalHost ?? '',
-            tx,
-          );
-          await writeObservation(tx, {
-            assetId: assetId!,
-            scanJobId: payload.scanJobId,
-            scannerName: payload.scannerName,
-            kind: 'FINDING_RAISED',
-            payload: {
-              title: finding.title,
-              severity: finding.severity,
-              cveId: finding.cveId,
-              templateId: finding.templateId,
-              location: finding.location,
-            },
-          });
-        }),
-      );
-      findingsPersisted++;
-      this.publish(payload.engagementId, EngagementUpdateKind.FINDING_RAISED, {
+      batchItems.push({
         assetId,
-        severity: finding.severity,
+        assetCanonical: canonicalHost ?? '',
+        scannerName: payload.scannerName,
         title: finding.title,
+        severity: finding.severity,
+        location: finding.location,
+        cveId: finding.cveId,
+        templateId: finding.templateId,
+        evidence: finding.evidence as Record<string, unknown> | undefined,
       });
-      this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, { assetId });
-      // A new finding changes the risk score, which is asset-service state.
-      await this.assetClient.recomputeRisk(assetId);
-      this.publish(payload.engagementId, EngagementUpdateKind.ASSET_RISK_CHANGED, { assetId });
     }
+
+    let findingsPersisted = 0;
+    if (batchItems.length > 0) {
+      const findingBatch = await this.findingClient.batch({
+        engagementId: payload.engagementId,
+        scanJobId: payload.scanJobId,
+        scannerName: payload.scannerName,
+        findings: batchItems,
+      });
+      findingsPersisted = findingBatch.findingsPersisted;
+
+      // FINDING_RAISED observations come back rather than being written by finding-service:
+      // AssetObservation belongs to asset-service, so its owner writes them.
+      if (findingBatch.observations.length > 0) {
+        await this.assetClient.parseBatch({
+          engagementId: payload.engagementId,
+          scanJobId: payload.scanJobId,
+          scannerName: payload.scannerName,
+          assets: [],
+          ports: [],
+          services: [],
+          technologies: [],
+          extraObservations: findingBatch.observations.map((o) => ({
+            assetValue: '',
+            assetId: o.assetId,
+            kind: o.kind,
+            payload: o.payload,
+          })) as never,
+        });
+      }
+
+      for (const item of batchItems) {
+        this.publish(payload.engagementId, EngagementUpdateKind.FINDING_RAISED, {
+          assetId: item.assetId,
+          severity: item.severity,
+          title: item.title,
+        });
+        this.publish(payload.engagementId, EngagementUpdateKind.OBSERVATION_ADDED, {
+          assetId: item.assetId,
+        });
+      }
+    }
+    // Defect 2 (SP2 spec §2.4.2): the per-finding risk recompute used to run here, uncaught,
+    // so a risk-service blip aborted the parse job midway with findings already committed.
+    // It is gone — `runRiskRecomputePass` after the correlate pass already recomputes every
+    // asset that has findings, and it is best-effort like the other passes.
 
     return {
       assetsPersisted: assetBatch.assetsPersisted,

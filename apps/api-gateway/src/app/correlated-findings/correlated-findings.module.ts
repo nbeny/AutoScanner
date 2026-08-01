@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { FindingClient } from '@autoscanner/service-clients';
 import { AuthModule } from '../auth/auth.module';
 import {
   CorrelatedFindingFieldResolver,
@@ -14,6 +15,7 @@ import './dto/finding-status.enum';
     CorrelatedFindingsService,
     CorrelatedFindingsResolver,
     CorrelatedFindingFieldResolver,
+    FindingClient,
   ],
 })
 export class CorrelatedFindingsModule {}

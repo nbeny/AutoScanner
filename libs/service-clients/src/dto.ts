@@ -19,7 +19,10 @@ export interface ParseBatchRequest {
    * single-writer table without losing the rows the pre-split parser wrote.
    */
   extraObservations?: Array<{
-    assetValue: string;
+    /** Resolve by canonical value (parser-side entities)… */
+    assetValue?: string;
+    /** …or by id when the caller already has it (finding-service returns ids). */
+    assetId?: string;
     kind: string;
     payload?: Record<string, unknown>;
   }>;
@@ -126,4 +129,11 @@ export interface TriageRequest {
   status: string;
   actorId: string;
   note?: string;
+}
+
+/** Operator annotation of a cluster (note / remediation). No status change, no audit event. */
+export interface AnnotationRequest {
+  correlatedFindingId: string;
+  note?: string | null;
+  remediation?: string | null;
 }
