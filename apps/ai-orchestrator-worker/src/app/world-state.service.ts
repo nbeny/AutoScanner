@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '@autoscanner/database';
+import { canonicalize } from '@autoscanner/correlation';
 
 /**
  * The distilled, per-target picture of everything discovered so far in an AI
@@ -16,6 +17,11 @@ export interface WorldState {
   endpoints: string[];
   findings: { title: string; severity: string }[];
   scannersRun: string[];
+}
+
+/** A bare IPv4/IPv6 literal canonicalises as an IP; anything else as a hostname. */
+function inferAssetType(target: string): 'IP_ADDRESS' | 'SUBDOMAIN' {
+  return /^[0-9.]+$/.test(target) || target.includes(':') ? 'IP_ADDRESS' : 'SUBDOMAIN';
 }
 
 @Injectable()
@@ -39,8 +45,16 @@ export class WorldStateService {
         where: { scanJob: { scan: { aiRunId } } },
         select: { title: true, severity: true },
       }),
+      // Match the canonical form, not the raw value: every writer stores `canonicalValue`
+      // (that is what the partial unique index is on), so a raw match silently missed
+      // assets whose value differs in case/IDN/IPv6 form. Soft-deleted rows are excluded
+      // for the same reason every other read path excludes them.
       this.prisma.asset.findFirst({
-        where: { engagementId, value: target },
+        where: {
+          engagementId,
+          canonicalValue: canonicalize(target, { type: inferAssetType(target) }),
+          deletedAt: null,
+        },
         select: { id: true },
       }),
       this.prisma.endpoint.findMany({

@@ -95,7 +95,11 @@ describe('ParseJobProcessor', () => {
   let busMock: { publish: jest.Mock };
   let eventsMock: { publish: jest.Mock };
   let assetClient: { parseBatch: jest.Mock; recomputeRisk: jest.Mock };
-  let discoveryClient: { parseBatch: jest.Mock };
+  let discoveryClient: {
+    parseBatch: jest.Mock;
+    mergeSubdomains: jest.Mock;
+    mergeIpAddresses: jest.Mock;
+  };
 
   beforeEach(() => {
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
@@ -125,8 +129,6 @@ describe('ParseJobProcessor', () => {
     registry.register(new NucleiJsonParser());
 
     assetMerge = new AssetMergeService(prisma as never);
-    jest.spyOn(assetMerge, 'mergeSubdomains').mockResolvedValue({ merged: 0 });
-    jest.spyOn(assetMerge, 'mergeIpAddresses').mockResolvedValue({ merged: 0 });
     jest.spyOn(assetMerge, 'dedupFindings').mockResolvedValue({ merged: 0 });
 
     correlateFindingsSvc = new CorrelateFindingsService(prisma as never);
@@ -138,7 +140,11 @@ describe('ParseJobProcessor', () => {
       parseBatch: jest.fn().mockResolvedValue(assetBatchResponse({ '10.0.0.5': 'asset_ip' })),
       recomputeRisk: jest.fn().mockResolvedValue(undefined),
     };
-    discoveryClient = { parseBatch: jest.fn().mockResolvedValue(discoveryBatchResponse()) };
+    discoveryClient = {
+      parseBatch: jest.fn().mockResolvedValue(discoveryBatchResponse()),
+      mergeSubdomains: jest.fn().mockResolvedValue({ merged: 0 }),
+      mergeIpAddresses: jest.fn().mockResolvedValue({ merged: 0 }),
+    };
 
     processor = new ParseJobProcessor(
       registry,
@@ -275,13 +281,14 @@ describe('ParseJobProcessor', () => {
   // ─── correlation passes ────────────────────────────────────────────────────
 
   describe('correlation passes after persist', () => {
-    it('runs mergeSubdomains for the engagement', async () => {
+    it('runs the subdomain/IP merges through discovery-service', async () => {
       await processor.process(job(payload));
-      expect(assetMerge.mergeSubdomains).toHaveBeenCalledWith('eng_1');
+      expect(discoveryClient.mergeSubdomains).toHaveBeenCalledWith('eng_1');
+      expect(discoveryClient.mergeIpAddresses).toHaveBeenCalledWith('eng_1');
     });
 
     it('does not rethrow when a correlation pass fails — persistence already succeeded', async () => {
-      (assetMerge.mergeSubdomains as jest.Mock).mockRejectedValue(new Error('merge boom'));
+      discoveryClient.mergeSubdomains.mockRejectedValue(new Error('merge boom'));
       (correlateFindingsSvc.correlateFindings as jest.Mock).mockRejectedValue(
         new Error('corr boom'),
       );

@@ -217,11 +217,13 @@ export class ParseJobProcessor
     // if a pass fails. Unique constraints prevent the duplicates these target
     // today; they will become load-bearing in Phase 3+. Run them in declared
     // order: Subdomain merge, IP merge, cross-asset Finding dedup.
+    // Subdomain/IpAddress dedup is discovery-row hygiene and now runs in discovery-service,
+    // which owns those rows (and can repoint the Asset pivot FKs atomically with the delete).
     await this.runMergePass('subdomains', () =>
-      this.assetMerge.mergeSubdomains(payload.engagementId),
+      this.discoveryClient.mergeSubdomains(payload.engagementId),
     );
     await this.runMergePass('IpAddress rows', () =>
-      this.assetMerge.mergeIpAddresses(payload.engagementId),
+      this.discoveryClient.mergeIpAddresses(payload.engagementId),
     );
     await this.runMergePass('Finding rows', () =>
       this.assetMerge.dedupFindings(payload.engagementId),

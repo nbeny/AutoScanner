@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@autoscanner/database';
+import { canonicalize } from '@autoscanner/correlation';
 import type { ResolvableEntities } from '@autoscanner/chain-engine';
 
 /**
@@ -19,7 +20,10 @@ export class ResolvableEntitiesLoader {
         where: { engagementId },
         select: { canonicalValue: true, httpStatus: true },
       }),
-      this.prisma.ipAddress.findMany({ where: { engagementId }, select: { value: true } }),
+      this.prisma.ipAddress.findMany({
+        where: { engagementId },
+        select: { value: true, canonicalValue: true },
+      }),
       this.prisma.endpoint.findMany({
         where: { engagementId },
         select: { canonicalUrl: true, statusCode: true },
@@ -32,24 +36,36 @@ export class ResolvableEntitiesLoader {
     const assets =
       ipValues.length > 0
         ? await this.prisma.asset.findMany({
-            where: { engagementId, value: { in: ipValues } },
-            select: { value: true, technologies: { select: { name: true, categories: true } } },
+            // Canonical match + live rows only, mirroring every other asset read path.
+            where: {
+              engagementId,
+              canonicalValue: { in: ipValues.map((v) => canonicalize(v, { type: 'IP_ADDRESS' })) },
+              deletedAt: null,
+            },
+            select: {
+              value: true,
+              canonicalValue: true,
+              technologies: { select: { name: true, categories: true } },
+            },
           })
         : [];
+    // Keyed canonically on BOTH sides: raw `value` can differ in case or IPv6 form.
     const cdnByValue = new Map<string, boolean>();
     for (const a of assets) {
       const behind = a.technologies.some(
         (t) =>
           t.categories.includes('cdn') || t.name.startsWith('CDN:') || t.name.startsWith('cloud:'),
       );
-      cdnByValue.set(a.value, behind);
+      cdnByValue.set(a.canonicalValue, behind);
     }
 
     return {
       subdomains: subs.map((s) => ({ canonicalValue: s.canonicalValue, httpStatus: s.httpStatus })),
       ipAddresses: ips.map((i) => ({
         value: i.value,
-        cdn: cdnByValue.has(i.value) ? { behind: cdnByValue.get(i.value)! } : undefined,
+        cdn: cdnByValue.has(i.canonicalValue)
+          ? { behind: cdnByValue.get(i.canonicalValue)! }
+          : undefined,
       })),
       urls: endpoints.map((e) => ({ canonicalUrl: e.canonicalUrl, statusCode: e.statusCode })),
       endpoints: endpoints.map((e) => ({ canonicalUrl: e.canonicalUrl, statusCode: e.statusCode })),
