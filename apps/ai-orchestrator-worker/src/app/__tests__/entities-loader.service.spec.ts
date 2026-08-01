@@ -6,7 +6,10 @@ function makePrisma(over: Record<string, unknown> = {}) {
       findMany: jest.fn().mockResolvedValue([{ canonicalValue: 'www.x.com', httpStatus: 200 }]),
     },
     ipAddress: {
-      findMany: jest.fn().mockResolvedValue([{ value: '1.1.1.1' }, { value: '2.2.2.2' }]),
+      findMany: jest.fn().mockResolvedValue([
+        { value: '1.1.1.1', canonicalValue: '1.1.1.1' },
+        { value: '2.2.2.2', canonicalValue: '2.2.2.2' },
+      ]),
     },
     endpoint: {
       findMany: jest.fn().mockResolvedValue([{ canonicalUrl: 'https://x.com/a', statusCode: 200 }]),
@@ -14,8 +17,16 @@ function makePrisma(over: Record<string, unknown> = {}) {
     email: { findMany: jest.fn().mockResolvedValue([{ address: 'a@x.com' }]) },
     asset: {
       findMany: jest.fn().mockResolvedValue([
-        { value: '1.1.1.1', technologies: [{ name: 'CDN: cloudflare', categories: ['cdn'] }] },
-        { value: '2.2.2.2', technologies: [{ name: 'nginx', categories: [] }] },
+        {
+          value: '1.1.1.1',
+          canonicalValue: '1.1.1.1',
+          technologies: [{ name: 'CDN: cloudflare', categories: ['cdn'] }],
+        },
+        {
+          value: '2.2.2.2',
+          canonicalValue: '2.2.2.2',
+          technologies: [{ name: 'nginx', categories: [] }],
+        },
       ]),
     },
     ...over,
