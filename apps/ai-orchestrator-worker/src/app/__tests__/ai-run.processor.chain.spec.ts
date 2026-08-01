@@ -62,6 +62,7 @@ describe('AiRunProcessor chain flow', () => {
       events,
       claudeDecider,
       chainDecider,
+      { enrich: jest.fn().mockResolvedValue({ findings: [] }) } as never,
       { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
     await proc.process({

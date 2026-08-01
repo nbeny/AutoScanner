@@ -117,6 +117,7 @@ describe('AiRunProcessor (AI run — ClaudeDecider path)', () => {
       events,
       claudeDecider,
       noopChainDecider,
+      { enrich: jest.fn().mockResolvedValue({ findings: [] }) } as never,
       { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
 
@@ -179,6 +180,7 @@ describe('AiRunProcessor (AI run — ClaudeDecider path)', () => {
       events,
       claudeDecider,
       noopChainDecider,
+      { enrich: jest.fn().mockResolvedValue({ findings: [] }) } as never,
       { register: jest.fn() } as unknown as ConsumerRegistrar,
     );
 

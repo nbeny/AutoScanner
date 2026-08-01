@@ -8,6 +8,7 @@ import { PrismaModule } from '@autoscanner/database';
 import { ScannerSdkModule } from '@autoscanner/scanner-sdk';
 import { AllScannersModule } from '@autoscanner/scanners-all';
 import { ClaudeAgentModule } from '@autoscanner/claude-agent';
+import { SecurityAgentsModule } from '@autoscanner/security-agents';
 import {
   ScanDispatcher,
   SCAN_DISPATCH_REDIS_SUBSCRIBER,
@@ -22,6 +23,7 @@ import { WorldStateService } from './world-state.service';
 import { ResolvableEntitiesLoader } from './entities-loader.service';
 import { ClaudeDecider } from './claude-decider';
 import { ChainDecider } from './chain-decider';
+import { FindingEnrichmentService } from './finding-enrichment.service';
 
 /**
  * Dedicated Redis subscriber client for the {@link ScanDispatcher}. A pub/sub
@@ -56,12 +58,14 @@ const aiRunEventsRedis: Provider = {
     ScannerSdkModule,
     AllScannersModule,
     ClaudeAgentModule,
+    SecurityAgentsModule,
     EngagementEventsModule.forRoot(),
     ChainsModule,
   ],
   providers: [
     scanDispatchRedisSubscriber,
     aiRunEventsRedis,
+    FindingEnrichmentService,
     // Provided directly here (not via ScanDispatchModule) so ScanDispatcher can
     // resolve the app-scoped SCAN_DISPATCH_REDIS_SUBSCRIBER token — a module
     // provider is otherwise invisible to the encapsulated ScanDispatchModule.

@@ -1238,6 +1238,8 @@ model AiRun {
   degraded     Boolean       @default(false)
   chainName    String?
   auditText    String?
+  // Per-finding AI enrichment (SP4c): analyst impact/priority/action + confidence + remediation.
+  analysisJson Json?
   errorMessage String?
   startedAt    DateTime?
   completedAt  DateTime?
@@ -1281,6 +1283,8 @@ model AiDecision {
   worldStateSnapshot Json
   responseJson       Json
   degraded           Boolean  @default(false)
+  // Which fleet agent produced this decision (SP4c): 'planner' (AI), 'chain' (deterministic).
+  agentRole          String?
   createdAt          DateTime @default(now())
 
   aiRun AiRun @relation(fields: [aiRunId], references: [id], onDelete: Cascade)
