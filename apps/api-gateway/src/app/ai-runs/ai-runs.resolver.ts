@@ -18,6 +18,7 @@ import { RunAiScanInput } from './dto/run-ai-scan.input';
 import { AiRunObject } from './dto/ai-run.object';
 import { AiRunNodeObject } from './dto/ai-run-node.object';
 import { AiDecisionObject } from './dto/ai-decision.object';
+import { AiFindingAnalysisObject } from './dto/ai-finding-analysis.object';
 import { AiRunEventObject } from './dto/ai-run-event.object';
 import { AiRunsService } from './ai-runs.service';
 import { AiRunEventsSubscriber, type AiRunEventMessage } from './ai-run-events.subscriber';
@@ -67,6 +68,14 @@ export class AiRunsResolver {
   @ResolveField(() => [AiDecisionObject])
   decisions(@Parent() run: AiRunObject): Promise<AiDecisionObject[]> {
     return this.svc.decisionsFor(run.id) as Promise<AiDecisionObject[]>;
+  }
+
+  /** The AI fleet's per-finding analysis (SP4c), read from `AiRun.analysisJson.findings`. */
+  @ResolveField(() => [AiFindingAnalysisObject])
+  analysis(@Parent() run: AiRunObject): AiFindingAnalysisObject[] {
+    const raw = (run as unknown as { analysisJson?: { findings?: unknown[] } | null }).analysisJson;
+    const findings = Array.isArray(raw?.findings) ? raw.findings : [];
+    return findings as AiFindingAnalysisObject[];
   }
 
   @Subscription(() => AiRunEventObject, {
