@@ -8,4 +8,10 @@ export { RemediationAgent } from './agents/remediation.agent';
 export { TechnologyIdAgent } from './agents/technology-id.agent';
 export { PlannerAgent } from './agents/planner.agent';
 export { AssetDiscoveryAgent } from './agents/asset-discovery.agent';
+export {
+  SecurityCopilotAgent,
+  CopilotOutputSchema,
+  type CopilotInput,
+  type CopilotOutput,
+} from './agents/copilot.agent';
 export { SecurityAgentsModule } from './security-agents.module';

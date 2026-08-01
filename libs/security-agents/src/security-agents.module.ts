@@ -7,6 +7,7 @@ import { RemediationAgent } from './agents/remediation.agent';
 import { TechnologyIdAgent } from './agents/technology-id.agent';
 import { PlannerAgent } from './agents/planner.agent';
 import { AssetDiscoveryAgent } from './agents/asset-discovery.agent';
+import { SecurityCopilotAgent } from './agents/copilot.agent';
 
 /**
  * Provides the role-specialised AI agents over the shared Claude bridge (SP4). Each agent is a
@@ -46,6 +47,11 @@ import { AssetDiscoveryAgent } from './agents/asset-discovery.agent';
       useFactory: (c: ClaudeAgentService) => new AssetDiscoveryAgent(c),
       inject: [ClaudeAgentService],
     },
+    {
+      provide: SecurityCopilotAgent,
+      useFactory: (c: ClaudeAgentService) => new SecurityCopilotAgent(c),
+      inject: [ClaudeAgentService],
+    },
   ],
   exports: [
     FindingAnalystAgent,
@@ -54,6 +60,7 @@ import { AssetDiscoveryAgent } from './agents/asset-discovery.agent';
     TechnologyIdAgent,
     PlannerAgent,
     AssetDiscoveryAgent,
+    SecurityCopilotAgent,
   ],
 })
 export class SecurityAgentsModule {}
