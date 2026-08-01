@@ -13,6 +13,16 @@ export interface ParseBatchRequest {
   ports: Array<Record<string, unknown>>;
   services: Array<Record<string, unknown>>;
   technologies: Array<Record<string, unknown>>;
+  /**
+   * Observations that belong to an asset but are produced by discovery-side work
+   * (DNS records, subdomain<->IP links). They travel here so `AssetObservation` stays a
+   * single-writer table without losing the rows the pre-split parser wrote.
+   */
+  extraObservations?: Array<{
+    assetValue: string;
+    kind: string;
+    payload?: Record<string, unknown>;
+  }>;
 }
 
 export interface ParseBatchResponse {
@@ -42,4 +52,44 @@ export interface DiscoveryEntityRequest {
 export interface DiscoveryEntityResponse {
   id: string;
   kind: 'DOMAIN' | 'SUBDOMAIN' | 'IP_ADDRESS';
+}
+
+/** Shared scan context every discovery batch persister already expects. */
+export interface DiscoveryBatchContext {
+  engagementId: string;
+  scanJobId: string;
+  scannerName: string;
+  target: string;
+}
+
+/**
+ * Discovery-side counterpart of the asset parse-batch. The entity groups keep the exact
+ * shapes the moved persisters already accept, so the move stayed mechanical.
+ */
+export interface DiscoveryParseBatchRequest extends DiscoveryBatchContext {
+  dnsRecords: Array<Record<string, unknown>>;
+  endpoints: Array<Record<string, unknown>>;
+  emails: Array<Record<string, unknown>>;
+  identities: Array<Record<string, unknown>>;
+  breachExposures: Array<Record<string, unknown>>;
+  orgMetadata: Array<Record<string, unknown>>;
+  tlsCertificates: Array<Record<string, unknown>>;
+  /**
+   * Subdomain <-> IP links to materialise. discovery-service resolves both sides by
+   * canonical value and skips pairs whose rows do not exist yet.
+   */
+  subdomainIpLinks: Array<{ canonicalHost: string; canonicalIp: string }>;
+}
+
+export interface DiscoveryParseBatchResponse {
+  dnsRecordsPersisted: number;
+  endpointsPersisted: number;
+  emailsPersisted: number;
+  identitiesPersisted: number;
+  breachExposuresPersisted: number;
+  orgMetadataPersisted: number;
+  tlsCertificatesPersisted: number;
+  subdomainIpsPersisted: number;
+  /** Links actually created, so the caller can record the matching asset observations. */
+  linkedHosts: string[];
 }

@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { ServicePersister } from '../persisters/service-persister';
+import { ServicePersister } from '../service-persister';
 
 describe('ServicePersister.upsert', () => {
   it('uses tx when provided (existing service path)', async () => {

@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { PortPersister } from '../persisters/port-persister';
+import { PortPersister } from '../port-persister';
 
 describe('PortPersister.upsert', () => {
   it('uses tx when provided and returns the port id', async () => {
