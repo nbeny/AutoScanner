@@ -33,6 +33,7 @@ import { OsintModule } from './osint/osint.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { CopilotModule } from './copilot/copilot.module';
 import { TlsModule } from './tls/tls.module';
 import { ReportsModule } from './reports/reports.module';
 import { QueueHealthModule } from './queue-health/queue-health.module';
@@ -100,6 +101,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     MetricsModule,
     NotificationsModule,
     IntegrationsModule,
+    CopilotModule,
     OsintModule,
     ReportsModule,
     TlsModule,
