@@ -8,6 +8,7 @@ import { MessagingModule } from '@autoscanner/messaging';
 import { DiscoveryController } from './discovery.controller';
 import { DiscoveryService } from './discovery.service';
 import { DiscoveryBatchService } from './discovery-batch.service';
+import { MergeService } from './merge.service';
 import { IpAddressPersister } from './persisters/ip-address-persister';
 import { DnsRecordPersister } from './persisters/dns-record-persister';
 import { SubdomainIpPersister } from './persisters/subdomain-ip-persister';
@@ -24,6 +25,7 @@ import { TlsCertificatePersister } from './persisters/tls-certificate-persister'
   providers: [
     DiscoveryService,
     DiscoveryBatchService,
+    MergeService,
     IpAddressPersister,
     DnsRecordPersister,
     SubdomainIpPersister,
