@@ -238,6 +238,21 @@ docs/superpowers/       design specs and phase plans (historical record)
 
 GitHub Actions runs `lint`, `type-check`, `test`, `build`, and `e2e` against Postgres / Redis / MinIO services. See `.github/workflows/ci.yml`.
 
+## Authorized use only
+
+AutoScanner is an **offensive security tool**. Run it **only** against systems
+you own or for which you have **explicit, written authorization** to test.
+Unauthorized scanning, enumeration, or exploitation of systems you do not own is
+illegal in most jurisdictions (e.g. the CFAA in the US, the Computer Misuse Act
+in the UK, art. 323-1 et seq. of the French Penal Code) and may carry criminal
+and civil liability. You alone are responsible for how you use this software and
+for staying within the scope of any engagement. The authors accept no liability
+for misuse or for any damage caused (see the "No Liability" clause of the license).
+
 ## License
 
-Internal — not open source at this stage.
+[PolyForm Noncommercial License 1.0.0](LICENSE) — free to use, modify and redistribute for **noncommercial purposes only** (personal study, research, hobby projects, and use by educational, charitable, public-research, public-safety and government organizations).
+
+**Commercial use is not permitted** under this license. That includes using AutoScanner to deliver paid pentest / audit / consulting engagements, running it as part of a commercial product or service, or internal use by a for-profit company. Contact the author for a commercial license.
+
+Note: because it restricts commercial use, this is a source-available license, not an OSI-approved open-source one.
