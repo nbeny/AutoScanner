@@ -231,7 +231,6 @@ libs/
   auth/ common/ config/ logging/ notifications/ reporting/ insight/ cloud-credentials/
 prisma/                 schema + migrations + seed + scripts
 docker/                 dev compose stack, OAST server, greenbone/openvas
-docs/superpowers/       design specs and phase plans (historical record)
 ```
 
 ## CI

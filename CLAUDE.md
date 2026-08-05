@@ -82,4 +82,3 @@ Prefer **reuse** of existing entity types and parsers over introducing new ones 
 
 - Default branch is `main`. Commit or push only when the user asks; branch before committing if on `main`.
 - Do not push or force-push without explicit consent.
-- Design specs and phase plans live under `docs/superpowers/` — these are a historical record, not living docs; don't rewrite them.
