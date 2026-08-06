@@ -2,8 +2,14 @@ import { z } from 'zod';
 import { type ScannerDefinition, ScannerCategory } from '@autoscanner/scanner-sdk';
 
 const FfufInput = z.object({
-  wordlist: z.string().default('/etc/ffuf/content.txt'),
-  matchCodes: z.string().default('200,204,301,302,307,401,403'),
+  wordlist: z
+    .string()
+    .default('/etc/ffuf/content.txt')
+    .describe('Path to the wordlist inside the container.'),
+  matchCodes: z
+    .string()
+    .default('200,204,301,302,307,401,403')
+    .describe('HTTP status codes treated as matches (-mc).'),
 });
 export type FfufInputType = z.infer<typeof FfufInput>;
 

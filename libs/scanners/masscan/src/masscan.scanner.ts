@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { type ScannerDefinition, ScannerCategory } from '@autoscanner/scanner-sdk';
 
 const MasscanInput = z.object({
-  ports: z.string().default('1-65535'),
-  rate: z.number().int().positive().default(1000),
+  ports: z.string().default('1-65535').describe('Ports to scan (e.g. "1-65535", "80,443").'),
+  rate: z.number().int().positive().default(1000).describe('Transmit rate in packets per second.'),
 });
 
 export type MasscanInputType = z.infer<typeof MasscanInput>;

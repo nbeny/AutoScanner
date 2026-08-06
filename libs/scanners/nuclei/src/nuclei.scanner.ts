@@ -8,18 +8,27 @@ const NucleiInput = z.object({
    * Severity filter passed to nuclei via `-severity`. When omitted nuclei runs
    * all templates regardless of severity.
    */
-  severity: z.array(NucleiSeverity).optional(),
+  severity: z
+    .array(NucleiSeverity)
+    .optional()
+    .describe('Only run templates of these severities (-severity). All severities if unset.'),
   /**
    * Tag filter (e.g. `cve`, `rce`, `exposure`) passed to nuclei via `-tags`.
    * When omitted no tag filtering is applied.
    */
-  tags: z.array(z.string()).optional(),
+  tags: z
+    .array(z.string())
+    .optional()
+    .describe('Only run templates matching these tags (-tags), e.g. cve, rce.'),
   /**
    * Specific template paths (under the nuclei-templates root inside the image)
    * passed to nuclei via repeated `-t` flags. When omitted nuclei uses its
    * default template selection.
    */
-  templates: z.array(z.string()).optional(),
+  templates: z
+    .array(z.string())
+    .optional()
+    .describe('Specific template paths to run (-t). Default selection if unset.'),
 });
 
 export type NucleiInputType = z.infer<typeof NucleiInput>;

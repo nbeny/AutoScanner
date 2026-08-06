@@ -2,9 +2,15 @@ import { z } from 'zod';
 import { type ScannerDefinition, ScannerCategory } from '@autoscanner/scanner-sdk';
 
 const SubfinderInput = z.object({
-  sources: z.array(z.string()).default([]),
-  recursive: z.boolean().default(false),
-  timeout: z.number().int().min(1).max(600).default(60),
+  sources: z
+    .array(z.string())
+    .default([])
+    .describe('Restrict enumeration to these sources. All configured sources if empty.'),
+  recursive: z
+    .boolean()
+    .default(false)
+    .describe('Recursively enumerate subdomains of discovered subdomains.'),
+  timeout: z.number().int().min(1).max(600).default(60).describe('Overall timeout in seconds.'),
 });
 
 export type SubfinderInputType = z.infer<typeof SubfinderInput>;

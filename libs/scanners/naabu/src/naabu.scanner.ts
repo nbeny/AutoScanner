@@ -4,8 +4,17 @@ import { type ScannerDefinition, ScannerCategory } from '@autoscanner/scanner-sd
 const NaabuInput = z.object({
   // Accept any naabu-compatible port spec (e.g. 'top-100', '1-1000', '80,443,8080').
   // Over-constraining to a literal union here would break recon-active templates.
-  ports: z.string().default('top-100'),
-  rate: z.number().int().min(1).max(10_000).default(1000),
+  ports: z
+    .string()
+    .default('top-100')
+    .describe('Ports to scan (e.g. "top-100", "1-1000", "80,443,8080").'),
+  rate: z
+    .number()
+    .int()
+    .min(1)
+    .max(10_000)
+    .default(1000)
+    .describe('Scan rate in packets per second.'),
 });
 
 export type NaabuInputType = z.infer<typeof NaabuInput>;

@@ -2,12 +2,12 @@ import { z } from 'zod';
 import { type ScannerDefinition, ScannerCategory } from '@autoscanner/scanner-sdk';
 
 const HttpxInput = z.object({
-  ports: z.array(z.number().int()).default([80, 443]),
-  followRedirects: z.boolean().default(true),
-  techDetect: z.boolean().default(true),
-  statusCode: z.boolean().default(true),
-  title: z.boolean().default(true),
-  timeout: z.number().int().min(1).max(60).default(10),
+  ports: z.array(z.number().int()).default([80, 443]).describe('Ports to probe for HTTP(S).'),
+  followRedirects: z.boolean().default(true).describe('Follow HTTP redirects.'),
+  techDetect: z.boolean().default(true).describe('Detect technologies (Wappalyzer-style).'),
+  statusCode: z.boolean().default(true).describe('Report the HTTP status code.'),
+  title: z.boolean().default(true).describe('Extract the page <title>.'),
+  timeout: z.number().int().min(1).max(60).default(10).describe('Per-request timeout in seconds.'),
 });
 
 export type HttpxInputType = z.infer<typeof HttpxInput>;
