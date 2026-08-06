@@ -984,6 +984,28 @@ export const ALL_CORRELATED_FINDINGS_QUERY = gql`
   }
 `;
 
+export const SCANNER_CATALOG_QUERY = gql`
+  query ScannerCatalog {
+    scannerCatalog {
+      name
+      displayName
+      description
+      categories
+      requiresCredential
+      fields {
+        name
+        type
+        required
+        default
+        min
+        max
+        enumValues
+        description
+      }
+    }
+  }
+`;
+
 export const TOOL_ACTIVITY_QUERY = gql`
   query ToolActivity($engagementId: ID) {
     toolActivity(engagementId: $engagementId) {

@@ -1,6 +1,10 @@
 import { useQuery } from '@apollo/client';
-import { TOOL_ACTIVITY_QUERY } from '../../lib/graphql/queries';
-import { scannerCategory, SCANNER_CATALOG } from '../scans/scanner-catalog';
+import { SCANNER_CATALOG_QUERY, TOOL_ACTIVITY_QUERY } from '../../lib/graphql/queries';
+import {
+  groupForCategories,
+  type Category,
+  type ScannerCatalogEntry,
+} from '../scans/scanner-catalog';
 import { SEVERITY_COLORS, SEVERITY_ORDER } from '../../components/charts/chart-theme';
 import { formatDate } from '../../lib/format-date';
 
@@ -27,6 +31,15 @@ interface ToolActivityItem {
   findingsBySeverity: FindingsBySeverity;
 }
 
+/** A catalogue entry merged with its (possibly absent) activity stats. */
+interface MergedTool {
+  scannerName: string;
+  displayName: string;
+  category: Category;
+  requiresCredential: string | null;
+  activity: ToolActivityItem | null;
+}
+
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
@@ -34,11 +47,29 @@ interface ToolActivityItem {
 export interface ToolsGridProps {
   engagementId?: string;
   onSelectTool?: (scannerName: string) => void;
+  onLaunch?: (scannerName: string) => void;
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+const CATEGORY_ORDER: Category[] = [
+  'DNS/Subdomains',
+  'Ports/Network',
+  'Web/HTTP',
+  'TLS',
+  'OSINT',
+  'Cloud',
+  'Active Directory',
+  'Vuln/Exploit',
+  'Other',
+];
+
+function categoryOrder(cat: string): number {
+  const idx = CATEGORY_ORDER.indexOf(cat as Category);
+  return idx === -1 ? CATEGORY_ORDER.length : idx;
+}
 
 function formatDuration(ms: number | null | undefined): string {
   if (ms == null) return '—';
@@ -82,107 +113,142 @@ function SeverityMiniBar({ findings }: { findings: FindingsBySeverity }) {
 // ---------------------------------------------------------------------------
 
 function ToolCard({
-  item,
+  tool,
   onSelectTool,
+  onLaunch,
 }: {
-  item: ToolActivityItem;
+  tool: MergedTool;
   onSelectTool?: (scannerName: string) => void;
+  onLaunch?: (scannerName: string) => void;
 }) {
-  const category = scannerCategory(item.scannerName);
+  const { activity } = tool;
+  const neverRun = activity == null || activity.totalExecutions === 0;
 
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={item.scannerName}
-      onClick={() => onSelectTool?.(item.scannerName)}
+      aria-label={tool.scannerName}
+      onClick={() => onSelectTool?.(tool.scannerName)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') onSelectTool?.(item.scannerName);
+        if (e.key === 'Enter' || e.key === ' ') onSelectTool?.(tool.scannerName);
       }}
       className="rounded-lg border border-slate-700 bg-slate-800 p-4 cursor-pointer hover:border-indigo-500 hover:bg-slate-750 transition-colors space-y-2"
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
-        <span className="font-semibold text-slate-100 text-sm">{item.scannerName}</span>
+        <span className="font-semibold text-slate-100 text-sm">{tool.scannerName}</span>
         <span className="shrink-0 rounded bg-slate-700 px-1.5 py-0.5 text-xs text-slate-400">
-          {category}
+          {tool.category}
         </span>
       </div>
+
+      {tool.requiresCredential ? (
+        <span className="inline-block rounded bg-amber-900/50 px-1.5 py-0.5 text-[10px] text-amber-300">
+          clé API : {tool.requiresCredential}
+        </span>
+      ) : null}
 
       {/* Stats row */}
-      <div className="flex flex-wrap gap-3 text-xs text-slate-400">
-        <span>
-          <span className="text-slate-200 font-medium">{item.totalExecutions}</span> exéc.
-        </span>
-        <span>
-          <span className="text-slate-200 font-medium">
-            {successRate(item.successCount, item.totalExecutions)}
-          </span>{' '}
-          succès
-        </span>
-        <span>
-          <span className="text-slate-200 font-medium">
-            {formatDuration(item.medianDurationMs)}
-          </span>{' '}
-          médiane
-        </span>
-      </div>
+      {neverRun ? (
+        <p className="text-xs text-slate-500">Jamais exécuté</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-3 text-xs text-slate-400">
+            <span>
+              <span className="text-slate-200 font-medium">{activity.totalExecutions}</span> exéc.
+            </span>
+            <span>
+              <span className="text-slate-200 font-medium">
+                {successRate(activity.successCount, activity.totalExecutions)}
+              </span>{' '}
+              succès
+            </span>
+            <span>
+              <span className="text-slate-200 font-medium">
+                {formatDuration(activity.medianDurationMs)}
+              </span>{' '}
+              médiane
+            </span>
+          </div>
 
-      {/* Findings row */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-slate-400">
-          Findings: <span className="text-slate-200 font-medium">{item.totalFindings}</span>
-        </span>
-        <SeverityMiniBar findings={item.findingsBySeverity} />
-      </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-400">
+              Findings: <span className="text-slate-200 font-medium">{activity.totalFindings}</span>
+            </span>
+            <SeverityMiniBar findings={activity.findingsBySeverity} />
+          </div>
 
-      {/* Last run */}
-      <div className="text-xs text-slate-500">
-        Dernier: {item.lastRunAt ? formatDate(item.lastRunAt) : '—'}
-      </div>
+          <div className="text-xs text-slate-500">
+            Dernier: {activity.lastRunAt ? formatDate(activity.lastRunAt) : '—'}
+          </div>
+        </>
+      )}
+
+      {onLaunch ? (
+        <button
+          type="button"
+          aria-label={`launch-${tool.scannerName}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onLaunch(tool.scannerName);
+          }}
+          className="mt-1 w-full rounded bg-indigo-600 hover:bg-indigo-500 py-1 text-xs font-medium text-white"
+        >
+          Lancer
+        </button>
+      ) : null}
     </div>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Category ordering: follow SCANNER_CATALOG key order, then 'Other' at end
-// ---------------------------------------------------------------------------
-
-const CATEGORY_ORDER = [...Object.keys(SCANNER_CATALOG), 'Other'];
-
-function categoryOrder(cat: string): number {
-  const idx = CATEGORY_ORDER.indexOf(cat);
-  return idx === -1 ? CATEGORY_ORDER.length : idx;
 }
 
 // ---------------------------------------------------------------------------
 // ToolsGrid
 // ---------------------------------------------------------------------------
 
-export function ToolsGrid({ engagementId, onSelectTool }: ToolsGridProps = {}) {
-  const { data, loading, error } = useQuery<{ toolActivity: ToolActivityItem[] }>(
-    TOOL_ACTIVITY_QUERY,
-    { variables: { engagementId: engagementId ?? null } },
-  );
+export function ToolsGrid({ engagementId, onSelectTool, onLaunch }: ToolsGridProps = {}) {
+  const catalogQuery = useQuery<{ scannerCatalog: ScannerCatalogEntry[] }>(SCANNER_CATALOG_QUERY);
+  const activityQuery = useQuery<{ toolActivity: ToolActivityItem[] }>(TOOL_ACTIVITY_QUERY, {
+    variables: { engagementId: engagementId ?? null },
+  });
 
-  const tools = data?.toolActivity ?? [];
+  const loading = catalogQuery.loading || activityQuery.loading;
+  const error = catalogQuery.error || activityQuery.error;
 
-  // Group by category
-  const grouped = new Map<string, ToolActivityItem[]>();
-  for (const item of tools) {
-    const cat = scannerCategory(item.scannerName);
-    if (!grouped.has(cat)) grouped.set(cat, []);
-    grouped.get(cat)!.push(item);
+  const catalog = catalogQuery.data?.scannerCatalog ?? [];
+  const activityByName = new Map<string, ToolActivityItem>();
+  for (const item of activityQuery.data?.toolActivity ?? []) {
+    activityByName.set(item.scannerName, item);
   }
 
-  // Sort categories by catalog order
+  // Base list = full catalogue; left-join activity stats.
+  const tools: MergedTool[] = catalog.map((entry) => ({
+    scannerName: entry.name,
+    displayName: entry.displayName,
+    category: groupForCategories(entry.categories),
+    requiresCredential: entry.requiresCredential,
+    activity: activityByName.get(entry.name) ?? null,
+  }));
+
+  // Group by category.
+  const grouped = new Map<string, MergedTool[]>();
+  for (const tool of tools) {
+    if (!grouped.has(tool.category)) grouped.set(tool.category, []);
+    grouped.get(tool.category)!.push(tool);
+  }
+
   const sortedCategories = [...grouped.entries()].sort(
     ([a], [b]) => categoryOrder(a) - categoryOrder(b),
   );
 
-  // Within each category, sort by totalFindings desc
+  // Within each category: run tools first (by findings desc), then never-run (by name).
   for (const [, items] of sortedCategories) {
-    items.sort((a, b) => b.totalFindings - a.totalFindings);
+    items.sort((a, b) => {
+      const fa = a.activity?.totalFindings ?? -1;
+      const fb = b.activity?.totalFindings ?? -1;
+      if (fa !== fb) return fb - fa;
+      return a.scannerName.localeCompare(b.scannerName);
+    });
   }
 
   return (
@@ -194,7 +260,7 @@ export function ToolsGrid({ engagementId, onSelectTool }: ToolsGridProps = {}) {
         </p>
       )}
       {!loading && !error && tools.length === 0 && (
-        <p className="text-slate-500 text-sm">Aucun outil actif.</p>
+        <p className="text-slate-500 text-sm">Aucun outil.</p>
       )}
       {sortedCategories.map(([category, items]) => (
         <section key={category}>
@@ -202,8 +268,13 @@ export function ToolsGrid({ engagementId, onSelectTool }: ToolsGridProps = {}) {
             {category}
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {items.map((item) => (
-              <ToolCard key={item.scannerName} item={item} onSelectTool={onSelectTool} />
+            {items.map((tool) => (
+              <ToolCard
+                key={tool.scannerName}
+                tool={tool}
+                onSelectTool={onSelectTool}
+                onLaunch={onLaunch}
+              />
             ))}
           </div>
         </section>

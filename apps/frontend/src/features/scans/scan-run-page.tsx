@@ -1,13 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
-import { useParams } from 'react-router-dom';
-import { RUN_SCAN_MUTATION, SCAN_QUERY } from '../../lib/graphql/queries';
+import { useLocation, useParams } from 'react-router-dom';
+import { RUN_SCAN_MUTATION, SCAN_QUERY, SCANNER_CATALOG_QUERY } from '../../lib/graphql/queries';
 import { useAuth } from '../../lib/auth-context';
 import { rawOutputUrl } from '../../lib/api-rest';
 import { LiveLogsPane } from './live-logs-pane';
 import { AssetsTable } from './assets-table';
 import { NewTemplateRunForm } from '../template-runs/new-template-run-form';
 import { ScannerSelect } from './scanner-select';
+import { ScannerOptionsForm } from './scanner-options-form';
+import type { ScannerCatalogEntry } from './scanner-catalog';
 
 interface RunScanResult {
   runScan: {
@@ -36,13 +38,22 @@ const TERMINAL = new Set(['COMPLETED', 'FAILED', 'CANCELLED']);
 
 export function ScanRunPage() {
   const { engagementId } = useParams<{ engagementId: string }>();
+  const location = useLocation();
+  const preselectedScanner = (location.state as { scanner?: string } | null)?.scanner;
   const { session } = useAuth();
-  const [scanner, setScanner] = useState('nmap');
+  const [scanner, setScanner] = useState(preselectedScanner ?? 'nmap');
   const [target, setTarget] = useState('127.0.0.1');
   const [optionsJson, setOptionsJson] = useState('');
+  const [manualJson, setManualJson] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [activeScanId, setActiveScanId] = useState<string | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+
+  const { data: catalogData } = useQuery<{ scannerCatalog: ScannerCatalogEntry[] }>(
+    SCANNER_CATALOG_QUERY,
+  );
+  const catalog = catalogData?.scannerCatalog ?? [];
+  const selectedEntry = catalog.find((e) => e.name === scanner);
 
   const [runScan, { loading: starting, error: runError }] =
     useMutation<RunScanResult>(RUN_SCAN_MUTATION);
@@ -122,7 +133,7 @@ export function ScanRunPage() {
       >
         <div className="md:col-span-4">
           <span className="block text-xs text-slate-300 mb-1">Scanner</span>
-          <ScannerSelect value={scanner} onChange={setScanner} />
+          <ScannerSelect entries={catalog} value={scanner} onChange={setScanner} />
         </div>
         <label className="md:col-span-2">
           <span className="block text-xs text-slate-300">Target</span>
@@ -133,15 +144,40 @@ export function ScanRunPage() {
             required
           />
         </label>
-        <label className="md:col-span-4">
-          <span className="block text-xs text-slate-300">Options JSON (optional)</span>
-          <input
-            className="mt-1 w-full bg-slate-800 rounded px-2 py-1 font-mono"
-            value={optionsJson}
-            onChange={(e) => setOptionsJson(e.target.value)}
-            placeholder='{"ports":"1-1024"}'
-          />
-        </label>
+
+        <div className="md:col-span-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-300">Options</span>
+            <label className="flex items-center gap-1 text-xs text-slate-400">
+              <input
+                type="checkbox"
+                checked={manualJson}
+                onChange={(e) => setManualJson(e.target.checked)}
+              />
+              Éditer le JSON manuellement
+            </label>
+          </div>
+
+          {manualJson ? (
+            <input
+              className="w-full bg-slate-800 rounded px-2 py-1 font-mono"
+              aria-label="options-json"
+              value={optionsJson}
+              onChange={(e) => setOptionsJson(e.target.value)}
+              placeholder='{"ports":"1-1024"}'
+            />
+          ) : (
+            <>
+              <ScannerOptionsForm entry={selectedEntry} onChange={setOptionsJson} />
+              {optionsJson ? (
+                <details className="text-xs text-slate-500">
+                  <summary className="cursor-pointer">Aperçu JSON</summary>
+                  <code className="block mt-1 break-all">{optionsJson}</code>
+                </details>
+              ) : null}
+            </>
+          )}
+        </div>
         <button
           type="submit"
           disabled={starting}

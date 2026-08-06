@@ -2,8 +2,36 @@ import { describe, expect, it, vi } from 'vitest';
 import { MockedProvider } from '@apollo/client/testing';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TOOL_ACTIVITY_QUERY } from '../../../lib/graphql/queries';
+import { SCANNER_CATALOG_QUERY, TOOL_ACTIVITY_QUERY } from '../../../lib/graphql/queries';
 import { ToolsGrid } from '../tools-grid';
+
+const CATALOG_MOCK = {
+  request: { query: SCANNER_CATALOG_QUERY },
+  result: {
+    data: {
+      scannerCatalog: [
+        {
+          __typename: 'ScannerCatalogEntryObject',
+          name: 'nmap',
+          displayName: 'nmap',
+          description: 'Network scanner',
+          categories: ['port-scan'],
+          requiresCredential: null,
+          fields: [],
+        },
+        {
+          __typename: 'ScannerCatalogEntryObject',
+          name: 'nuclei',
+          displayName: 'nuclei',
+          description: 'Vuln scanner',
+          categories: ['vuln-scan'],
+          requiresCredential: null,
+          fields: [],
+        },
+      ],
+    },
+  },
+};
 
 const NMAP_ACTIVITY_MOCK = {
   request: {
@@ -37,9 +65,9 @@ const NMAP_ACTIVITY_MOCK = {
 };
 
 describe('<ToolsGrid />', () => {
-  it('renders a card showing nmap and its findings count after load', async () => {
+  it('shows the whole catalogue: nmap with stats, nuclei as never-run', async () => {
     render(
-      <MockedProvider mocks={[NMAP_ACTIVITY_MOCK]}>
+      <MockedProvider mocks={[CATALOG_MOCK, NMAP_ACTIVITY_MOCK]}>
         <ToolsGrid />
       </MockedProvider>,
     );
@@ -47,18 +75,20 @@ describe('<ToolsGrid />', () => {
     await waitFor(() => expect(screen.getByLabelText('tools-grid')).toBeInTheDocument());
     expect(screen.getByText('nmap')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('nuclei')).toBeInTheDocument();
+    expect(screen.getByText('Jamais exécuté')).toBeInTheDocument();
   });
 
   it('calls onSelectTool with the scanner name when the card is clicked', async () => {
     const onSelectTool = vi.fn();
     render(
-      <MockedProvider mocks={[NMAP_ACTIVITY_MOCK]}>
+      <MockedProvider mocks={[CATALOG_MOCK, NMAP_ACTIVITY_MOCK]}>
         <ToolsGrid onSelectTool={onSelectTool} />
       </MockedProvider>,
     );
 
     await waitFor(() => expect(screen.getByText('nmap')).toBeInTheDocument());
-    await userEvent.click(screen.getByRole('button', { name: /nmap/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^nmap$/i }));
     expect(onSelectTool).toHaveBeenCalledWith('nmap');
   });
 });

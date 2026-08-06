@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ToolsGrid } from './tools-grid';
 import { CoverageHeatmap } from './coverage-heatmap';
 import { ToolDetailDrawer } from './tool-detail-drawer';
@@ -15,8 +15,16 @@ function ScopeBadge({ engagementId }: { engagementId?: string }) {
 export function ToolsSectionPage({ engagementId: propId }: { engagementId?: string } = {}) {
   const params = useParams<{ engagementId?: string }>();
   const engagementId = propId ?? params.engagementId;
+  const navigate = useNavigate();
 
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
+
+  // "Lancer" pré-sélectionne le scanner sur la page Run-scan de l'engagement.
+  // Sans engagement (vue globale), on ne peut pas cibler un run — bouton masqué.
+  const onLaunch = engagementId
+    ? (scannerName: string) =>
+        navigate(`/engagements/${engagementId}/scans`, { state: { scanner: scannerName } })
+    : undefined;
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-4" aria-label="tools-section">
@@ -24,7 +32,7 @@ export function ToolsSectionPage({ engagementId: propId }: { engagementId?: stri
         <h1 className="text-2xl font-semibold">Outils</h1>
         <ScopeBadge engagementId={engagementId} />
       </header>
-      <ToolsGrid engagementId={engagementId} onSelectTool={setSelectedTool} />
+      <ToolsGrid engagementId={engagementId} onSelectTool={setSelectedTool} onLaunch={onLaunch} />
       <section aria-label="coverage-section" className="space-y-2">
         <h2 className="text-lg font-semibold text-slate-200">Couverture</h2>
         <CoverageHeatmap engagementId={engagementId} />
