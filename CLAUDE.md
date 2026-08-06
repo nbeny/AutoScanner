@@ -10,16 +10,18 @@ The full per-scanner inventory (name, path, Docker image, underlying CLI tool, c
 
 ## The scan pipeline (mental model)
 
-A run flows through queue-driven workers — nothing runs inline in the API:
+A run flows through Kafka-consuming workers — nothing runs inline in the API:
 
-1. **api-gateway** — `runScan` (single scanner) or `runTemplate` (multi-step chain) GraphQL mutations create `Scan` + `ScanJob` rows atomically and enqueue to BullMQ.
-2. **scan-worker** (`scan-jobs`) — resolves credentials/OAST, calls the scanner's `build()` to construct the Docker command, runs it in a sandboxed container (`libs/docker-runner`), streams logs to Redis, stores raw output to MinIO, enqueues a parse job.
-3. **parser-worker** (`parse-jobs`) — runs the scanner's parser to normalise output into entities, persists them, then dedups + correlates findings and recomputes risk score.
+1. **api-gateway** — `runScan` (single scanner) or `runTemplate` (multi-step chain) GraphQL mutations create `Scan` + `ScanJob` rows atomically and publish a `security.scanner.requested` Kafka event.
+2. **scan-worker** (consumes `security.scanner.requested`) — resolves credentials/OAST, calls the scanner's `build()` to construct the Docker command, runs it in a sandboxed container (`libs/docker-runner`), streams logs to Redis, stores raw output to MinIO, then publishes `security.parse.requested`.
+3. **parser-worker** (consumes `security.parse.requested`) — runs the scanner's parser to normalise output into entities, persists them, then dedups + correlates findings and recomputes risk score.
 4. **orchestrator-worker** (`template-runs`) — for templates only: resolves each step's targets via `ContextBuilder` (root `target`, discovered `subdomains`, `ipAddresses`, `urls`, `endpoints`, `emails`), dispatches child scan jobs step by step.
 5. **ai-orchestrator-worker** (`ai-runs`) — AutoHunt: an _AI-driven_ alternative to static templates. Instead of a fixed step list, Claude Sonnet decides the next scanner(s) after each parsed result. See below.
 6. Support workers: `cve-enricher-worker`, `nvd-sync-worker`, `report-worker`, `notification-worker`, `scheduler`.
 
-Queue names: `libs/queues/src/queue-names.ts`. The target string (IP/domain/URL/CIDR/bucket) is **not** validated against a type at the API — each scanner's `build()` decides how to use it.
+**Messaging backbone**: domain events flow over **Kafka (Redpanda)** topics named `security.*`, each with `.retry` + `.dlq` companions (registry: `libs/messaging/src/topics`; consumer framework: `MessageConsumer`/`ConsumerRegistrar`; provision topics with `pnpm kafka:provision`). BullMQ is **legacy** — many code comments still say "BullMQ" but the runtime is Kafka; `libs/queues/src/queue-names.ts` now only backs a BullMQ-shaped health contract. Host workers reach Kafka at `localhost:19092` (external listener); in-container services use `redpanda:9092` (`KAFKA_BROKERS` defaults to `localhost:19092`).
+
+The target string (IP/domain/URL/CIDR/bucket) is **not** validated against a type at the API — each scanner's `build()` decides how to use it.
 
 ## AutoHunt (AI-autonomous hunting)
 
@@ -70,12 +72,16 @@ Prefer **reuse** of existing entity types and parsers over introducing new ones 
 - **Secrets**: never log or return credentials. API keys / auth are AES-256-GCM sealed via `SecretBox` (`libs/common`), keyed from `MASTER_ENCRYPTION_KEY`, decrypted in-memory only at scan time.
 - **Correlation invariant**: re-scans must never overwrite an operator's triage `status`. Findings dedup on a stable hash; CorrelatedFinding clusters on a structural signature (CVE → category → title fallback).
 - **Idempotency**: workers assume at-least-once delivery — job processors are written to be safe on retry.
+- **GraphQL input DTOs**: every field MUST carry a class-validator decorator (`@IsOptional`/`@IsEnum`/`@IsString`/…), not just `@Field()`. The global `ValidationPipe` runs `{ whitelist, forbidNonWhitelisted }`, so an undecorated field is rejected at runtime with `property <x> should not exist` (a GraphQL-valid query 400s).
 - **Formatting**: Prettier (`pnpm format`), ESLint. Match surrounding code style.
+- **Single test file**: `pnpm nx test <project> --testFile=<name>.spec.ts`.
 
 ## Local dev gotchas
 
-- `pnpm dev:up` starts postgres + redis + minio (lean). Mongo is behind a compose profile: `pnpm dev:up:mongo`. Without the stack running, smoke checks and `database:test` fail with `ECONNREFUSED`.
-- Custom scanner images must be built (`pnpm scanners:build`) before those scanners can run.
+- `pnpm dev:up` starts postgres + redis + minio + redpanda (lean, **infra only**). Mongo is behind a compose profile: `pnpm dev:up:mongo`. Without the stack running, smoke checks and `database:test` fail with `ECONNREFUSED`.
+- **Full app in containers**: `docker compose -f docker/docker-compose.dev.yml --profile app up -d --build` builds api-gateway + microservices + frontend (front → http://localhost:4200, API → http://localhost:4000). The `app` profile does **not** include scan-worker / parser-worker — run those on the host via `pnpm nx serve scan-worker` / `pnpm nx serve parser-worker` (both are needed for a scan to complete + produce findings).
+- Scanner images are **pulled, never built** at scan time (`pullIfMissing` in `libs/docker-runner`): public images auto-pull, but custom `autoscanner/<name>:1.0` images only exist locally after `pnpm scanners:build` — run it before those scanners can work.
+- Dev login for testing GraphQL manually: `POST /auth/login {email,password}` (`OPERATOR_EMAIL`/`OPERATOR_PASSWORD` from `.env`, seeded via `pnpm seed`) → `{ accessToken }`; send as `Authorization: Bearer <token>`.
 - OAST/interactsh for out-of-band injection testing: `pnpm oast:up`.
 
 ## Git / workflow

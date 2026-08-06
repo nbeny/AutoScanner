@@ -445,6 +445,8 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
 
+  libs/messaging: {}
+
   libs/parsers:
     dependencies:
       tslib:
@@ -463,11 +465,25 @@ importers:
         specifier: ^2.3.0
         version: 2.8.1
 
+  libs/scan-events:
+    dependencies:
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+
   libs/scanner-sdk:
     dependencies:
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
+
+  libs/security-agents:
+    dependencies:
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+
+  libs/service-clients: {}
 
   libs/storage:
     dependencies:
@@ -482,6 +498,12 @@ importers:
         version: 2.8.1
 
   libs/templates:
+    dependencies:
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+
+  libs/ticketing:
     dependencies:
       tslib:
         specifier: ^2.3.0
