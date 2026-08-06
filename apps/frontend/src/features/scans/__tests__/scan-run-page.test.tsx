@@ -9,6 +9,7 @@ import {
   RUN_SCAN_MUTATION,
   SCAN_QUERY,
   SCAN_TEMPLATES_QUERY,
+  SCANNER_CATALOG_QUERY,
 } from '../../../lib/graphql/queries';
 import { ScanRunPage } from '../scan-run-page';
 
@@ -35,6 +36,27 @@ const session: AuthSession = {
 const emptyAssetsMock = {
   request: { query: ASSETS_QUERY, variables: { engagementId: 'eng_1' } },
   result: { data: { assets: [] } },
+};
+
+// nmap is the default scanner; empty fields keep the options form quiet so the
+// serialized optionsJson stays '' unless the operator uses manual JSON mode.
+const scannerCatalogMock = {
+  request: { query: SCANNER_CATALOG_QUERY },
+  result: {
+    data: {
+      scannerCatalog: [
+        {
+          __typename: 'ScannerCatalogEntryObject',
+          name: 'nmap',
+          displayName: 'Nmap',
+          description: 'Network scanner',
+          categories: ['port-scan'],
+          requiresCredential: null,
+          fields: [],
+        },
+      ],
+    },
+  },
 };
 
 const scanTemplatesMock = {
@@ -69,10 +91,12 @@ function renderPage(mocks: Parameters<typeof MockedProvider>[0]['mocks']) {
 
 describe('<ScanRunPage />', () => {
   it('rejects invalid options JSON locally and does not call the mutation', async () => {
-    renderPage([emptyAssetsMock, scanTemplatesMock]);
+    renderPage([emptyAssetsMock, scanTemplatesMock, scannerCatalogMock]);
     await screen.findByText(/no assets yet/i);
 
-    fireEvent.change(screen.getByLabelText(/options json/i), { target: { value: '{broken' } });
+    // Switch to manual JSON mode, then enter broken JSON.
+    fireEvent.click(screen.getByLabelText(/éditer le json manuellement/i));
+    fireEvent.change(screen.getByLabelText('options-json'), { target: { value: '{broken' } });
     fireEvent.submit(screen.getByRole('form', { name: 'run-scan' }));
 
     const alerts = await screen.findAllByRole('alert');
@@ -125,7 +149,7 @@ describe('<ScanRunPage />', () => {
       },
     };
 
-    renderPage([emptyAssetsMock, scanTemplatesMock, runMock, scanPollMock]);
+    renderPage([emptyAssetsMock, scanTemplatesMock, scannerCatalogMock, runMock, scanPollMock]);
     await screen.findByText(/no assets yet/i);
 
     // Both forms have a "Target" input — pick the one inside the run-scan form.

@@ -6,14 +6,24 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AssetCoverageObject } from './dto/asset-coverage.object';
 import { CoverageCellObject } from './dto/coverage-cell.object';
+import { ScannerCatalogEntryObject } from './dto/scanner-catalog.object';
 import { ToolActivityObject } from './dto/tool-activity.object';
 import { ToolDetailObject } from './dto/tool-detail.object';
+import { ScannerCatalogService } from './scanner-catalog.service';
 import { ToolsService } from './tools.service';
 
 @Resolver()
 @UseGuards(JwtAuthGuard)
 export class ToolsResolver {
-  constructor(private readonly svc: ToolsService) {}
+  constructor(
+    private readonly svc: ToolsService,
+    private readonly catalog: ScannerCatalogService,
+  ) {}
+
+  @Query(() => [ScannerCatalogEntryObject])
+  scannerCatalog(): ScannerCatalogEntryObject[] {
+    return this.catalog.catalog();
+  }
 
   @Query(() => [ToolActivityObject])
   toolActivity(

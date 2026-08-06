@@ -1,15 +1,42 @@
-import { useState } from 'react';
-import { SCANNER_CATALOG } from './scanner-catalog';
+import { useMemo, useState } from 'react';
+import { groupForCategories, type Category, type ScannerCatalogEntry } from './scanner-catalog';
 
 interface ScannerSelectProps {
+  entries: ScannerCatalogEntry[];
   value: string;
   onChange: (name: string) => void;
 }
 
-export function ScannerSelect({ value, onChange }: ScannerSelectProps) {
-  const [search, setSearch] = useState('');
+// Display order of the category groups.
+const CATEGORY_ORDER: Category[] = [
+  'DNS/Subdomains',
+  'Ports/Network',
+  'Web/HTTP',
+  'TLS',
+  'OSINT',
+  'Cloud',
+  'Active Directory',
+  'Vuln/Exploit',
+  'Other',
+];
 
+export function ScannerSelect({ entries, value, onChange }: ScannerSelectProps) {
+  const [search, setSearch] = useState('');
   const query = search.trim().toLowerCase();
+
+  // Group entries by display category, respecting CATEGORY_ORDER.
+  const groups = useMemo(() => {
+    const byCategory = new Map<Category, ScannerCatalogEntry[]>();
+    for (const entry of entries) {
+      const category = groupForCategories(entry.categories);
+      if (!byCategory.has(category)) byCategory.set(category, []);
+      byCategory.get(category)!.push(entry);
+    }
+    return CATEGORY_ORDER.filter((c) => byCategory.has(c)).map(
+      (category) =>
+        [category, byCategory.get(category)!.sort((a, b) => a.name.localeCompare(b.name))] as const,
+    );
+  }, [entries]);
 
   return (
     <div className="space-y-2">
@@ -25,9 +52,10 @@ export function ScannerSelect({ value, onChange }: ScannerSelectProps) {
         aria-label="scanner-select"
         className="max-h-64 overflow-auto rounded border border-slate-700 bg-slate-900 space-y-2 p-2"
       >
-        {(Object.entries(SCANNER_CATALOG) as [string, string[]][]).map(([category, names]) => {
-          const filtered = query ? names.filter((n) => n.toLowerCase().includes(query)) : names;
-
+        {groups.map(([category, group]) => {
+          const filtered = query
+            ? group.filter((e) => e.name.toLowerCase().includes(query))
+            : group;
           if (filtered.length === 0) return null;
 
           return (
@@ -36,18 +64,19 @@ export function ScannerSelect({ value, onChange }: ScannerSelectProps) {
                 {category}
               </p>
               <div className="flex flex-wrap gap-1">
-                {filtered.map((name) => (
+                {filtered.map((entry) => (
                   <button
-                    key={name}
+                    key={entry.name}
                     type="button"
-                    onClick={() => onChange(name)}
+                    title={entry.description}
+                    onClick={() => onChange(entry.name)}
                     className={
-                      name === value
+                      entry.name === value
                         ? 'px-2 py-0.5 rounded text-xs font-medium ring-2 ring-indigo-400 bg-indigo-700 text-white'
                         : 'px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-200 hover:bg-slate-600'
                     }
                   >
-                    {name}
+                    {entry.name}
                   </button>
                 ))}
               </div>

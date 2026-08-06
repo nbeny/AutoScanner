@@ -74,3 +74,67 @@ export function scannerCategory(name: string): Category {
 }
 
 export const ALL_SCANNER_NAMES: string[] = [..._reverseMap.keys()].sort();
+
+// ---------------------------------------------------------------------------
+// Live catalogue (server-driven) — shapes returned by SCANNER_CATALOG_QUERY
+// ---------------------------------------------------------------------------
+
+export interface ScannerCatalogField {
+  name: string;
+  /** string | number | boolean | enum | string[] | number[] | enum[] | unknown */
+  type: string;
+  required: boolean;
+  default: unknown;
+  min: number | null;
+  max: number | null;
+  enumValues: string[] | null;
+  description: string | null;
+}
+
+export interface ScannerCatalogEntry {
+  name: string;
+  displayName: string;
+  description: string;
+  categories: string[];
+  requiresCredential: string | null;
+  fields: ScannerCatalogField[];
+}
+
+/** Map a raw `ScannerCategory` enum value to a display group. */
+const RAW_CATEGORY_TO_GROUP: Record<string, Category> = {
+  'network-discovery': 'Ports/Network',
+  'port-scan': 'Ports/Network',
+  'service-detection': 'Ports/Network',
+  'network-analysis': 'Ports/Network',
+  dns: 'DNS/Subdomains',
+  'subdomain-enum': 'DNS/Subdomains',
+  'web-fingerprint': 'Web/HTTP',
+  'web-enum': 'Web/HTTP',
+  'api-security': 'Web/HTTP',
+  'vuln-scan': 'Vuln/Exploit',
+  'ssl-tls': 'TLS',
+  'smb-windows': 'Active Directory',
+  'active-directory': 'Active Directory',
+  smtp: 'Active Directory',
+  snmp: 'Active Directory',
+  cloud: 'Cloud',
+  'container-k8s': 'Cloud',
+  osint: 'OSINT',
+  'identity-osint': 'OSINT',
+  'passive-recon': 'OSINT',
+  'breach-intel': 'OSINT',
+  wifi: 'Other',
+  password: 'Other',
+  'iot-ics': 'Other',
+  'ai-llm': 'Other',
+  'import-only': 'Other',
+};
+
+/** Pick a display group from a scanner's (raw) category list. */
+export function groupForCategories(rawCategories: readonly string[]): Category {
+  for (const raw of rawCategories) {
+    const group = RAW_CATEGORY_TO_GROUP[raw];
+    if (group) return group;
+  }
+  return 'Other';
+}
