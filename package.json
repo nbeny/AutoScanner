@@ -32,6 +32,7 @@
     "dev:parser-worker": "nx serve parser-worker",
     "dev:workers": "nx run-many -t serve -p scan-worker parser-worker",
     "dev:orchestrator-worker": "nx serve orchestrator-worker",
+    "dev:kali-tool-worker": "nx serve kali-tool-worker",
     "dev:notification-worker": "nx serve notification-worker",
     "dev:scheduler": "nx serve scheduler",
     "prepare": "husky",
