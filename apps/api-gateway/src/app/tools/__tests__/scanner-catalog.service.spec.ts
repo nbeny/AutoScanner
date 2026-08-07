@@ -3,6 +3,7 @@ import { ScannerRegistry, type ScannerDefinition } from '@autoscanner/scanner-sd
 import { ScannerCategory } from '@autoscanner/scanner-sdk';
 
 import { ScannerCatalogService } from '../scanner-catalog.service';
+import { KaliCatalogService } from '../kali-catalog.service';
 
 function makeDef(name: string, overrides: Partial<ScannerDefinition> = {}): ScannerDefinition {
   return {
@@ -36,7 +37,8 @@ describe('ScannerCatalogService', () => {
       makeDef('shodan', { inputSchema: z.object({}), requiresCredential: 'SHODAN' }),
     );
 
-    const svc = new ScannerCatalogService(registry);
+    const kali = new KaliCatalogService([]);
+    const svc = new ScannerCatalogService(registry, kali);
     const catalog = svc.catalog();
 
     expect(catalog.map((c) => c.name)).toEqual(['amass', 'nmap', 'shodan']);
@@ -49,5 +51,51 @@ describe('ScannerCatalogService', () => {
     const shodan = catalog.find((c) => c.name === 'shodan')!;
     expect(shodan.requiresCredential).toBe('SHODAN');
     expect(shodan.fields).toEqual([]);
+  });
+
+  it('sets kaliToolRef from dataset match, override, or null', () => {
+    const registry = new ScannerRegistry();
+    registry.register(makeDef('nmap')); // dataset has "nmap"
+    registry.register(makeDef('smb-enum')); // override -> enum4linux-ng (in dataset)
+    registry.register(makeDef('shodan', { inputSchema: z.object({}) })); // not a Kali binary
+
+    const kali = new KaliCatalogService([
+      {
+        package: 'nmap',
+        binary: 'nmap',
+        displayName: 'nmap',
+        description: '',
+        homepage: null,
+        categories: [],
+        helpTextRaw: null,
+        options: [],
+        parseConfidence: 'none',
+        manAvailable: false,
+        source: 'kali-docker',
+        kaliRelease: 'seed',
+        capturedAt: 't',
+      },
+      {
+        package: 'enum4linux-ng',
+        binary: 'enum4linux-ng',
+        displayName: 'enum4linux-ng',
+        description: '',
+        homepage: null,
+        categories: [],
+        helpTextRaw: null,
+        options: [],
+        parseConfidence: 'none',
+        manAvailable: false,
+        source: 'kali-docker',
+        kaliRelease: 'seed',
+        capturedAt: 't',
+      },
+    ]);
+
+    const catalog = new ScannerCatalogService(registry, kali).catalog();
+    const byName = (n: string) => catalog.find((c) => c.name === n)!;
+    expect(byName('nmap').kaliToolRef).toBe('nmap');
+    expect(byName('smb-enum').kaliToolRef).toBe('enum4linux-ng');
+    expect(byName('shodan').kaliToolRef).toBeNull();
   });
 });
