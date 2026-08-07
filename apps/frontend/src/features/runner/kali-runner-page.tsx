@@ -107,6 +107,8 @@ export function KaliRunnerPage() {
                   onClick={() => {
                     setSelected(t.binary);
                     setShowHelp(false);
+                    setArgsText('');
+                    setJsonOutput(false);
                   }}
                   className={`w-full rounded px-2 py-1 text-left text-sm font-mono ${
                     selected === t.binary

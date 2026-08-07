@@ -46,6 +46,7 @@ export function KaliRunPage() {
   });
 
   const run = data?.kaliToolRun ?? null;
+  const notFound = Boolean(data) && data?.kaliToolRun == null;
 
   useEffect(() => {
     if (!runId) return;
@@ -54,8 +55,10 @@ export function KaliRunPage() {
   }, [runId, startPolling, stopPolling]);
 
   useEffect(() => {
-    if (run && TERMINAL.has(run.status)) stopPolling();
-  }, [run, stopPolling]);
+    // Stop polling once the run is terminal OR the query resolved to "not found"
+    // (a genuinely missing id returns null forever — don't poll it every 2.5s).
+    if ((run && TERMINAL.has(run.status)) || notFound) stopPolling();
+  }, [run, notFound, stopPolling]);
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-5">
@@ -120,6 +123,8 @@ export function KaliRunPage() {
             <ToolResultView parsed={run.parsedJson} />
           </section>
         </>
+      ) : notFound ? (
+        <p className="text-slate-400">Run introuvable.</p>
       ) : (
         <p className="text-slate-400">Chargement…</p>
       )}

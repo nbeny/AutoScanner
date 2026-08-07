@@ -44,4 +44,19 @@ describe('<KaliRunPage />', () => {
     expect(await screen.findByText('COMPLETED')).toBeInTheDocument();
     expect(screen.getByLabelText('tool-result-json').textContent).toContain('"host": "up"');
   });
+
+  it('shows a not-found state when the run does not exist', async () => {
+    const notFoundMock = {
+      request: { query: KALI_TOOL_RUN_QUERY, variables: { id: 'r1' } },
+      result: { data: { kaliToolRun: null } },
+    };
+    render(
+      <MemoryRouter>
+        <MockedProvider mocks={[notFoundMock]} addTypename={false}>
+          <KaliRunPage />
+        </MockedProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText(/introuvable/i)).toBeInTheDocument();
+  });
 });

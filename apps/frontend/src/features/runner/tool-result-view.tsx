@@ -32,13 +32,15 @@ export function ToolResultView({ parsed }: { parsed: ParsedToolOutput | null | u
   }
 
   if (parsed.format === 'table') {
-    const v = parsed.view as TableView;
+    const v = parsed.view as Partial<TableView>;
+    const headers = Array.isArray(v?.headers) ? v.headers : [];
+    const rows = Array.isArray(v?.rows) ? v.rows : [];
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
           <thead>
             <tr className="text-slate-400">
-              {v.headers.map((h, i) => (
+              {headers.map((h, i) => (
                 <th key={i} className="px-3 py-1 font-medium">
                   {h}
                 </th>
@@ -46,9 +48,9 @@ export function ToolResultView({ parsed }: { parsed: ParsedToolOutput | null | u
             </tr>
           </thead>
           <tbody className="font-mono text-slate-200">
-            {v.rows.map((row, ri) => (
+            {rows.map((row, ri) => (
               <tr key={ri} className="border-t border-space-800">
-                {row.map((cell, ci) => (
+                {(Array.isArray(row) ? row : []).map((cell, ci) => (
                   <td key={ci} className="px-3 py-1">
                     {cell}
                   </td>
@@ -62,10 +64,11 @@ export function ToolResultView({ parsed }: { parsed: ParsedToolOutput | null | u
   }
 
   if (parsed.format === 'keyvalue') {
-    const v = parsed.view as KeyValueView;
+    const v = parsed.view as Partial<KeyValueView>;
+    const pairs = Array.isArray(v?.pairs) ? v.pairs : [];
     return (
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-        {v.pairs.map((p, i) => (
+        {pairs.map((p, i) => (
           <div key={i} className="contents">
             <dt className="text-slate-400">{p.key}</dt>
             <dd className="text-slate-200 font-mono break-all">{p.value}</dd>

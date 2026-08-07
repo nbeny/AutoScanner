@@ -38,4 +38,12 @@ describe('<ToolResultView />', () => {
     render(<ToolResultView parsed={null} />);
     expect(screen.getByText(/no output/i)).toBeInTheDocument();
   });
+  it('degrades gracefully on a malformed table/keyvalue view (no crash)', () => {
+    // missing headers/rows/pairs must not throw
+    const { rerender } = render(<ToolResultView parsed={{ format: 'table', view: {} }} />);
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    rerender(<ToolResultView parsed={{ format: 'keyvalue', view: {} }} />);
+    // renders an (empty) definition list without throwing
+    expect(document.querySelector('dl')).toBeInTheDocument();
+  });
 });
