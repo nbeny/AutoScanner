@@ -5,8 +5,11 @@ export interface ParsedToolOutput {
   view: unknown;
 }
 
+// Full CSI escape sequences (ESC + '[' + params + final byte): SGR colours (…m),
+// cursor moves, clears (…J/…K/…H), etc. Requires the ESC byte so literal text like
+// "arr[3m]" is never mistaken for a colour code.
 // eslint-disable-next-line no-control-regex
-const ANSI_RE = /\[[0-9;]*m/g;
+const ANSI_RE = /\x1b\[[0-9;]*[A-Za-z]/g;
 
 export function parseToolOutput(raw: string): ParsedToolOutput {
   const clean = (raw ?? '').replace(ANSI_RE, '');

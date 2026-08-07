@@ -39,11 +39,17 @@ describe('parseToolOutput', () => {
     });
   });
 
-  it('strips ANSI and falls back to clean text', () => {
-    const raw = '[31mred line[0m\nplain line';
+  it('strips ANSI escapes and falls back to clean text', () => {
+    const raw = '\x1b[31mred line\x1b[0m\nplain line';
     const r = parseToolOutput(raw);
     expect(r.format).toBe('text');
     expect(r.view).toEqual({ lines: ['red line', 'plain line'] });
+  });
+
+  it('does not strip literal bracket text that is not an escape', () => {
+    const r = parseToolOutput('arr[3m] = value');
+    expect(r.format).toBe('text');
+    expect(r.view).toEqual({ lines: ['arr[3m] = value'] });
   });
 
   it('returns empty text for blank input', () => {

@@ -16,13 +16,62 @@ interface ScopeRuleLike {
   value: string;
 }
 
+const IPV4_HOST = /^\d{1,3}(\.\d{1,3}){3}$/;
+
+function ipv4ToInt(ip: string): number | null {
+  const m = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!m) return null;
+  const parts = m.slice(1, 5).map(Number);
+  if (parts.some((p) => p > 255)) return null;
+  return (((parts[0] << 24) >>> 0) + (parts[1] << 16) + (parts[2] << 8) + parts[3]) >>> 0;
+}
+
+function ipv4InCidr(ip: string, cidr: string): boolean {
+  const [net, bitsStr] = cidr.split('/');
+  const bits = Number(bitsStr);
+  const ipInt = ipv4ToInt(ip);
+  const netInt = ipv4ToInt(net);
+  if (ipInt === null || netInt === null || !Number.isInteger(bits) || bits < 0 || bits > 32) {
+    return false;
+  }
+  if (bits === 0) return true;
+  const mask = (bits === 32 ? 0xffffffff : ~((1 << (32 - bits)) - 1)) >>> 0;
+  return (ipInt & mask) === (netInt & mask);
+}
+
+/**
+ * Whether a target host/IP is covered by the engagement's INCLUDE scope rules.
+ * `ScopeRuleTarget` values are CIDR | IP | DOMAIN | WILDCARD_DOMAIN | URL.
+ */
 function hostInScope(host: string, rules: readonly ScopeRuleLike[]): boolean {
+  const isIp = IPV4_HOST.test(host);
   for (const r of rules) {
     if (r.ruleType !== 'INCLUDE') continue;
     const v = r.value.toLowerCase();
-    if (r.targetType === 'DOMAIN' && host === v) return true;
-    if (r.targetType === 'WILDCARD_DOMAIN' && (host === v || host.endsWith(`.${v}`))) return true;
-    if (r.targetType === 'IP_ADDRESS' && host === v) return true;
+    switch (r.targetType) {
+      case 'DOMAIN':
+        if (host === v) return true;
+        break;
+      case 'WILDCARD_DOMAIN':
+        if (host === v || host.endsWith(`.${v}`)) return true;
+        break;
+      case 'IP':
+        if (isIp && host === v) return true;
+        break;
+      case 'CIDR':
+        if (isIp && ipv4InCidr(host, v)) return true;
+        break;
+      case 'URL': {
+        let ruleHost = v;
+        try {
+          ruleHost = new URL(v).hostname.toLowerCase();
+        } catch {
+          /* keep raw value */
+        }
+        if (host === ruleHost) return true;
+        break;
+      }
+    }
   }
   return false;
 }
@@ -36,8 +85,11 @@ export class KaliRunsService {
   ) {}
 
   async runKaliTool(userId: string, input: RunKaliToolInput): Promise<KaliToolRunObject> {
-    // 1. engagement access
-    const eng = await this.prisma.engagement.findFirst({ where: { id: input.engagementId } });
+    // 1. engagement access — must exist, be owned by the caller, and not be soft-deleted
+    //    (mirrors ScansService.runScan's engagement guard).
+    const eng = await this.prisma.engagement.findFirst({
+      where: { id: input.engagementId, ownerId: userId, deletedAt: null },
+    });
     if (!eng) throw new NotFoundException('engagement not found');
 
     // 2. binary allowlist (SP1 dataset)
