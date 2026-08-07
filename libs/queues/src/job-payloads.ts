@@ -59,6 +59,15 @@ export interface AiRunPayload {
   engagementId: string;
 }
 
+export interface KaliToolRunPayload {
+  runId: string;
+}
+
+export interface KaliToolParsePayload {
+  runId: string;
+  rawOutputKey: string;
+}
+
 export interface QueuePayloadMap {
   [QueueName.SCAN_JOBS]: ScanJobPayload;
   [QueueName.PARSE_JOBS]: ParseJobPayload;

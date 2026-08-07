@@ -16,7 +16,7 @@ describe('topics', () => {
         'security.webhook.ingest.requested',
       ]),
     );
-    expect(Object.keys(TOPICS)).toHaveLength(20);
+    expect(Object.keys(TOPICS)).toHaveLength(22);
   });
 
   it('includes the SP1 asset and discovery lifecycle topics', () => {
@@ -50,6 +50,12 @@ describe('topics', () => {
     );
   });
 
+  it('includes the SP3a kalitool run + parse topics', () => {
+    expect(Object.keys(TOPICS)).toEqual(
+      expect.arrayContaining(['security.kalitool.requested', 'security.kalitool.parse.requested']),
+    );
+  });
+
   it('derives retry and dlq names', () => {
     expect(retryTopic('security.report.requested')).toBe('security.report.requested.retry');
     expect(dlqTopic('security.report.requested')).toBe('security.report.requested.dlq');
@@ -60,7 +66,7 @@ describe('topics', () => {
     expect(names).toContain('security.report.requested');
     expect(names).toContain('security.report.requested.retry');
     expect(names).toContain('security.report.requested.dlq');
-    expect(names).toHaveLength(20 * 3);
+    expect(names).toHaveLength(22 * 3);
   });
 
   it('gives dlq topics a single partition', () => {

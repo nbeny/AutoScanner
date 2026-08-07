@@ -18,5 +18,6 @@ import { ToolsService } from './tools.service';
     ToolsResolver,
     { provide: KALI_DATASET, useFactory: () => loadKaliDataset() },
   ],
+  exports: [KaliCatalogService],
 })
 export class ToolsModule {}

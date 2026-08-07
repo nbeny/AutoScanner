@@ -19,6 +19,7 @@ import { CapabilitiesModule } from './capabilities/capabilities.module';
 import { EngagementAuthModule } from './engagement-auth/engagement-auth.module';
 import { AiRunsModule } from './ai-runs/ai-runs.module';
 import { AssetsModule } from './assets/assets.module';
+import { KaliRunsModule } from './kali-runs/kali-runs.module';
 import { ChainsModule } from './chains/chains.module';
 import { AuthModule } from './auth/auth.module';
 import { CorrelatedFindingsModule } from './correlated-findings/correlated-findings.module';
@@ -65,10 +66,21 @@ import { WebhooksModule } from './webhooks/webhooks.module';
         subscriptions: {
           'graphql-ws': {
             path: '/graphql',
-            onConnect: async (ctx: { connectionParams?: Record<string, unknown> }) => {
+            onConnect: async (ctx: {
+              connectionParams?: Record<string, unknown>;
+              extra?: unknown;
+            }) => {
               const params = ctx.connectionParams as { authorization?: string } | undefined;
               const user = await authenticateWsConnection(params, cfg, prisma);
-              return { user };
+              // graphql-ws discards the onConnect return value: the only channel
+              // to the per-operation `context` is the persistent per-socket
+              // `ctx.extra`. Returning `{ user }` (as before) left `extra.user`
+              // undefined, so every subscription's JwtAuthGuard fell through to
+              // passport-jwt — which crashed reading `authorization` off the
+              // absent HTTP request, killing the subscription after one error.
+              const extra = (ctx.extra ?? (ctx.extra = {})) as Record<string, unknown>;
+              extra.user = user;
+              return true;
             },
           },
         },
@@ -110,6 +122,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     QueueHealthModule,
     ScansModule,
     AiRunsModule,
+    KaliRunsModule,
     ChainsModule,
     SchedulesModule,
     TemplatesModule,

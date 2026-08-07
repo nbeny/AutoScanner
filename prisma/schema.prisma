@@ -43,6 +43,7 @@ model User {
   findingStatusEvents  FindingStatusEvent[]
   capabilities         UserCapability[]
   aiRuns               AiRun[]
+  kaliToolRuns         KaliToolRun[]
 
   @@index([deletedAt])
 }
@@ -125,6 +126,7 @@ model Engagement {
   threatIntel        ThreatIntel[]
   complianceMappings ComplianceMapping[]
   tickets            Ticket[]
+  kaliToolRuns       KaliToolRun[]
 
   @@index([ownerId])
   @@index([status])
@@ -1354,4 +1356,37 @@ model AiDecision {
   aiRun AiRun @relation(fields: [aiRunId], references: [id], onDelete: Cascade)
 
   @@index([aiRunId])
+}
+
+enum KaliToolRunStatus {
+  PENDING
+  RUNNING
+  PARSING
+  COMPLETED
+  FAILED
+}
+
+model KaliToolRun {
+  id            String            @id @default(cuid())
+  engagementId  String
+  createdById   String
+  binary        String
+  argsJson      Json
+  target        String?
+  jsonRequested Boolean           @default(false)
+  status        KaliToolRunStatus @default(PENDING)
+  rawOutputRef  String?
+  outputFormat  String?
+  exitCode      Int?
+  parsedJson    Json?
+  errorMessage  String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  createdBy  User       @relation(fields: [createdById], references: [id])
+
+  @@index([engagementId])
 }
