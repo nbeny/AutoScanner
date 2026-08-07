@@ -1,0 +1,16 @@
+# tools/kali-catalog/Dockerfile.kali-catalog
+FROM kalilinux/kali-rolling
+
+# Which tool set to install. Default: kali-linux-large (most offensive tools,
+# no desktop). Override with --build-arg KALI_META=kali-linux-everything for max coverage.
+ARG KALI_META=kali-linux-large
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      ${KALI_META} man-db jq coreutils \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY capture.sh /usr/local/bin/capture.sh
+RUN chmod +x /usr/local/bin/capture.sh
+
+ENTRYPOINT ["/usr/local/bin/capture.sh"]
