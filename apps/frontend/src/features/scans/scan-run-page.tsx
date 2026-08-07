@@ -9,6 +9,7 @@ import { AssetsTable } from './assets-table';
 import { NewTemplateRunForm } from '../template-runs/new-template-run-form';
 import { ScannerSelect } from './scanner-select';
 import { ScannerOptionsForm } from './scanner-options-form';
+import { KaliToolDocPanel } from './kali-tool-doc-panel';
 import type { ScannerCatalogEntry } from './scanner-catalog';
 
 interface RunScanResult {
@@ -177,6 +178,10 @@ export function ScanRunPage() {
               ) : null}
             </>
           )}
+
+          {selectedEntry?.kaliToolRef ? (
+            <KaliToolDocPanel binary={selectedEntry.kaliToolRef} />
+          ) : null}
         </div>
         <button
           type="submit"

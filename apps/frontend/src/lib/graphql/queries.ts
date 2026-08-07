@@ -992,6 +992,7 @@ export const SCANNER_CATALOG_QUERY = gql`
       description
       categories
       requiresCredential
+      kaliToolRef
       fields {
         name
         type

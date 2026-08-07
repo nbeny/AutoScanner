@@ -97,6 +97,8 @@ export interface ScannerCatalogEntry {
   description: string;
   categories: string[];
   requiresCredential: string | null;
+  /** Underlying Kali binary (SP1 cross-link), null when the scanner maps to none. */
+  kaliToolRef?: string | null;
   fields: ScannerCatalogField[];
 }
 
