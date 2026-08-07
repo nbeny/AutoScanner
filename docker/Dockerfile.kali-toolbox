@@ -1,0 +1,13 @@
+# docker/Dockerfile.kali-toolbox
+# Minimal Kali base for the kali-tool-worker sandbox: no ENTRYPOINT/CMD — the
+# docker-runner supplies the argv (binary + args) for each KaliToolRun.
+FROM kalilinux/kali-rolling
+
+# Which tool set to install. Default: kali-linux-large (most offensive tools,
+# no desktop). Override with --build-arg KALI_META=kali-linux-everything for max coverage.
+ARG KALI_META=kali-linux-large
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      ${KALI_META} \
+ && rm -rf /var/lib/apt/lists/*
