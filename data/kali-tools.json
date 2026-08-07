@@ -1,0 +1,57 @@
+[
+  {
+    "package": "nmap",
+    "binary": "nmap",
+    "displayName": "nmap",
+    "description": "The Network Mapper - a security scanner",
+    "homepage": "https://nmap.org",
+    "categories": ["information-gathering"],
+    "helpTextRaw": "Nmap ( https://nmap.org )\nUsage: nmap [Scan Type(s)] [Options] {target}\n  -sV                   Probe open ports to determine service/version info\n  -p <port ranges>      Only scan specified ports",
+    "options": [
+      {
+        "flag": "-sV",
+        "argHint": null,
+        "description": "Probe open ports to determine service/version info"
+      },
+      { "flag": "-p", "argHint": "<port ranges>", "description": "Only scan specified ports" }
+    ],
+    "parseConfidence": "low",
+    "manAvailable": true,
+    "source": "kali-docker",
+    "kaliRelease": "seed",
+    "capturedAt": "2026-08-07T00:00:00.000Z"
+  },
+  {
+    "package": "ffuf",
+    "binary": "ffuf",
+    "displayName": "ffuf",
+    "description": "Fast web fuzzer written in Go",
+    "homepage": "https://github.com/ffuf/ffuf",
+    "categories": ["web-applications"],
+    "helpTextRaw": "Fuzz Faster U Fool\n  -u                    Target URL\n  -w                    Wordlist file path",
+    "options": [
+      { "flag": "-u", "argHint": null, "description": "Target URL" },
+      { "flag": "-w", "argHint": null, "description": "Wordlist file path" }
+    ],
+    "parseConfidence": "low",
+    "manAvailable": false,
+    "source": "kali-docker",
+    "kaliRelease": "seed",
+    "capturedAt": "2026-08-07T00:00:00.000Z"
+  },
+  {
+    "package": "nikto",
+    "binary": "nikto",
+    "displayName": "nikto",
+    "description": "Web server scanner",
+    "homepage": "https://cirt.net/Nikto2",
+    "categories": ["web-applications"],
+    "helpTextRaw": null,
+    "options": [],
+    "parseConfidence": "none",
+    "manAvailable": true,
+    "source": "kali-docker",
+    "kaliRelease": "seed",
+    "capturedAt": "2026-08-07T00:00:00.000Z"
+  }
+]
