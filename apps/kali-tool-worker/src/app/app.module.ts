@@ -13,6 +13,7 @@ import {
   KALI_TOOL_RUN_EVENTS_REDIS,
 } from './kali-tool-run-events.publisher';
 import { KaliRunProcessor } from './kali-run.processor';
+import { KaliParseProcessor } from './kali-parse.processor';
 
 const eventsRedisProvider: Provider = {
   provide: KALI_TOOL_RUN_EVENTS_REDIS,
@@ -29,6 +30,11 @@ const eventsRedisProvider: Provider = {
     StorageModule,
     MessagingModule.forRoot(),
   ],
-  providers: [eventsRedisProvider, KaliToolRunEventsPublisher, KaliRunProcessor],
+  providers: [
+    eventsRedisProvider,
+    KaliToolRunEventsPublisher,
+    KaliRunProcessor,
+    KaliParseProcessor,
+  ],
 })
 export class AppModule {}
