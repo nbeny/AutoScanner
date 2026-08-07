@@ -1298,3 +1298,89 @@ export const CANCEL_ALL_SCANS_MUTATION = gql`
     cancelAllScans(engagementId: $engagementId)
   }
 `;
+
+export const KALI_TOOLS_QUERY = gql`
+  query KaliTools {
+    kaliTools {
+      binary
+      package
+      displayName
+      description
+      categories
+      hasHelp
+      optionCount
+    }
+  }
+`;
+
+export const KALI_TOOL_QUERY = gql`
+  query KaliTool($binary: String!) {
+    kaliTool(binary: $binary) {
+      binary
+      displayName
+      description
+      homepage
+      helpTextRaw
+      parseConfidence
+      manAvailable
+      options {
+        flag
+        argHint
+        description
+      }
+    }
+  }
+`;
+
+export const RUN_KALI_TOOL_MUTATION = gql`
+  mutation RunKaliTool($input: RunKaliToolInput!) {
+    runKaliTool(input: $input) {
+      id
+      binary
+      args
+      status
+    }
+  }
+`;
+
+export const KALI_TOOL_RUN_QUERY = gql`
+  query KaliToolRun($id: ID!) {
+    kaliToolRun(id: $id) {
+      id
+      engagementId
+      binary
+      args
+      target
+      status
+      outputFormat
+      exitCode
+      parsedJson
+      errorMessage
+      createdAt
+    }
+  }
+`;
+
+export const KALI_TOOL_RUNS_QUERY = gql`
+  query KaliToolRuns($engagementId: ID!) {
+    kaliToolRuns(engagementId: $engagementId) {
+      id
+      binary
+      args
+      status
+      outputFormat
+      exitCode
+      createdAt
+    }
+  }
+`;
+
+export const KALI_TOOL_RUN_EVENTS_SUBSCRIPTION = gql`
+  subscription KaliToolRunEvents($runId: ID!) {
+    kaliToolRunEvents(runId: $runId) {
+      type
+      status
+      message
+    }
+  }
+`;
