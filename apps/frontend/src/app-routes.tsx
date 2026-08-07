@@ -18,6 +18,8 @@ import { CockpitPage } from './features/cockpit/cockpit-page';
 import { OsintCockpitPage } from './features/osint/osint-cockpit-page';
 import { TargetsLibraryPage } from './features/targets/targets-library-page';
 import { AuditPage } from './features/audit/audit-page';
+import { KaliRunnerPage } from './features/runner/kali-runner-page';
+import { KaliRunPage } from './features/runner/kali-run-page';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session } = useAuth();
@@ -64,6 +66,8 @@ export function AppRoutes({ email, onLogout }: AppRoutesProps) {
         <Route path="/tools" element={<ToolsScoped />} />
         <Route path="/hunt" element={<HuntSearchPage />} />
         <Route path="/hunt/:aiRunId" element={<HuntRunPage />} />
+        <Route path="/runner" element={<KaliRunnerPage />} />
+        <Route path="/runner/:runId" element={<KaliRunPage />} />
         <Route path="/chains" element={<ChainsCatalogPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/scans/:scanId" element={<ScanDetailPage />} />
