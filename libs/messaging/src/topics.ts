@@ -8,6 +8,8 @@ export const TOPICS = {
   'security.parse.requested': { partitions: 6, group: 'parser-worker' },
   'security.scan.requested': { partitions: 3, group: 'orchestrator' },
   'security.ai.run.requested': { partitions: 3, group: 'ai-orchestrator' },
+  'security.kalitool.requested': { partitions: 3, group: 'kali-tool-run' },
+  'security.kalitool.parse.requested': { partitions: 3, group: 'kali-tool-parse' },
   'security.cve.enrich.requested': { partitions: 4, group: 'cve-enricher' },
   'security.cve.discovery.requested': { partitions: 4, group: 'cve-enricher-discovery' },
   'security.nvd.sync.requested': { partitions: 1, group: 'nvd-sync' },
