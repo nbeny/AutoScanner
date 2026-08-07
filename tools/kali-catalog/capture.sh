@@ -36,7 +36,7 @@ for meta in $(dpkg-query -W -f='${Package}\n' 'kali-tools-*' 2>/dev/null); do
       bin="$(basename "$path")"
       echo "$bin" | grep -qE "$EXCLUDE_RE" && continue
       help="$(emit_help "$bin" || true)"
-      man_ok="false"; man "$bin" >/dev/null 2>&1 && man_ok="true"
+      man_ok="false"; timeout "${HELP_TIMEOUT}" man "$bin" >/dev/null 2>&1 && man_ok="true"
       jq -cn \
         --arg package "$pkg" --arg binary "$bin" --arg description "$desc" \
         --arg homepage "$homepage" --arg category "$category" \

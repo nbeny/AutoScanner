@@ -7,7 +7,7 @@ ARG KALI_META=kali-linux-large
 
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      ${KALI_META} man-db jq coreutils \
+      ${KALI_META} man-db jq coreutils gawk \
  && rm -rf /var/lib/apt/lists/*
 
 COPY capture.sh /usr/local/bin/capture.sh
