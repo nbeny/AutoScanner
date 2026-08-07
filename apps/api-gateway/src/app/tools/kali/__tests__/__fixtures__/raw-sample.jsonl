@@ -1,0 +1,2 @@
+{"package":"nmap","binary":"nmap","description":"The Network Mapper","homepage":"https://nmap.org","categories":["information-gathering"],"helpTextRaw":"  -sV   Probe service/version","manAvailable":true}
+{"package":"nikto","binary":"nikto","description":"Web server scanner","homepage":null,"categories":["web-applications"],"helpTextRaw":null,"manAvailable":true}

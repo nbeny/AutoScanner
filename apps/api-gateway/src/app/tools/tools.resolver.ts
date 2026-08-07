@@ -6,9 +6,11 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AssetCoverageObject } from './dto/asset-coverage.object';
 import { CoverageCellObject } from './dto/coverage-cell.object';
+import { KaliToolDetailObject, KaliToolSummaryObject } from './dto/kali-tool.object';
 import { ScannerCatalogEntryObject } from './dto/scanner-catalog.object';
 import { ToolActivityObject } from './dto/tool-activity.object';
 import { ToolDetailObject } from './dto/tool-detail.object';
+import { KaliCatalogService } from './kali-catalog.service';
 import { ScannerCatalogService } from './scanner-catalog.service';
 import { ToolsService } from './tools.service';
 
@@ -18,11 +20,22 @@ export class ToolsResolver {
   constructor(
     private readonly svc: ToolsService,
     private readonly catalog: ScannerCatalogService,
+    private readonly kali: KaliCatalogService,
   ) {}
 
   @Query(() => [ScannerCatalogEntryObject])
   scannerCatalog(): ScannerCatalogEntryObject[] {
     return this.catalog.catalog();
+  }
+
+  @Query(() => [KaliToolSummaryObject])
+  kaliTools(): KaliToolSummaryObject[] {
+    return this.kali.list();
+  }
+
+  @Query(() => KaliToolDetailObject, { nullable: true })
+  kaliTool(@Args('binary') binary: string): KaliToolDetailObject | null {
+    return this.kali.detail(binary);
   }
 
   @Query(() => [ToolActivityObject])

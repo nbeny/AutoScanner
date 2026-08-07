@@ -21,5 +21,6 @@ export class ScannerCatalogEntryObject {
   @Field() description!: string;
   @Field(() => [String]) categories!: string[];
   @Field(() => String, { nullable: true }) requiresCredential?: string | null;
+  @Field(() => String, { nullable: true }) kaliToolRef?: string | null;
   @Field(() => [ScannerFieldObject]) fields!: ScannerFieldObject[];
 }
