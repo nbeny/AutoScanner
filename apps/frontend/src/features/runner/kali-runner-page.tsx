@@ -8,6 +8,7 @@ import {
   RUN_KALI_TOOL_MUTATION,
 } from '../../lib/graphql/queries';
 import { tokenizeArgs } from './tokenize-args';
+import { KaliRunHistory } from './kali-run-history';
 
 interface KaliToolSummary {
   binary: string;
@@ -223,6 +224,8 @@ export function KaliRunnerPage() {
           )}
         </section>
       </div>
+
+      <KaliRunHistory engagementId={engagementId ?? undefined} />
     </div>
   );
 }
