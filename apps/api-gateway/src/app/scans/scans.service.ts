@@ -47,7 +47,7 @@ export class ScansService {
     private readonly capabilities: CapabilityService,
   ) {}
 
-  async runScan(userId: string, input: RunScanInput): Promise<Scan> {
+  async runScan(userId: string, input: RunScanInput): Promise<Scan & { jobs: ScanJob[] }> {
     if (!this.registry.has(input.scannerName)) {
       throw new ValidationError(`Unknown scanner: ${input.scannerName}`);
     }
@@ -164,7 +164,11 @@ export class ScansService {
       );
     }
 
-    return scan;
+    // GraphQL's Scan.jobs is a non-nullable list, but tx.scan.create above
+    // doesn't load the relation. Attach the job we just created so the runScan
+    // mutation can select `jobs` without hitting
+    // "Cannot return null for non-nullable field Scan.jobs".
+    return { ...scan, jobs: [scanJob] };
   }
 
   listForOwner(userId: string, engagementId: string): Promise<Scan[]> {

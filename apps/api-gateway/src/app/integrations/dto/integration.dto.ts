@@ -1,4 +1,5 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 import { TicketProvider, TicketStatus } from '@prisma/client';
 
 registerEnumType(TicketProvider, { name: 'TicketProvider' });
@@ -22,16 +23,24 @@ export class IntegrationCredentialObject {
   createdAt!: Date;
 }
 
+// InputType fields carry class-validator decorators: the global ValidationPipe
+// ({ whitelist, forbidNonWhitelisted }) rejects any undecorated property
+// ("property <x> should not exist"), 400-ing the mutation before it resolves.
 @InputType()
 export class CreateIntegrationCredentialInput {
   @Field(() => TicketProvider)
+  @IsEnum(TicketProvider)
   provider!: TicketProvider;
 
   @Field()
+  @IsString()
+  @IsNotEmpty()
   name!: string;
 
   /** Provider config as a JSON string (GitHub: {repo,token}; Jira: {baseUrl,email,token,projectKey}). */
   @Field()
+  @IsString()
+  @IsNotEmpty()
   config!: string;
 }
 
@@ -65,8 +74,11 @@ export class TicketObject {
 @InputType()
 export class CreateTicketInput {
   @Field(() => ID)
+  @IsString()
+  @IsNotEmpty()
   correlatedFindingId!: string;
 
   @Field(() => TicketProvider)
+  @IsEnum(TicketProvider)
   provider!: TicketProvider;
 }

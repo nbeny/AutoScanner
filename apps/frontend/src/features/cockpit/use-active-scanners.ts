@@ -23,16 +23,20 @@ interface RawScan {
   jobs: RawJob[];
 }
 
-const ACTIVE = new Set(['RUNNING', 'QUEUED']);
-
-export function useActiveScanners(engagementId?: string) {
-  // Filter to non-terminal scans server-side (statusIn) so history isn't
-  // transmitted; the client-side ACTIVE check below stays as a defensive
-  // guard against stale cache entries.
-  const filter: { engagementId?: string; statusIn: string[] } = {
-    statusIn: ['RUNNING', 'QUEUED'],
-  };
+/**
+ * Cockpit scanner list. `statuses` filters both the scan-level query (server-side
+ * `statusIn`, so history isn't over-fetched) and the job-level rows shown. Pass an
+ * empty array to show every status ("Tous"). Defaults to the active set
+ * (RUNNING/QUEUED) so callers that just want the live count (e.g. the header pill)
+ * keep their previous behaviour.
+ */
+export function useActiveScanners(
+  engagementId?: string,
+  statuses: string[] = ['RUNNING', 'QUEUED'],
+) {
+  const filter: { engagementId?: string; statusIn?: string[] } = {};
   if (engagementId) filter.engagementId = engagementId;
+  if (statuses.length) filter.statusIn = statuses;
 
   const { data, loading, error } = useQuery<{ allScans: RawScan[] }>(ALL_SCANS_QUERY, {
     variables: { filter },
@@ -43,16 +47,17 @@ export function useActiveScanners(engagementId?: string) {
   const active: CockpitJob[] = [];
   for (const scan of data?.allScans ?? []) {
     for (const job of scan.jobs) {
-      if (ACTIVE.has(job.status)) {
-        active.push({
-          scanId: scan.id,
-          jobId: job.id,
-          scannerName: job.scannerName,
-          target: job.target,
-          status: job.status,
-          startedAt: job.startedAt,
-        });
-      }
+      // Empty `statuses` ("Tous") keeps every job; otherwise the job's own status
+      // must match so a multi-job scan doesn't surface a sibling in another state.
+      if (statuses.length && !statuses.includes(job.status)) continue;
+      active.push({
+        scanId: scan.id,
+        jobId: job.id,
+        scannerName: job.scannerName,
+        target: job.target,
+        status: job.status,
+        startedAt: job.startedAt,
+      });
     }
   }
   return { active, loading, error };

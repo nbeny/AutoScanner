@@ -37,7 +37,10 @@ export class ScansResolver {
 
   @Mutation(() => ScanObject)
   runScan(@CurrentUser() user: User, @Args('input') input: RunScanInput): Promise<ScanObject> {
-    return this.svc.runScan(user.id, input) as Promise<ScanObject>;
+    // `as unknown as` (like allScans): the service now returns the scan with its
+    // Prisma ScanJob[] attached, which doesn't structurally match ScanJobObject
+    // (findingCount is a computed @ResolveField), so a direct cast is rejected.
+    return this.svc.runScan(user.id, input) as unknown as Promise<ScanObject>;
   }
 
   @Query(() => [ScanObject])

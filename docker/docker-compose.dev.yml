@@ -104,6 +104,27 @@ services:
     volumes:
       - redpanda-data:/var/lib/redpanda/data
 
+  # Raise the per-partition memory budget so the full topic set fits. The dev
+  # broker runs with --smp=1 --memory=512M; at Redpanda's 4 MiB/partition
+  # default that caps allocation around ~167 partitions, and the ~206 the
+  # registry provisions (libs/messaging/src/topics.ts) overflow — the last
+  # topics (security.risk.*) fail with "INVALID_PARTITIONS: ... hardware
+  # constraints". Dropping the reservation to 1 MiB fits them without adding RAM.
+  # Runs on every `dev:up` (idempotent, no profile); no restart needed to apply.
+  redpanda-bootstrap:
+    image: redpandadata/redpanda:v24.2.7
+    container_name: autoscanner-redpanda-bootstrap
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        rpk cluster config set topic_memory_per_partition 1048576 -X admin.hosts=redpanda:9644 &&
+        echo "Redpanda cluster config ready (topic_memory_per_partition=1MiB)"
+    restart: 'no'
+
   # --- Application services (profile: app) ------------------------------------
   # Opt-in so `pnpm dev:up` stays lean (infra only). Bring the app up with:
   #   docker compose -f docker/docker-compose.dev.yml --profile app up -d --build

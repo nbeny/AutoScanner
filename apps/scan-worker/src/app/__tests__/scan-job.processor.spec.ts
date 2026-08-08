@@ -10,7 +10,7 @@ import { ScannerRegistry, type ScannerDefinition } from '@autoscanner/scanner-sd
 import { NmapScanner } from '@autoscanner/scanners-nmap';
 import type { ObjectStorage } from '@autoscanner/storage';
 
-import { MAX_RAW_OUTPUT_BYTES, ScanJobProcessor } from '../scan-job.processor';
+import { MAX_RAW_OUTPUT_BYTES, ScanJobProcessor, deriveScanStatus } from '../scan-job.processor';
 import type { ScanControlSubscriber } from '../scan-control.subscriber';
 
 const NMAP_XML =
@@ -39,7 +39,11 @@ describe('ScanJobProcessor', () => {
           status: 'QUEUED',
           scan: { id: 'scan_1', engagementId: 'eng_1' },
         }),
-        update: jest.fn().mockResolvedValue({}),
+        update: jest.fn().mockResolvedValue({ scanId: 'scan_1' }),
+        findMany: jest.fn().mockResolvedValue([{ status: 'COMPLETED', completedAt: new Date() }]),
+      },
+      scan: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       engagement: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -179,6 +183,15 @@ describe('ScanJobProcessor', () => {
     expect(result).toEqual({ rawOutputKey: 'eng_1/scan_1/job_1/nmap-xml.xml', exitCode: 0 });
     // SP3: the completion wake-up fires so the orchestrator/AutoHunt waiters don't poll.
     expect(scanJobDone.publishDone).toHaveBeenCalledWith('job_1', 'COMPLETED');
+
+    // The parent Scan is rolled up from its jobs so it no longer stays stuck at
+    // QUEUED. The updateMany guard skips any already-terminal Scan (idempotent).
+    expect(prisma.scan.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'scan_1', status: { notIn: ['COMPLETED', 'FAILED', 'TIMEOUT', 'CANCELLED'] } },
+        data: expect.objectContaining({ status: 'COMPLETED', completedAt: expect.any(Date) }),
+      }),
+    );
   });
 
   it('marks TIMEOUT and does NOT enqueue parse when runner times out', async () => {
@@ -682,5 +695,37 @@ describe('ScanJobProcessor', () => {
       expect(lastBindSrc).toBeDefined();
       expect(fs.existsSync(lastBindSrc!)).toBe(false);
     });
+  });
+});
+
+describe('deriveScanStatus', () => {
+  it('returns QUEUED for a scan with no jobs', () => {
+    expect(deriveScanStatus([])).toBe('QUEUED');
+  });
+
+  it('returns QUEUED while all jobs are still pending/queued', () => {
+    expect(deriveScanStatus(['QUEUED'])).toBe('QUEUED');
+    expect(deriveScanStatus(['PENDING', 'QUEUED'])).toBe('QUEUED');
+  });
+
+  it('returns RUNNING once any job has started', () => {
+    expect(deriveScanStatus(['RUNNING'])).toBe('RUNNING');
+    expect(deriveScanStatus(['QUEUED', 'RUNNING'])).toBe('RUNNING');
+  });
+
+  it('returns RUNNING when some jobs are terminal but others are still pending', () => {
+    expect(deriveScanStatus(['COMPLETED', 'QUEUED'])).toBe('RUNNING');
+  });
+
+  it('returns COMPLETED only when every job completed', () => {
+    expect(deriveScanStatus(['COMPLETED'])).toBe('COMPLETED');
+    expect(deriveScanStatus(['COMPLETED', 'COMPLETED'])).toBe('COMPLETED');
+  });
+
+  it('applies worst-outcome-wins across terminal jobs', () => {
+    expect(deriveScanStatus(['COMPLETED', 'FAILED'])).toBe('FAILED');
+    expect(deriveScanStatus(['COMPLETED', 'TIMEOUT'])).toBe('TIMEOUT');
+    expect(deriveScanStatus(['COMPLETED', 'CANCELLED'])).toBe('CANCELLED');
+    expect(deriveScanStatus(['FAILED', 'TIMEOUT', 'CANCELLED'])).toBe('FAILED');
   });
 });

@@ -10,7 +10,7 @@ import { SeveritySparklinePanel } from './severity-sparkline-panel';
 import { FindingsFluxFeed } from './findings-flux-feed';
 import { CockpitCommandBar } from './cockpit-command-bar';
 import type { HealthPillData } from './health-pill';
-import { useActiveScanners } from './use-active-scanners';
+import { useActiveScanners, type CockpitJob } from './use-active-scanners';
 
 export function CockpitPage() {
   const { engagementId } = useScope();
@@ -32,18 +32,18 @@ export function CockpitPage() {
     { label: 'workers', value: totalWorkers },
   ];
 
-  function selectJob(scanId: string, jobId: string) {
-    const job = active.find((a) => a.jobId === jobId);
-    setFocus(
-      job
-        ? { scanId, jobId, scannerName: job.scannerName, target: job.target }
-        : { scanId, jobId, scannerName: 'scanner', target: '' },
-    );
+  function selectJob(job: CockpitJob) {
+    setFocus({
+      scanId: job.scanId,
+      jobId: job.jobId,
+      scannerName: job.scannerName,
+      target: job.target,
+    });
   }
 
   return (
     <div className="space-y-4 p-6">
-      <CockpitCommandBar engagementId={scope} pills={pills} />
+      <CockpitCommandBar engagementId={scope} pills={pills} onLaunched={setFocus} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(220px,1fr)_2fr_minmax(260px,1.2fr)]">
         <div className="min-h-[24rem]">

@@ -2,7 +2,7 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, ScanStatus } from '@prisma/client';
 import { SecretBox } from '@autoscanner/common';
 import { PrismaService } from '@autoscanner/database';
 import { ScanJobDonePublisher } from '@autoscanner/scan-events';
@@ -28,7 +28,35 @@ import { ScanControlSubscriber } from './scan-control.subscriber';
 
 const PARSE_TOPIC = 'security.parse.requested';
 const SCANNER_TOPIC = 'security.scanner.requested';
-const TERMINAL_STATUSES = new Set(['COMPLETED', 'FAILED', 'TIMEOUT', 'CANCELLED']);
+const TERMINAL_SCAN_STATUSES: ScanStatus[] = ['COMPLETED', 'FAILED', 'TIMEOUT', 'CANCELLED'];
+const TERMINAL_STATUSES = new Set<string>(TERMINAL_SCAN_STATUSES);
+
+/**
+ * Aggregate a parent Scan's status from its ScanJobs' statuses.
+ *
+ * Historically the Scan row was created QUEUED and never moved: only the
+ * ScanJob went QUEUED→RUNNING→COMPLETED, so every finished scan stayed
+ * "QUEUED" forever — clogging the cockpit's active-scanners panel and never
+ * showing up under the Completed filter (so its results were unreachable).
+ *
+ * Rules (a Scan can hold N jobs — templates/AutoHunt create 1:1 today, but the
+ * schema allows more):
+ *  - All jobs terminal → derive a terminal Scan status, worst-outcome-wins:
+ *    FAILED > TIMEOUT > CANCELLED > COMPLETED.
+ *  - Otherwise, if any job has started or finished → RUNNING; else QUEUED.
+ */
+export function deriveScanStatus(jobStatuses: string[]): ScanStatus {
+  if (jobStatuses.length === 0) return 'QUEUED';
+  const allTerminal = jobStatuses.every((s) => TERMINAL_STATUSES.has(s));
+  if (allTerminal) {
+    if (jobStatuses.includes('FAILED')) return 'FAILED';
+    if (jobStatuses.includes('TIMEOUT')) return 'TIMEOUT';
+    if (jobStatuses.includes('CANCELLED')) return 'CANCELLED';
+    return 'COMPLETED';
+  }
+  const anyStarted = jobStatuses.some((s) => s === 'RUNNING' || TERMINAL_STATUSES.has(s));
+  return anyStarted ? 'RUNNING' : 'QUEUED';
+}
 
 // Per-scan capture cap. The docker sandbox limits container memory to ~2 GiB
 // (DEFAULT_MEMORY_MB in dockerode-runner) but a scanner can SHIP up to that
@@ -76,8 +104,40 @@ export class ScanJobProcessor
     where: Prisma.ScanJobWhereUniqueInput;
     data: Prisma.ScanJobUpdateInput;
   }): Promise<void> {
-    await this.prisma.scanJob.update(args);
+    const updated = await this.prisma.scanJob.update({ ...args, select: { scanId: true } });
     await this.scanJobDone.publishDone(String(args.where.id), String(args.data.status));
+    await this.reconcileParentScanStatus(updated.scanId, String(args.where.id));
+  }
+
+  /**
+   * Roll the parent Scan's status up from its jobs after a job transition.
+   * Best-effort: a reconcile failure must never fail the scan job (the job's
+   * own terminal status is already committed). The `updateMany` guard skips any
+   * Scan that is already terminal, so this is idempotent on redelivery and can
+   * never clobber an operator's CANCELLED (or a dispatch-time FAILED).
+   */
+  private async reconcileParentScanStatus(scanId: string, scanJobId: string): Promise<void> {
+    if (!scanId) return;
+    try {
+      const jobs = await this.prisma.scanJob.findMany({
+        where: { scanId },
+        select: { status: true, completedAt: true },
+      });
+      const status = deriveScanStatus(jobs.map((j) => j.status));
+      const data: Prisma.ScanUpdateManyMutationInput = { status };
+      if (TERMINAL_STATUSES.has(status)) {
+        const times = jobs.map((j) => j.completedAt?.getTime() ?? Date.now());
+        data.completedAt = new Date(Math.max(...times));
+      }
+      await this.prisma.scan.updateMany({
+        where: { id: scanId, status: { notIn: TERMINAL_SCAN_STATUSES } },
+        data,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `scanJob=${scanJobId} parent-scan reconcile failed: ${(err as Error).message}`,
+      );
+    }
   }
 
   async process(
@@ -105,6 +165,9 @@ export class ScanJobProcessor
       // Re-wake any waiter that missed the original push (SP3): a redelivered message for an
       // already-terminal job must not leave the orchestrator/AutoHunt loop polling.
       await this.scanJobDone.publishDone(payload.scanJobId, scanJob.status);
+      // Self-heal: if the original run died between the job's terminal update and
+      // the parent-scan reconcile, redelivery settles the Scan now.
+      await this.reconcileParentScanStatus(scanJob.scanId, payload.scanJobId);
       return { rawOutputKey: scanJob.rawOutputKey ?? '', exitCode: 0 };
     }
 
@@ -114,6 +177,9 @@ export class ScanJobProcessor
       where: { id: payload.scanJobId },
       data: { status: 'RUNNING', startedAt: new Date() },
     });
+    // Promote the parent Scan QUEUED→RUNNING so the UI stops showing it as
+    // pending the moment the container starts.
+    await this.reconcileParentScanStatus(scanId, payload.scanJobId);
 
     const out0 = scanner.outputs[0];
     const fileCapture = typeof out0.capture === 'object' ? out0.capture : null;

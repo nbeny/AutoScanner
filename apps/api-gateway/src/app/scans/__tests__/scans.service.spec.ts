@@ -126,6 +126,10 @@ describe('ScansService.runScan', () => {
       }),
     );
     expect(scan.id).toBe('scan_1');
+    // GraphQL's Scan.jobs is non-nullable: runScan must return the scan WITH
+    // its job(s), else the mutation errors "Cannot return null for non-nullable
+    // field Scan.jobs" even though both rows committed.
+    expect(scan.jobs).toEqual([expect.objectContaining({ id: 'job_1', status: 'QUEUED' })]);
   });
 
   it('wraps Scan + ScanJob creation in a single $transaction', async () => {

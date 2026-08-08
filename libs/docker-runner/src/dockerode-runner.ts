@@ -77,8 +77,26 @@ export class DockerodeRunner implements DockerRunner {
 
     const container = await this.docker.createContainer({
       Image: spec.image,
+      // Every scanner's `build()` returns a self-contained `cmd` whose first
+      // element is the executable (`sh`, `python`, or the tool binary itself,
+      // e.g. `['nmap', ...args]`). Some upstream images ALSO declare an
+      // ENTRYPOINT equal to the tool (e.g. instrumentisto/nmap ->
+      // `/usr/bin/nmap`), which would prepend the binary and turn our `cmd[0]`
+      // into a bogus extra positional arg (`nmap nmap <target>` -> nmap tries
+      // to resolve a host literally named "nmap"). nmap tolerates it (exit 0
+      // with a "Failed to resolve" warning) but stricter tools exit non-zero
+      // and the scan lands FAILED. Clearing the entrypoint makes `cmd` the
+      // literal argv for every image uniformly.
+      Entrypoint: [],
       Cmd: spec.cmd,
-      Env: envToArray(spec.env),
+      // Default HOME to the writable tmpfs. Many tools (subfinder, nuclei,
+      // httpx, katana, dnsx, ...) create/read config + cache under
+      // `$HOME/.config` / `$HOME/.cache` on first run; their images ship no
+      // HOME, so it resolves to `/`, which the read-only rootfs rejects
+      // ("open /.config/subfinder/config.yaml: no such file or directory" ->
+      // exit 1). `/tmp` is always mounted rw. A scanner can still override HOME
+      // via its own env.
+      Env: envToArray({ HOME: '/tmp', ...spec.env }),
       WorkingDir: spec.workingDir,
       User: spec.user ?? DEFAULT_USER,
       Tty: false,

@@ -20,7 +20,7 @@ export function OsintCommandBar({ engagementId, pills, onLaunched }: OsintComman
   const [manualType, setManualType] = useState<OsintSeedType | null>(null);
   const [armed, setArmed] = useState(false);
 
-  const [runOsint, { loading: launching }] = useMutation(RUN_OSINT_SCAN_MUTATION);
+  const [runOsint, { loading: launching, error }] = useMutation(RUN_OSINT_SCAN_MUTATION);
   const [cancelAll, { loading: killing }] = useMutation(CANCEL_ALL_SCANS_MUTATION);
 
   const scoped = Boolean(engagementId);
@@ -82,6 +82,11 @@ export function OsintCommandBar({ engagementId, pills, onLaunched }: OsintComman
       </button>
       {!scoped ? (
         <span className="text-xs text-slate-500">Sélectionne un périmètre pour investiguer.</span>
+      ) : null}
+      {error ? (
+        <span role="alert" className="text-xs text-rose-400">
+          Échec : {error.message}
+        </span>
       ) : null}
 
       <div className="ml-auto flex items-center gap-2">
