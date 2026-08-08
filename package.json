@@ -30,7 +30,7 @@
     "oast:down": "docker compose -f docker/oast/docker-compose.oast.yml down",
     "dev:scan-worker": "nx serve scan-worker",
     "dev:parser-worker": "nx serve parser-worker",
-    "dev:workers": "nx run-many -t serve -p scan-worker parser-worker",
+    "dev:workers": "nx run-many -t serve -p scan-worker parser-worker kali-tool-worker",
     "dev:orchestrator-worker": "nx serve orchestrator-worker",
     "dev:kali-tool-worker": "nx serve kali-tool-worker",
     "dev:notification-worker": "nx serve notification-worker",
