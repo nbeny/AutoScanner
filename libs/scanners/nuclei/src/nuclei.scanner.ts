@@ -71,4 +71,24 @@ export const NucleiScanner: ScannerDefinition<NucleiInputType> = {
   },
   outputs: [{ format: 'JSONL', capture: 'stdout', parser: 'nuclei-json' }],
   produces: ['Finding'],
+  presets: [
+    {
+      id: 'cves-critical-high',
+      name: 'CVE critiques/high',
+      description: 'Templates CVE de sévérité critical et high.',
+      options: { severity: ['critical', 'high'], tags: ['cve'] },
+    },
+    {
+      id: 'exposures',
+      name: 'Exposition & misconfig',
+      description: 'Détecte expositions et mauvaises configurations.',
+      options: { tags: ['exposure', 'misconfiguration'] },
+    },
+    {
+      id: 'tech-detect',
+      name: 'Détection de technologies',
+      description: 'Fingerprinting des technologies web.',
+      options: { tags: ['tech'] },
+    },
+  ],
 };

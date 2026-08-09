@@ -46,4 +46,18 @@ export const HttpxScanner: ScannerDefinition<HttpxInputType> = {
   },
   outputs: [{ format: 'JSONL', capture: 'stdout', parser: 'httpx-json' }],
   produces: ['Asset', 'Subdomain', 'Technology'],
+  presets: [
+    {
+      id: 'probe-basic',
+      name: 'Probe HTTP (titres + codes)',
+      description: 'Probe HTTP simple : ports 80/443, code de statut et titre uniquement.',
+      options: { techDetect: false, statusCode: true, title: true, followRedirects: true },
+    },
+    {
+      id: 'full-fingerprint',
+      name: 'Fingerprint complet (tech + titre)',
+      description: 'Détection de technologies, titre et code de statut activés.',
+      options: { techDetect: true, statusCode: true, title: true, followRedirects: true },
+    },
+  ],
 };

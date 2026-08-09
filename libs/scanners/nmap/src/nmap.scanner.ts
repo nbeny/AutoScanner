@@ -63,4 +63,29 @@ export const NmapScanner: ScannerDefinition<NmapInputType> = {
   },
   outputs: [{ format: 'XML', capture: 'stdout', parser: 'nmap-xml' }],
   produces: ['Asset', 'Port', 'Service', 'Technology'],
+  presets: [
+    {
+      id: 'quick-top-1000',
+      name: 'Rapide top-1000 + versions',
+      description: 'Scan TCP rapide des 1000 ports courants avec détection de versions.',
+      options: { serviceDetection: true, timingTemplate: 4 },
+    },
+    {
+      id: 'full-tcp-scripts',
+      name: 'TCP complet + scripts + OS',
+      description: "Tous les ports TCP, scripts par défaut et détection d'OS.",
+      options: {
+        ports: '1-65535',
+        serviceDetection: true,
+        osDetection: true,
+        scripts: ['default'],
+      },
+    },
+    {
+      id: 'udp-top-100',
+      name: 'UDP top-100',
+      description: 'Scan UDP des 100 ports les plus courants.',
+      options: { extraArgs: ['-sU', '--top-ports', '100'] },
+    },
+  ],
 };
