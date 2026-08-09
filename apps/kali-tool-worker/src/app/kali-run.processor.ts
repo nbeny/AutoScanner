@@ -1,7 +1,8 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { PrismaService } from '@autoscanner/database';
 import { DOCKER_RUNNER, type DockerRunner } from '@autoscanner/docker-runner';
-import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
+import { OBJECT_STORAGE, scanLogKey, type ObjectStorage } from '@autoscanner/storage';
+import { LogBuffer } from '@autoscanner/log-stream';
 import {
   ConsumerRegistrar,
   JOB_BUS,
@@ -76,13 +77,20 @@ export class KaliRunProcessor
       chunks.push(c);
       bytes += b;
     };
+    const logBuffer = new LogBuffer();
 
     try {
       await this.docker.pullIfMissing(KALI_TOOLBOX_IMAGE);
       const result = await this.docker.run({
         ...kaliToolboxRunSpec(argv),
-        onStdout: capture,
-        onStderr: capture,
+        onStdout: (c) => {
+          capture(c);
+          logBuffer.append('stdout', c);
+        },
+        onStderr: (c) => {
+          capture(c);
+          logBuffer.append('stderr', c);
+        },
       });
 
       await this.storage.ensureBucket('raw-outputs');
@@ -92,6 +100,18 @@ export class KaliRunProcessor
         body: Buffer.from(chunks.join(''), 'utf8'),
         contentType: 'application/octet-stream',
       });
+
+      try {
+        await this.storage.ensureBucket('logs');
+        await this.storage.putObject({
+          bucket: 'logs',
+          key: scanLogKey(runId),
+          body: Buffer.from(logBuffer.snapshot(), 'utf8'),
+          contentType: 'text/plain; charset=utf-8',
+        });
+      } catch (err) {
+        this.logger.warn(`kaliToolRun=${runId} log persist failed: ${(err as Error).message}`);
+      }
 
       await this.prisma.kaliToolRun.update({
         where: { id: runId },
@@ -110,6 +130,17 @@ export class KaliRunProcessor
         data: { status: 'FAILED', completedAt: new Date(), errorMessage: message },
       });
       await this.events.publish(runId, { type: 'error', message });
+      try {
+        await this.storage.ensureBucket('logs');
+        await this.storage.putObject({
+          bucket: 'logs',
+          key: scanLogKey(runId),
+          body: Buffer.from(logBuffer.snapshot(), 'utf8'),
+          contentType: 'text/plain; charset=utf-8',
+        });
+      } catch {
+        /* best-effort */
+      }
       throw err;
     }
   }
