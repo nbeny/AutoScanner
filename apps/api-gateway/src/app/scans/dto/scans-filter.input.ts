@@ -1,6 +1,7 @@
 import { Field, ID, InputType, Int } from '@nestjs/graphql';
 import { IsArray, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
+import { ScanGroup } from './scan-group.enum';
 import { ScanStatus } from './scan-status.enum';
 
 // Every field carries a class-validator decorator: the global ValidationPipe
@@ -29,6 +30,11 @@ export class ScansFilterInput {
   @IsOptional()
   @IsString()
   scannerName?: string;
+
+  @Field(() => ScanGroup, { nullable: true })
+  @IsOptional()
+  @IsEnum(ScanGroup)
+  group?: ScanGroup;
 
   @Field(() => Int, { nullable: true })
   @IsOptional()
