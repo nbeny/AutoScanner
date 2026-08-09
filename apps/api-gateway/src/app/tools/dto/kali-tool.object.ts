@@ -26,6 +26,8 @@ export class KaliToolDetailObject extends KaliToolSummaryObject {
   @Field(() => [KaliToolOptionObject]) options!: KaliToolOptionObject[];
   @Field() parseConfidence!: string;
   @Field() manAvailable!: boolean;
+  @Field() optionsSource!: string;
+  @Field(() => String, { nullable: true }) manTextRaw?: string | null;
   @Field() kaliRelease!: string;
   @Field() capturedAt!: string;
 }

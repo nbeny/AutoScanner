@@ -13,6 +13,8 @@ function rec(over: Partial<KaliToolRecord> = {}): KaliToolRecord {
     options: [{ flag: '-sV', argHint: null, description: 'Probe' }],
     parseConfidence: 'low',
     manAvailable: true,
+    manTextRaw: null,
+    optionsSource: 'help',
     source: 'kali-docker',
     kaliRelease: 'seed',
     capturedAt: '2026-08-07T00:00:00.000Z',
@@ -52,8 +54,17 @@ describe('KaliCatalogService', () => {
       binary: 'nmap',
       helpTextRaw: '  -sV   Probe',
       options: [{ flag: '-sV' }],
+      optionsSource: 'help',
+      manTextRaw: null,
     });
     expect(svc.detail('ghost')).toBeNull();
+  });
+
+  it('defaults optionsSource to "none" when the record lacks it (pre-regeneration dataset)', () => {
+    const legacySvc = new KaliCatalogService([
+      rec({ optionsSource: undefined as unknown as KaliToolRecord['optionsSource'] }),
+    ]);
+    expect(legacySvc.detail('nmap')?.optionsSource).toBe('none');
   });
 
   it('exposes findByBinary for cross-linking', () => {

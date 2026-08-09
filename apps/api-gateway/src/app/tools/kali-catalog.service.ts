@@ -26,6 +26,8 @@ export class KaliCatalogService {
       options: r.options,
       parseConfidence: r.parseConfidence,
       manAvailable: r.manAvailable,
+      optionsSource: r.optionsSource ?? 'none',
+      manTextRaw: r.manTextRaw ?? null,
       kaliRelease: r.kaliRelease,
       capturedAt: r.capturedAt,
     };
