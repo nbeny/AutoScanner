@@ -6,8 +6,10 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   moduleNameMapper: {
-    '^@autoscanner/scanners-nmap$': '<rootDir>/../../libs/scanners/nmap/src/index.ts',
-    '^@autoscanner/scanners-ike-scan$': '<rootDir>/../../libs/scanners/ike-scan/src/index.ts',
+    // Scanner libs live at libs/scanners/<name>/ — one level deeper than other
+    // @autoscanner libs, so they need a more specific rule BEFORE the generic
+    // one below (mirrors libs/scanners/all/jest.config.ts).
+    '^@autoscanner/scanners-(.*)$': '<rootDir>/../../libs/scanners/$1/src/index.ts',
     '^@autoscanner/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
   },
   testMatch: ['<rootDir>/src/**/*.spec.ts'],
