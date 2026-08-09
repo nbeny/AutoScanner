@@ -18,7 +18,7 @@ export function CockpitPage() {
   const [focus, setFocus] = useState<CockpitFocus | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
-  const { active } = useActiveScanners(scope);
+  const { active } = useActiveScanners(scope, undefined, 'RECON');
   const { data } = useQuery<{ queueHealth: QueueHealth[] }>(QUEUE_HEALTH_QUERY, {
     pollInterval: 4000,
     fetchPolicy: 'cache-and-network',
@@ -51,6 +51,7 @@ export function CockpitPage() {
             engagementId={scope}
             selectedJobId={focus?.jobId ?? null}
             onSelect={selectJob}
+            group="RECON"
           />
         </div>
         <div className="min-h-[24rem]">

@@ -7,6 +7,7 @@ export interface ActiveScannersListProps {
   engagementId?: string;
   selectedJobId: string | null;
   onSelect: (job: CockpitJob) => void;
+  group?: 'OSINT' | 'RECON';
 }
 
 // Same status vocabulary as the history list, mapped to the scan-level statusIn
@@ -23,12 +24,13 @@ export function ActiveScannersList({
   engagementId,
   selectedJobId,
   onSelect,
+  group,
 }: ActiveScannersListProps) {
   // Default to "Tous" so the panel always shows recent scans instead of the
   // near-permanent "aucun scanner en cours" (a scan is only RUNNING for seconds).
   const [filter, setFilter] = useState('ALL');
   const statuses = FILTERS.find((f) => f.value === filter)?.statuses ?? [];
-  const { active, loading } = useActiveScanners(engagementId, statuses);
+  const { active, loading } = useActiveScanners(engagementId, statuses, group);
 
   return (
     <Panel aria-label="active-scanners" className="flex h-full flex-col gap-2 overflow-auto">

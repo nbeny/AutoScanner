@@ -27,7 +27,7 @@ export function OsintCockpitPage() {
   const [investigations, setInvestigations] = useState<InvestigationFocus[]>([]);
   const [focus, setFocus] = useState<InvestigationFocus | null>(null);
 
-  const { active } = useActiveScanners(scope);
+  const { active } = useActiveScanners(scope, undefined, 'OSINT');
   const { data } = useQuery<{ queueHealth: QueueHealth[] }>(QUEUE_HEALTH_QUERY, {
     pollInterval: 4000,
     fetchPolicy: 'cache-and-network',
@@ -80,6 +80,7 @@ export function OsintCockpitPage() {
             engagementId={scope}
             selectedJobId={null}
             onSelect={() => undefined}
+            group="OSINT"
           />
         </div>
         <div className="space-y-4">

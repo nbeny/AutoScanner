@@ -33,10 +33,12 @@ interface RawScan {
 export function useActiveScanners(
   engagementId?: string,
   statuses: string[] = ['RUNNING', 'QUEUED'],
+  group?: 'OSINT' | 'RECON',
 ) {
-  const filter: { engagementId?: string; statusIn?: string[] } = {};
+  const filter: { engagementId?: string; statusIn?: string[]; group?: 'OSINT' | 'RECON' } = {};
   if (engagementId) filter.engagementId = engagementId;
   if (statuses.length) filter.statusIn = statuses;
+  if (group) filter.group = group;
 
   const { data, loading, error } = useQuery<{ allScans: RawScan[] }>(ALL_SCANS_QUERY, {
     variables: { filter },
