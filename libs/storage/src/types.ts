@@ -8,7 +8,8 @@ export type StorageBucket =
   | 'pcap'
   | 'screenshots'
   | 'backups'
-  | 'cve-mirror';
+  | 'cve-mirror'
+  | 'logs';
 
 export interface PutObjectInput {
   bucket: StorageBucket;
@@ -53,4 +54,9 @@ export function rawOutputKey(args: {
 }): string {
   const ext = args.format.toLowerCase();
   return `${args.engagementId}/${args.scanId}/${args.scanJobId}/${args.scannerName}-${args.format.toLowerCase()}.${ext}`;
+}
+
+/** Clé MinIO déterministe des logs combinés d'un scan job (bucket `logs`). */
+export function scanLogKey(scanJobId: string): string {
+  return `${scanJobId}.log`;
 }
