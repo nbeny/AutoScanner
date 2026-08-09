@@ -11,6 +11,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { AppConfigService } from '@autoscanner/config';
 import type { Readable } from 'node:stream';
+import { retryTransient } from './retry';
 import type {
   GetObjectResult,
   ObjectStorage,
@@ -42,12 +43,13 @@ export class S3ObjectStorage implements ObjectStorage {
           secretAccessKey: this.config.env.S3_SECRET_KEY,
         },
         forcePathStyle: true,
+        maxAttempts: 5,
       });
   }
 
   async ensureBucket(bucket: StorageBucket): Promise<void> {
     try {
-      await this.client.send(new HeadBucketCommand({ Bucket: bucket }));
+      await retryTransient(() => this.client.send(new HeadBucketCommand({ Bucket: bucket })));
       return;
     } catch (err) {
       const code = err as { name?: string; $metadata?: { httpStatusCode?: number } };
@@ -56,7 +58,7 @@ export class S3ObjectStorage implements ObjectStorage {
       }
     }
     try {
-      await this.client.send(new CreateBucketCommand({ Bucket: bucket }));
+      await retryTransient(() => this.client.send(new CreateBucketCommand({ Bucket: bucket })));
       this.logger.log(`Created bucket: ${bucket}`);
     } catch (err) {
       const code = (err as { name?: string }).name;
@@ -65,22 +67,31 @@ export class S3ObjectStorage implements ObjectStorage {
     }
   }
 
+  // NB: retry is only fully safe when `input.body` is a Buffer/string — a
+  // `Readable` stream is consumed on the first attempt, so a retried send
+  // would resend an empty body. The scan-worker always passes a Buffer for
+  // scanner output, so this is safe in practice; streaming callers would
+  // need to buffer before calling putObject to retry safely.
   async putObject(input: PutObjectInput): Promise<{ etag?: string }> {
-    const res = await this.client.send(
-      new PutObjectCommand({
-        Bucket: input.bucket,
-        Key: input.key,
-        Body: input.body,
-        ContentType: input.contentType,
-        ContentLength: input.contentLength,
-        Metadata: input.metadata,
-      }),
+    const res = await retryTransient(() =>
+      this.client.send(
+        new PutObjectCommand({
+          Bucket: input.bucket,
+          Key: input.key,
+          Body: input.body,
+          ContentType: input.contentType,
+          ContentLength: input.contentLength,
+          Metadata: input.metadata,
+        }),
+      ),
     );
     return { etag: res.ETag };
   }
 
   async getObject(bucket: StorageBucket, key: string): Promise<GetObjectResult> {
-    const res = await this.client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    const res = await retryTransient(() =>
+      this.client.send(new GetObjectCommand({ Bucket: bucket, Key: key })),
+    );
     if (!res.Body) throw new Error(`No body returned for ${bucket}/${key}`);
     return {
       body: res.Body as Readable,
@@ -95,7 +106,9 @@ export class S3ObjectStorage implements ObjectStorage {
     key: string,
   ): Promise<{ exists: boolean; size?: number }> {
     try {
-      const res = await this.client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+      const res = await retryTransient(() =>
+        this.client.send(new HeadObjectCommand({ Bucket: bucket, Key: key })),
+      );
       return { exists: true, size: res.ContentLength };
     } catch (err) {
       const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
@@ -105,7 +118,9 @@ export class S3ObjectStorage implements ObjectStorage {
   }
 
   async deleteObject(bucket: StorageBucket, key: string): Promise<void> {
-    await this.client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    await retryTransient(() =>
+      this.client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })),
+    );
   }
 
   async presignGetUrl(input: PresignedUrlInput): Promise<string> {
