@@ -38,6 +38,7 @@
     "prepare": "husky",
     "scanners:build": "bash tools/scanners/build-images.sh",
     "kali:catalog": "bash tools/kali-catalog/run.sh",
+    "kali:coverage": "tsx tools/kali-catalog/coverage-report.ts",
     "kafka:provision": "tsx tools/kafka/provision.ts",
     "test:messaging:int": "jest --config libs/messaging/jest.int.config.ts"
   },
