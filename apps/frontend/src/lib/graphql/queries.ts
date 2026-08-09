@@ -1332,6 +1332,8 @@ export const KALI_TOOL_QUERY = gql`
       helpTextRaw
       parseConfidence
       manAvailable
+      optionsSource
+      manTextRaw
       options {
         flag
         argHint

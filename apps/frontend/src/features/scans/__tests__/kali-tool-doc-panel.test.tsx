@@ -16,6 +16,8 @@ const toolMock = {
         helpTextRaw: 'Usage: nmap [options]',
         parseConfidence: 'low',
         manAvailable: true,
+        optionsSource: 'help',
+        manTextRaw: null,
         options: [{ flag: '-sV', argHint: null, description: 'version detect' }],
       },
     },

@@ -16,6 +16,8 @@ const toolMock = {
         helpTextRaw: null,
         parseConfidence: 'low',
         manAvailable: true,
+        optionsSource: 'help',
+        manTextRaw: null,
         options: [{ flag: '-sC', argHint: null, description: 'default script scan' }],
       },
     },

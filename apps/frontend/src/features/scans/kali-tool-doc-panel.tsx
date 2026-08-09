@@ -12,6 +12,8 @@ interface KaliToolDetail {
   description: string;
   homepage: string | null;
   helpTextRaw: string | null;
+  optionsSource?: string;
+  manTextRaw?: string | null;
   options: KaliToolOption[];
 }
 
@@ -58,33 +60,47 @@ export function KaliToolDocPanel({
         </div>
 
         {tool.options.length > 0 ? (
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
-            {tool.options.slice(0, 60).map((o) => (
-              <div key={o.flag} className="contents">
-                <dt className="font-mono text-slate-300">
-                  {o.flag}
-                  {o.argHint ? <span className="text-slate-500"> {o.argHint}</span> : null}
-                  {onAddFlag ? (
-                    <button
-                      type="button"
-                      aria-label={`add-flag-${o.flag}`}
-                      onClick={() => onAddFlag(o.flag)}
-                      className="ml-2 rounded border border-slate-600 px-1 text-[10px] text-slate-300 hover:bg-slate-700"
-                    >
-                      +
-                    </button>
-                  ) : null}
-                </dt>
-                <dd className="text-slate-500">{o.description}</dd>
-              </div>
-            ))}
-          </dl>
+          <>
+            {tool.optionsSource === 'man' ? (
+              <span className="ml-2 rounded border border-slate-600 px-1 text-[10px] text-slate-400">
+                source: man
+              </span>
+            ) : null}
+            <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
+              {tool.options.slice(0, 60).map((o) => (
+                <div key={o.flag} className="contents">
+                  <dt className="font-mono text-slate-300">
+                    {o.flag}
+                    {o.argHint ? <span className="text-slate-500"> {o.argHint}</span> : null}
+                    {onAddFlag ? (
+                      <button
+                        type="button"
+                        aria-label={`add-flag-${o.flag}`}
+                        onClick={() => onAddFlag(o.flag)}
+                        className="ml-2 rounded border border-slate-600 px-1 text-[10px] text-slate-300 hover:bg-slate-700"
+                      >
+                        +
+                      </button>
+                    ) : null}
+                  </dt>
+                  <dd className="text-slate-500">{o.description}</dd>
+                </div>
+              ))}
+            </dl>
+          </>
         ) : null}
 
         {tool.helpTextRaw ? (
           <pre className="max-h-72 overflow-auto rounded bg-space-900 p-2 font-mono text-slate-400 whitespace-pre-wrap">
             {tool.helpTextRaw}
           </pre>
+        ) : null}
+
+        {tool.manTextRaw ? (
+          <details className="mt-2 text-xs text-slate-500">
+            <summary className="cursor-pointer">Page man</summary>
+            <pre className="mt-1 whitespace-pre-wrap">{tool.manTextRaw}</pre>
+          </details>
         ) : null}
       </div>
     </details>
