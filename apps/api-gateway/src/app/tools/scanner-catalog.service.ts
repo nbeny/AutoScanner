@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { describeScannerInput, ScannerRegistry } from '@autoscanner/scanner-sdk';
+import { describeScannerInput, primaryCategoryOf, ScannerRegistry } from '@autoscanner/scanner-sdk';
 
 import { ScannerCatalogEntryObject } from './dto/scanner-catalog.object';
 import { KaliCatalogService } from './kali-catalog.service';
@@ -26,6 +26,7 @@ export class ScannerCatalogService {
         displayName: scanner.displayName,
         description: scanner.description,
         categories: scanner.category,
+        primaryCategory: primaryCategoryOf(scanner),
         requiresCredential: scanner.requiresCredential ?? null,
         kaliToolRef: this.resolveKaliToolRef(scanner.name),
         fields: describeScannerInput(scanner.inputSchema),

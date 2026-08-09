@@ -98,4 +98,16 @@ describe('ScannerCatalogService', () => {
     expect(byName('smb-enum').kaliToolRef).toBe('enum4linux-ng');
     expect(byName('shodan').kaliToolRef).toBeNull();
   });
+
+  it('expose primaryCategory (primaryCategory sinon category[0])', () => {
+    const registry = new ScannerRegistry();
+    registry.register(makeDef('nmap'));
+
+    const kali = new KaliCatalogService([]);
+    const service = new ScannerCatalogService(registry, kali);
+    const entries = service.catalog();
+    const nmap = entries.find((e) => e.name === 'nmap');
+    expect(nmap?.primaryCategory).toBeTruthy();
+    expect(entries.every((e) => typeof e.primaryCategory === 'string')).toBe(true);
+  });
 });
