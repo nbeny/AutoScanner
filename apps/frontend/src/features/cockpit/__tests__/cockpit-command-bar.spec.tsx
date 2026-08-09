@@ -26,7 +26,7 @@ const catalogMock = {
     data: {
       scannerCatalog: [
         catalogEntry('nmap', ['port-scan']),
-        catalogEntry('shodan', ['osint']),
+        catalogEntry('ike-scan', ['port-scan']),
         catalogEntry('subfinder', ['subdomain-enum']),
       ],
     },
@@ -100,12 +100,12 @@ describe('<CockpitCommandBar />', () => {
       </MockedProvider>,
     );
     // catalogue loads, then typing an IP should drop subfinder (domain-only).
-    await screen.findByRole('option', { name: 'shodan' });
+    await screen.findByRole('option', { name: 'ike-scan' });
     fireEvent.change(screen.getByLabelText('quick-target'), { target: { value: '10.0.0.1' } });
     await waitFor(() =>
       expect(screen.queryByRole('option', { name: 'subfinder' })).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole('option', { name: 'shodan' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'ike-scan' })).toBeInTheDocument();
     // "tous" reveals every scanner again.
     fireEvent.click(screen.getByLabelText('show-all-scanners'));
     await waitFor(() =>

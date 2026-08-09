@@ -13,6 +13,7 @@ import {
   acceptsTarget,
   detectTargetType,
   groupForCategories,
+  isOsintEntry,
   type Category,
   type ScannerCatalogEntry,
 } from '../scans/scanner-catalog';
@@ -23,7 +24,6 @@ const CATEGORY_ORDER: Category[] = [
   'Ports/Network',
   'Web/HTTP',
   'TLS',
-  'OSINT',
   'Cloud',
   'Active Directory',
   'Vuln/Exploit',
@@ -93,6 +93,7 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
   const groupedScanners = useMemo(() => {
     const groups = new Map<Category, ScannerCatalogEntry[]>();
     for (const entry of catalog) {
+      if (isOsintEntry(entry)) continue; // le launcher Recon ne propose jamais d'OSINT
       if (!showAll && !acceptsTarget(entry.name, detected)) continue;
       const cat = groupForCategories(entry.categories);
       if (!groups.has(cat)) groups.set(cat, []);
