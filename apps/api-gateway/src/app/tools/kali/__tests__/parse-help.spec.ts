@@ -46,3 +46,34 @@ describe('parseHelpOptions', () => {
     });
   });
 });
+
+describe('parse-help — flags collés à la marge (indent 0)', () => {
+  it('parse un help style john (flush-left, arg collé)', () => {
+    const help = [
+      'John the Ripper password cracker',
+      '',
+      '--single[=SECTION[,..]]   "single crack" mode, using default or named rules',
+      '--wordlist[=FILE]         wordlist mode, read words from FILE',
+      '--rules=NAME              enable word mangling rules named NAME',
+    ].join('\n');
+    const { options, confidence } = parseHelpOptions(help);
+    const flags = options.map((o) => o.flag);
+    expect(flags).toEqual(['--single', '--wordlist', '--rules']);
+    expect(confidence).toBe('high');
+    expect(options[2].argHint).toBe('NAME');
+    expect(options[0].description).toContain('single crack');
+  });
+
+  it('ne matche pas une ligne de prose commençant par un tiret sans description', () => {
+    const help = '-based tooling notes here without option layout\n';
+    expect(parseHelpOptions(help).options).toHaveLength(0);
+  });
+
+  it('conserve le comportement indenté existant', () => {
+    const help =
+      '  -sV                 Probe open ports\n  --rate <number>     Send packets no faster than <number>';
+    const o = parseHelpOptions(help).options;
+    expect(o.map((x) => x.flag)).toEqual(['-sV', '--rate']);
+    expect(o[1].argHint).toBe('<number>');
+  });
+});
