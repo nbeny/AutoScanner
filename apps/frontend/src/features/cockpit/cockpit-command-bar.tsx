@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { HealthPill, type HealthPillData } from './health-pill';
 import type { CockpitFocus } from './scanner-focus-panel';
+import { ScannerOptionsForm } from '../scans/scanner-options-form';
 import {
   RUN_SCAN_MUTATION,
   RUN_TEMPLATE_MUTATION,
@@ -70,6 +71,8 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
   const [showAll, setShowAll] = useState(false);
   const [armed, setArmed] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [optionsJson, setOptionsJson] = useState('');
+  const [showOptions, setShowOptions] = useState(false);
 
   const { data: catalogData } = useQuery<{ scannerCatalog: ScannerCatalogEntry[] }>(
     SCANNER_CATALOG_QUERY,
@@ -86,6 +89,7 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
   const scoped = Boolean(engagementId);
   const detected = detectTargetType(target);
   const catalog = useMemo(() => catalogData?.scannerCatalog ?? [], [catalogData]);
+  const selectedEntry = useMemo(() => catalog.find((e) => e.name === scanner), [catalog, scanner]);
   const templates = templatesData?.scanTemplates ?? [];
 
   // Scanners relevant to the typed target, grouped by category. When "showAll"
@@ -144,7 +148,7 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
     }
 
     const res = await runScan({
-      variables: { input: { engagementId, scannerName: scanner, target, optionsJson: '' } },
+      variables: { input: { engagementId, scannerName: scanner, target, optionsJson } },
     });
     const scan = res.data?.runScan as
       | { id: string; jobs?: Array<{ id: string; scannerName: string; target: string }> }
@@ -159,6 +163,7 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
       });
     }
     setTarget('');
+    setOptionsJson('');
   }
 
   async function killSwitch() {
@@ -238,6 +243,14 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
             />
             tous
           </label>
+          <button
+            type="button"
+            aria-label="toggle-options"
+            onClick={() => setShowOptions((v) => !v)}
+            className="text-xs text-slate-400 hover:text-slate-200"
+          >
+            Options {showOptions ? '▲' : '▼'}
+          </button>
         </>
       ) : (
         <select
@@ -300,6 +313,12 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
           {armed ? 'Confirmer kill' : 'Kill-switch'}
         </button>
       </div>
+
+      {mode === 'scanner' && showOptions ? (
+        <div className="w-full basis-full border-t border-space-800 pt-3">
+          <ScannerOptionsForm entry={selectedEntry} onChange={setOptionsJson} />
+        </div>
+      ) : null}
     </div>
   );
 }
