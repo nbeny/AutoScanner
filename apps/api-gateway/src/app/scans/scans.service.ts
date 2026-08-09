@@ -7,7 +7,7 @@ import { PrismaService } from '@autoscanner/database';
 import { CapabilityService, ACTIVE_RECON_HOST_NET, ACTIVE_MAIL_PROBE } from '@autoscanner/auth';
 import { type ScanJobPayload } from '@autoscanner/queues';
 import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
-import { ScannerRegistry } from '@autoscanner/scanner-sdk';
+import { EXTRA_ARGS_KEY, sanitizeExtraArgs, ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, scanLogKey, type ObjectStorage } from '@autoscanner/storage';
 import {
   ENGAGEMENT_EVENTS_PUBLISHER,
@@ -78,7 +78,7 @@ export class ScansService {
     }
 
     const rawOptions = this.parseOptions(input.optionsJson);
-    const parsedInput = this.validateScannerInput(scanner, rawOptions);
+    const parsedInput = this.mergeValidatedInput(scanner, rawOptions);
 
     const agentId = input.agentId ?? null;
 
@@ -405,5 +405,20 @@ export class ScansService {
       );
     }
     return result.data;
+  }
+
+  /**
+   * Valide les options connues contre le schéma du scanner, tout en préservant la
+   * clé hors-schéma `extraArgs` (arguments bruts) que z.object supprimerait sinon.
+   */
+  private mergeValidatedInput(
+    scanner: Parameters<ScansService['validateScannerInput']>[0],
+    raw: unknown,
+  ): unknown {
+    const record = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+    const { [EXTRA_ARGS_KEY]: rawExtra, ...known } = record;
+    const validated = this.validateScannerInput(scanner, known) as Record<string, unknown>;
+    const extraArgs = sanitizeExtraArgs(rawExtra);
+    return extraArgs.length ? { ...validated, [EXTRA_ARGS_KEY]: extraArgs } : validated;
   }
 }
