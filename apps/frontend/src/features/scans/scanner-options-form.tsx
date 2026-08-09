@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@apollo/client';
 import { EXTRA_ARGS_KEY } from '@autoscanner/scanner-sdk';
+import { SCANNER_USAGE_STATS_QUERY } from '../../lib/graphql/queries';
 import type { ScannerCatalogEntry, ScannerCatalogField } from './scanner-catalog';
 
 interface ScannerOptionsFormProps {
@@ -125,6 +127,15 @@ export function ScannerOptionsForm({ entry, onChange, registerAddFlag }: Scanner
     onChange(Object.keys(options).length ? JSON.stringify(options) : '');
   }, [fields, values, enabled, extraArgsText, onChange]);
 
+  const { data: usageData } = useQuery<{
+    scannerUsageStats: Array<{ optionsJson: string; count: number }>;
+  }>(SCANNER_USAGE_STATS_QUERY, {
+    skip: !entry,
+    variables: entry ? { scannerName: entry.name } : undefined,
+    fetchPolicy: 'cache-and-network',
+  });
+  const usage = (usageData?.scannerUsageStats ?? []).filter((u) => u.optionsJson !== '');
+
   if (!entry) return null;
 
   function applyPreset(options: Record<string, unknown>) {
@@ -161,6 +172,22 @@ export function ScannerOptionsForm({ entry, onChange, registerAddFlag }: Scanner
               className="rounded-full border border-indigo-500/40 px-2 py-0.5 text-xs text-indigo-300 hover:bg-indigo-500/20"
             >
               {p.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {usage.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2" aria-label="scanner-usage">
+          <span className="text-[10px] uppercase text-slate-500">Souvent lancé</span>
+          {usage.slice(0, 5).map((u) => (
+            <button
+              key={u.optionsJson}
+              type="button"
+              onClick={() => applyPreset(JSON.parse(u.optionsJson) as Record<string, unknown>)}
+              className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:bg-slate-700"
+            >
+              {u.count}× {u.optionsJson}
             </button>
           ))}
         </div>

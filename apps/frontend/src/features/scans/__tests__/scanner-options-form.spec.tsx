@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MockedProvider, type MockedResponse } from '@apollo/client/testing';
+import { SCANNER_USAGE_STATS_QUERY } from '../../../lib/graphql/queries';
 import { ScannerOptionsForm } from '../scanner-options-form';
 import type { ScannerCatalogEntry } from '../scanner-catalog';
+
+function usageStatsMock(scannerName: string): MockedResponse {
+  return {
+    request: { query: SCANNER_USAGE_STATS_QUERY, variables: { scannerName } },
+    result: { data: { scannerUsageStats: [] } },
+  };
+}
 
 const nmapLike: ScannerCatalogEntry = {
   name: 'nmap',
@@ -72,7 +81,11 @@ function lastEmitted(onChange: ReturnType<typeof vi.fn>): unknown {
 describe('<ScannerOptionsForm />', () => {
   it('emits the defaulted values on mount', async () => {
     const onChange = vi.fn();
-    render(<ScannerOptionsForm entry={nmapLike} onChange={onChange} />);
+    render(
+      <MockedProvider mocks={[usageStatsMock('nmap')]}>
+        <ScannerOptionsForm entry={nmapLike} onChange={onChange} />
+      </MockedProvider>,
+    );
     await waitFor(() =>
       expect(lastEmitted(onChange)).toEqual({
         ports: '1-1000',
@@ -84,14 +97,22 @@ describe('<ScannerOptionsForm />', () => {
 
   it('reflects an edited number field in the serialized options', async () => {
     const onChange = vi.fn();
-    render(<ScannerOptionsForm entry={nmapLike} onChange={onChange} />);
+    render(
+      <MockedProvider mocks={[usageStatsMock('nmap')]}>
+        <ScannerOptionsForm entry={nmapLike} onChange={onChange} />
+      </MockedProvider>,
+    );
     fireEvent.change(screen.getByLabelText('field-timingTemplate'), { target: { value: '2' } });
     await waitFor(() => expect(lastEmitted(onChange)).toMatchObject({ timingTemplate: 2 }));
   });
 
   it('omits an optional field until its toggle is enabled', async () => {
     const onChange = vi.fn();
-    render(<ScannerOptionsForm entry={nucleiLike} onChange={onChange} />);
+    render(
+      <MockedProvider mocks={[usageStatsMock('nuclei')]}>
+        <ScannerOptionsForm entry={nucleiLike} onChange={onChange} />
+      </MockedProvider>,
+    );
     // Not enabled yet → no field-tags input, empty options.
     expect(screen.queryByLabelText('field-tags')).toBeNull();
     await waitFor(() => expect(lastEmitted(onChange)).toEqual({}));
@@ -111,7 +132,11 @@ describe('<ScannerOptionsForm />', () => {
       requiresCredential: 'SHODAN',
       fields: [],
     };
-    render(<ScannerOptionsForm entry={shodan} onChange={onChange} />);
+    render(
+      <MockedProvider mocks={[usageStatsMock('shodan')]}>
+        <ScannerOptionsForm entry={shodan} onChange={onChange} />
+      </MockedProvider>,
+    );
     expect(screen.getByLabelText('no-options')).toBeInTheDocument();
     expect(screen.getByLabelText('no-options').textContent).toMatch(/SHODAN/);
   });
