@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ScannerCategory, ScannerDefinition } from './types';
+import { isOsintScanner } from './osint-categories';
 
 @Injectable()
 export class ScannerRegistry {
@@ -30,6 +31,13 @@ export class ScannerRegistry {
     const all = Array.from(this.scanners.values());
     if (!filter?.category) return all;
     return all.filter((s) => s.category.includes(filter.category!));
+  }
+
+  /** Noms des scanners dont la catégorie primaire est OSINT. */
+  osintScannerNames(): string[] {
+    return Array.from(this.scanners.values())
+      .filter((s) => isOsintScanner(s))
+      .map((s) => s.name);
   }
 
   size(): number {

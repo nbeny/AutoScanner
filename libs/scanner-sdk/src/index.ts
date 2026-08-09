@@ -3,3 +3,4 @@ export * from './auth';
 export * from './registry';
 export * from './describe-input';
 export * from './scanner-sdk.module';
+export * from './osint-categories';

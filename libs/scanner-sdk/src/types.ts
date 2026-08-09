@@ -113,6 +113,13 @@ export interface ScannerDefinition<TInput = unknown, _TRawOutput = unknown> {
   name: string;
   displayName: string;
   category: ScannerCategory[];
+  /**
+   * Catégorie « primaire » du scanner — décide son groupe OSINT/Recon dans l'UI.
+   * Absent ⇒ on prend `category[0]`. Poser explicitement pour les outils
+   * dual-taggés dont la 1re catégorie n'est pas la vraie intention (ex. un outil
+   * passif listé d'abord en `subdomain-enum`).
+   */
+  primaryCategory?: ScannerCategory;
   description: string;
   version?: string;
   inputSchema: z.ZodType<TInput, z.ZodTypeDef, unknown>;
