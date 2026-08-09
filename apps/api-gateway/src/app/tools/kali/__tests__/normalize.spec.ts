@@ -42,3 +42,52 @@ describe('normalizeRecord', () => {
     expect(rec.parseConfidence).toBe('none');
   });
 });
+
+const base = (over: Partial<RawCapture>): RawCapture => ({
+  package: 'p',
+  binary: 'b',
+  description: '',
+  homepage: null,
+  categories: ['x'],
+  helpTextRaw: null,
+  manAvailable: false,
+  ...over,
+});
+
+describe('normalizeRecord — précédence help/man', () => {
+  it('utilise le help quand il donne des options', () => {
+    const rec = normalizeRecord(
+      base({ helpTextRaw: '  -a   do A\n  -b   do B\n  -c   do C' }),
+      '2026.08',
+      'T',
+    );
+    expect(rec.optionsSource).toBe('help');
+    expect(rec.parseConfidence).toBe('high');
+  });
+
+  it('bascule sur le man quand le help ne donne rien mais le man oui', () => {
+    const man = [
+      'OPTIONS',
+      '       -x',
+      '              do X',
+      '       -y',
+      '              do Y',
+      '       -z',
+      '              do Z',
+    ].join('\n');
+    const rec = normalizeRecord(
+      base({ helpTextRaw: 'usage: b <file>', manTextRaw: man }),
+      '2026.08',
+      'T',
+    );
+    expect(rec.optionsSource).toBe('man');
+    expect(rec.options.map((o) => o.flag)).toEqual(['-x', '-y', '-z']);
+    expect(rec.manTextRaw).toBe(man);
+  });
+
+  it('optionsSource none quand aucune source ne donne d’options', () => {
+    const rec = normalizeRecord(base({ helpTextRaw: 'usage: b <file>' }), '2026.08', 'T');
+    expect(rec.optionsSource).toBe('none');
+    expect(rec.options).toHaveLength(0);
+  });
+});

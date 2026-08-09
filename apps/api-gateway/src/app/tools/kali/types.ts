@@ -20,6 +20,10 @@ export interface KaliToolRecord {
   options: KaliToolOption[];
   parseConfidence: ParseConfidence;
   manAvailable: boolean;
+  /** Texte man rendu (source secondaire d'options), null si absent. */
+  manTextRaw: string | null;
+  /** D'où viennent les `options` retenues. */
+  optionsSource: 'help' | 'man' | 'none';
   source: 'kali-docker';
   kaliRelease: string;
   capturedAt: string;
@@ -34,4 +38,5 @@ export interface RawCapture {
   categories: string[];
   helpTextRaw: string | null;
   manAvailable: boolean;
+  manTextRaw?: string | null;
 }

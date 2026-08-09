@@ -28,7 +28,9 @@ function mergeByBinary(records: KaliToolRecord[]): KaliToolRecord[] {
       byBinary.set(rec.binary, { ...rec, categories: [...new Set(rec.categories)] });
       continue;
     }
-    const base = existing.helpTextRaw == null && rec.helpTextRaw != null ? rec : existing;
+    // Préférer le record le plus informatif : d'abord celui qui a des options, sinon celui avec du help.
+    const recScore = (r: KaliToolRecord) => (r.options.length > 0 ? 2 : r.helpTextRaw ? 1 : 0);
+    const base = recScore(rec) > recScore(existing) ? rec : existing;
     byBinary.set(rec.binary, {
       ...base,
       categories: [...new Set([...existing.categories, ...rec.categories])],
