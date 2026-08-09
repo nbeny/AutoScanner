@@ -6,6 +6,8 @@ interface ScannerOptionsFormProps {
   entry: ScannerCatalogEntry | undefined;
   /** Receives the serialized options JSON ('' when there are no options set). */
   onChange: (optionsJson: string) => void;
+  /** Lets a parent (e.g. the Kali doc panel) register a handler that appends a flag to extraArgs. */
+  registerAddFlag?: (fn: (flag: string) => void) => void;
 }
 
 /** A field the operator explicitly toggles on/off (optional, no default). */
@@ -82,12 +84,16 @@ function coerce(field: ScannerCatalogField, raw: unknown): unknown | undefined {
   }
 }
 
-export function ScannerOptionsForm({ entry, onChange }: ScannerOptionsFormProps) {
+export function ScannerOptionsForm({ entry, onChange, registerAddFlag }: ScannerOptionsFormProps) {
   const fields = useMemo(() => entry?.fields ?? [], [entry]);
 
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [enabled, setEnabled] = useState<Record<string, boolean>>({});
   const [extraArgsText, setExtraArgsText] = useState('');
+
+  useEffect(() => {
+    registerAddFlag?.((flag: string) => setExtraArgsText((t) => (t ? `${t} ${flag}` : flag)));
+  }, [registerAddFlag]);
 
   // Reset the form whenever the selected scanner changes.
   useEffect(() => {

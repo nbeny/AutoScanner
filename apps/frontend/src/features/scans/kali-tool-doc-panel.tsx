@@ -21,7 +21,13 @@ interface KaliToolDetail {
  * reference, and the raw `-h`/man help. Renders nothing until the tool resolves
  * (or when the binary is not in the Kali dataset).
  */
-export function KaliToolDocPanel({ binary }: { binary: string }) {
+export function KaliToolDocPanel({
+  binary,
+  onAddFlag,
+}: {
+  binary: string;
+  onAddFlag?: (flag: string) => void;
+}) {
   const { data } = useQuery<{ kaliTool: KaliToolDetail | null }>(KALI_TOOL_QUERY, {
     variables: { binary },
   });
@@ -58,6 +64,16 @@ export function KaliToolDocPanel({ binary }: { binary: string }) {
                 <dt className="font-mono text-slate-300">
                   {o.flag}
                   {o.argHint ? <span className="text-slate-500"> {o.argHint}</span> : null}
+                  {onAddFlag ? (
+                    <button
+                      type="button"
+                      aria-label={`add-flag-${o.flag}`}
+                      onClick={() => onAddFlag(o.flag)}
+                      className="ml-2 rounded border border-slate-600 px-1 text-[10px] text-slate-300 hover:bg-slate-700"
+                    >
+                      +
+                    </button>
+                  ) : null}
                 </dt>
                 <dd className="text-slate-500">{o.description}</dd>
               </div>
