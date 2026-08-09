@@ -190,13 +190,31 @@ export class ScansService {
     else if (filter?.status) where.status = filter.status;
     if (filter?.engagementId) where.engagementId = filter.engagementId;
     if (filter?.scannerName) where.jobs = { some: { scannerName: filter.scannerName } };
-    return this.prisma.scan.findMany({
+
+    const osintNames = filter?.group ? this.registry.osintScannerNames() : null;
+    if (filter?.group === 'OSINT') {
+      where.jobs = { some: { scannerName: { in: osintNames! } } };
+    } else if (filter?.group === 'RECON') {
+      where.jobs = { some: { scannerName: { notIn: osintNames! } } };
+    }
+
+    const scans = await this.prisma.scan.findMany({
       where,
       include: { jobs: true },
       orderBy: { createdAt: 'desc' },
       take: filter?.limit ?? 50,
       skip: filter?.offset ?? 0,
     });
+
+    // Post-filtrer les jobs affichés pour qu'un scan mixte ne montre que ses jobs du groupe.
+    if (filter?.group && osintNames) {
+      const osintSet = new Set(osintNames);
+      const wantOsint = filter.group === 'OSINT';
+      for (const scan of scans) {
+        scan.jobs = scan.jobs.filter((j) => osintSet.has(j.scannerName) === wantOsint);
+      }
+    }
+    return scans;
   }
 
   async getForOwner(userId: string, id: string): Promise<Scan> {
