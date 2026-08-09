@@ -12,7 +12,7 @@ import {
   type RunResult,
   type RunSpec,
 } from '@autoscanner/docker-runner';
-import { LOG_STREAM_PUBLISHER, type LogStreamPublisher } from '@autoscanner/log-stream';
+import { LOG_STREAM_PUBLISHER, LogBuffer, type LogStreamPublisher } from '@autoscanner/log-stream';
 import type { ParseJobPayload, ScanJobPayload } from '@autoscanner/queues';
 import {
   ConsumerRegistrar,
@@ -22,7 +22,7 @@ import {
   type MessageContext,
 } from '@autoscanner/messaging';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
-import { OBJECT_STORAGE, rawOutputKey, type ObjectStorage } from '@autoscanner/storage';
+import { OBJECT_STORAGE, rawOutputKey, scanLogKey, type ObjectStorage } from '@autoscanner/storage';
 import { SECRET_BOX } from './secret-box.provider';
 import { ScanControlSubscriber } from './scan-control.subscriber';
 
@@ -137,6 +137,25 @@ export class ScanJobProcessor
       this.logger.warn(
         `scanJob=${scanJobId} parent-scan reconcile failed: ${(err as Error).message}`,
       );
+    }
+  }
+
+  /**
+   * Persiste les logs combinés dans MinIO (bucket `logs`). Best-effort : un échec
+   * ne doit jamais faire échouer le scan — les logs sont un confort d'UX, pas le
+   * résultat. Idempotent : réécrit le même objet sur retry.
+   */
+  private async persistLogs(scanJobId: string, text: string): Promise<void> {
+    try {
+      await this.storage.ensureBucket('logs');
+      await this.storage.putObject({
+        bucket: 'logs',
+        key: scanLogKey(scanJobId),
+        body: Buffer.from(text, 'utf8'),
+        contentType: 'text/plain; charset=utf-8',
+      });
+    } catch (err) {
+      this.logger.warn(`scanJob=${scanJobId} log persist failed: ${(err as Error).message}`);
     }
   }
 
@@ -302,6 +321,7 @@ export class ScanJobProcessor
       // it will never equal 'stdout' or 'stderr', so captureChunk buffers nothing.
       const capturedStream = out0.capture;
 
+      const logBuffer = new LogBuffer();
       let result: RunResult;
       // `string[] + join('')` rather than `string += chunk` — repeated `+=` on
       // large strings is O(n²) in V8 once the rope optimisation gives up.
@@ -350,21 +370,27 @@ export class ScanJobProcessor
       };
 
       this.scanControlSubscriber.register(payload.scanJobId, oversizeAbort);
+      const flushTimer = setInterval(() => {
+        void this.persistLogs(payload.scanJobId, logBuffer.snapshot());
+      }, 3000);
       try {
         result = await this.docker.run({
           ...runSpec,
           abortSignal: oversizeAbort.signal,
           onStdout: (chunk) => {
             captureChunk('stdout', chunk);
+            logBuffer.append('stdout', chunk);
             safePublish('stdout', chunk);
           },
           onStderr: (chunk) => {
             captureChunk('stderr', chunk);
+            logBuffer.append('stderr', chunk);
             safePublish('stderr', chunk);
           },
         });
       } catch (err) {
         this.logger.error(`scanJob=${payload.scanJobId} failed: ${(err as Error).message}`);
+        await this.persistLogs(payload.scanJobId, logBuffer.snapshot());
         await this.finalizeScanJob({
           where: { id: payload.scanJobId },
           data: {
@@ -375,8 +401,11 @@ export class ScanJobProcessor
         });
         throw err;
       } finally {
+        clearInterval(flushTimer);
         this.scanControlSubscriber.unregister(payload.scanJobId);
       }
+      // Flush final garanti sur le chemin succès (le chemin erreur a déjà flushé ci-dessus).
+      await this.persistLogs(payload.scanJobId, logBuffer.snapshot());
 
       // The abort-on-oversize path tripped `killedByUser` inside docker-runner,
       // but this isn't a user cancellation — surface it as FAILED with an
