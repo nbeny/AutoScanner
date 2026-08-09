@@ -1393,3 +1393,12 @@ export const KALI_TOOL_RUN_EVENTS_SUBSCRIPTION = gql`
     }
   }
 `;
+
+export const SCANNER_USAGE_STATS_QUERY = gql`
+  query ScannerUsageStats($scannerName: String!) {
+    scannerUsageStats(scannerName: $scannerName) {
+      optionsJson
+      count
+    }
+  }
+`;

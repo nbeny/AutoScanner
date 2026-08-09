@@ -421,4 +421,35 @@ export class ScansService {
     const extraArgs = sanitizeExtraArgs(rawExtra);
     return extraArgs.length ? { ...validated, [EXTRA_ARGS_KEY]: extraArgs } : validated;
   }
+
+  /**
+   * Top des combinaisons d'options réellement lancées pour un scanner (agrégé de
+   * l'historique `ScanJob.input`). Normalise les clés (tri) et retire `extraArgs`
+   * du regroupement pour ne pas fragmenter les stats. Renvoie les 10 plus fréquentes.
+   */
+  async scannerUsageStats(
+    userId: string,
+    scannerName: string,
+  ): Promise<Array<{ optionsJson: string; count: number }>> {
+    const jobs = await this.prisma.scanJob.findMany({
+      where: { scannerName, scan: { engagement: { ownerId: userId, deletedAt: null } } },
+      select: { input: true },
+      take: 1000,
+      orderBy: { queuedAt: 'desc' },
+    });
+    const counts = new Map<string, number>();
+    for (const job of jobs) {
+      const raw = (job.input ?? {}) as Record<string, unknown>;
+      const { [EXTRA_ARGS_KEY]: _drop, ...known } = raw;
+      const sortedKeys = Object.keys(known).sort();
+      const normalized = sortedKeys.length
+        ? JSON.stringify(Object.fromEntries(sortedKeys.map((k) => [k, known[k]])))
+        : '';
+      counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([optionsJson, count]) => ({ optionsJson, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }
 }

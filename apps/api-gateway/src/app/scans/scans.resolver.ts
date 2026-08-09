@@ -24,6 +24,7 @@ import { RunScanInput } from './dto/run-scan.input';
 import { ScansFilterInput } from './dto/scans-filter.input';
 import { LogStreamKind, ScanLogChunkObject } from './dto/scan-log-chunk.object';
 import { ScanJobObject } from './dto/scan-job.object';
+import { ScannerUsageStat } from './dto/scanner-usage.object';
 import { ScanObject } from './dto/scan.object';
 import { ScansService } from './scans.service';
 
@@ -54,6 +55,14 @@ export class ScansResolver {
   @Query(() => ScanObject)
   scan(@CurrentUser() user: User, @Args('id', { type: () => ID }) id: string): Promise<ScanObject> {
     return this.svc.getForOwner(user.id, id) as Promise<ScanObject>;
+  }
+
+  @Query(() => [ScannerUsageStat], { name: 'scannerUsageStats' })
+  scannerUsageStats(
+    @CurrentUser() user: User,
+    @Args('scannerName') scannerName: string,
+  ): Promise<ScannerUsageStat[]> {
+    return this.svc.scannerUsageStats(user.id, scannerName) as Promise<ScannerUsageStat[]>;
   }
 
   @Query(() => String, { name: 'scanJobLogHistory' })
