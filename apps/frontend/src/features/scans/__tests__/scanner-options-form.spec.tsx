@@ -113,6 +113,6 @@ describe('<ScannerOptionsForm />', () => {
     };
     render(<ScannerOptionsForm entry={shodan} onChange={onChange} />);
     expect(screen.getByLabelText('no-options')).toBeInTheDocument();
-    expect(screen.getByText(/SHODAN/)).toBeInTheDocument();
+    expect(screen.getByLabelText('no-options').textContent).toMatch(/SHODAN/);
   });
 });

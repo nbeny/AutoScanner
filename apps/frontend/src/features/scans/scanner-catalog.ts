@@ -102,6 +102,12 @@ export interface ScannerCatalogEntry {
   /** Underlying Kali binary (SP1 cross-link), null when the scanner maps to none. */
   kaliToolRef?: string | null;
   fields: ScannerCatalogField[];
+  presets?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    options: Record<string, unknown>;
+  }>;
 }
 
 /** Map a raw `ScannerCategory` enum value to a display group. */

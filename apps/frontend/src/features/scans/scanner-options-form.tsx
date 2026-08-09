@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { EXTRA_ARGS_KEY } from '@autoscanner/scanner-sdk';
 import type { ScannerCatalogEntry, ScannerCatalogField } from './scanner-catalog';
 
 interface ScannerOptionsFormProps {
@@ -86,6 +87,7 @@ export function ScannerOptionsForm({ entry, onChange }: ScannerOptionsFormProps)
 
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [enabled, setEnabled] = useState<Record<string, boolean>>({});
+  const [extraArgsText, setExtraArgsText] = useState('');
 
   // Reset the form whenever the selected scanner changes.
   useEffect(() => {
@@ -97,6 +99,7 @@ export function ScannerOptionsForm({ entry, onChange }: ScannerOptionsFormProps)
     }
     setValues(nextValues);
     setEnabled(nextEnabled);
+    setExtraArgsText('');
     // Depend on the scanner name so switching tools rebuilds the form.
   }, [entry?.name, fields]);
 
@@ -108,18 +111,25 @@ export function ScannerOptionsForm({ entry, onChange }: ScannerOptionsFormProps)
       const value = coerce(field, values[field.name]);
       if (value !== undefined) options[field.name] = value;
     }
+    const extra = extraArgsText
+      .split(/\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (extra.length) options[EXTRA_ARGS_KEY] = extra;
     onChange(Object.keys(options).length ? JSON.stringify(options) : '');
-  }, [fields, values, enabled, onChange]);
+  }, [fields, values, enabled, extraArgsText, onChange]);
 
   if (!entry) return null;
 
-  if (fields.length === 0) {
-    return (
-      <p className="text-xs text-slate-400" aria-label="no-options">
-        Cet outil n'a pas d'options configurables.
-        {entry.requiresCredential ? ` Nécessite une clé API (${entry.requiresCredential}).` : ''}
-      </p>
-    );
+  function applyPreset(options: Record<string, unknown>) {
+    const { [EXTRA_ARGS_KEY]: presetExtra, ...rest } = options;
+    setValues((prev) => ({ ...prev, ...rest }));
+    setEnabled((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(rest)) next[key] = true;
+      return next;
+    });
+    if (Array.isArray(presetExtra)) setExtraArgsText((presetExtra as string[]).join(' '));
   }
 
   const setValue = (name: string, value: unknown) =>
@@ -134,39 +144,77 @@ export function ScannerOptionsForm({ entry, onChange }: ScannerOptionsFormProps)
         </p>
       ) : null}
 
-      {fields.map((field) => {
-        const toggle = isToggle(field);
-        const active = !toggle || enabled[field.name];
-        const value = values[field.name];
+      {entry.presets && entry.presets.length > 0 ? (
+        <div className="flex flex-wrap gap-2" aria-label="scanner-presets">
+          {entry.presets.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              title={p.description}
+              onClick={() => applyPreset(p.options)}
+              className="rounded-full border border-indigo-500/40 px-2 py-0.5 text-xs text-indigo-300 hover:bg-indigo-500/20"
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
-        return (
-          <div key={field.name} className="space-y-1">
-            <div className="flex items-center gap-2">
-              {toggle ? (
-                <input
-                  type="checkbox"
-                  aria-label={`toggle-${field.name}`}
-                  checked={Boolean(enabled[field.name])}
-                  onChange={(e) =>
-                    setEnabled((prev) => ({ ...prev, [field.name]: e.target.checked }))
-                  }
-                />
+      {fields.length === 0 ? (
+        <p className="text-xs text-slate-400" aria-label="no-options">
+          Cet outil n'a pas d'options configurables.
+          {entry.requiresCredential ? ` Nécessite une clé API (${entry.requiresCredential}).` : ''}
+        </p>
+      ) : (
+        fields.map((field) => {
+          const toggle = isToggle(field);
+          const active = !toggle || enabled[field.name];
+          const value = values[field.name];
+
+          return (
+            <div key={field.name} className="space-y-1">
+              <div className="flex items-center gap-2">
+                {toggle ? (
+                  <input
+                    type="checkbox"
+                    aria-label={`toggle-${field.name}`}
+                    checked={Boolean(enabled[field.name])}
+                    onChange={(e) =>
+                      setEnabled((prev) => ({ ...prev, [field.name]: e.target.checked }))
+                    }
+                  />
+                ) : null}
+                <span className="text-xs font-medium text-slate-200">
+                  {field.name}
+                  {field.required ? <span className="text-red-400"> *</span> : null}
+                </span>
+                <span className="text-[10px] text-slate-500">{field.type}</span>
+              </div>
+
+              {field.description ? (
+                <p className="text-[11px] text-slate-500">{field.description}</p>
               ) : null}
-              <span className="text-xs font-medium text-slate-200">
-                {field.name}
-                {field.required ? <span className="text-red-400"> *</span> : null}
-              </span>
-              <span className="text-[10px] text-slate-500">{field.type}</span>
+
+              {active ? renderControl(field, value, (v) => setValue(field.name, v)) : null}
             </div>
+          );
+        })
+      )}
 
-            {field.description ? (
-              <p className="text-[11px] text-slate-500">{field.description}</p>
-            ) : null}
-
-            {active ? renderControl(field, value, (v) => setValue(field.name, v)) : null}
-          </div>
-        );
-      })}
+      <label className="block space-y-1">
+        <span className="text-xs font-medium text-slate-200">Arguments bruts</span>
+        <input
+          type="text"
+          aria-label="extra-args"
+          className="w-full bg-slate-800 rounded px-2 py-1 text-sm font-mono text-slate-100"
+          value={extraArgsText}
+          onChange={(e) => setExtraArgsText(e.target.value)}
+          placeholder="ex. -sC -p 80 (séparés par des espaces)"
+        />
+        <span className="text-[10px] text-slate-500">
+          Ajoutés tels quels à la commande. Un token = un argument (pas de guillemets).
+        </span>
+      </label>
     </div>
   );
 }

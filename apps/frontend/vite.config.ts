@@ -13,6 +13,7 @@ export default defineConfig({
         __dirname,
         '../../libs/target-parser/src/index.ts',
       ),
+      '@autoscanner/scanner-sdk': path.resolve(__dirname, '../../libs/scanner-sdk/src/index.ts'),
     },
   },
   server: {

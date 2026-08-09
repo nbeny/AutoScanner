@@ -1010,6 +1010,7 @@ export const SCANNER_CATALOG_QUERY = gql`
         enumValues
         description
       }
+      presets
     }
   }
 `;
