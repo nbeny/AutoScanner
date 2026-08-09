@@ -164,6 +164,12 @@ export const SCAN_JOB_LOGS_SUBSCRIPTION = gql`
   }
 `;
 
+export const SCAN_JOB_LOG_HISTORY_QUERY = gql`
+  query ScanJobLogHistory($scanJobId: ID!) {
+    scanJobLogHistory(scanJobId: $scanJobId)
+  }
+`;
+
 export const SCAN_TEMPLATES_QUERY = gql`
   query ScanTemplates {
     scanTemplates {
