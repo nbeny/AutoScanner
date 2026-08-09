@@ -56,6 +56,11 @@ export class ScansResolver {
     return this.svc.getForOwner(user.id, id) as Promise<ScanObject>;
   }
 
+  @Query(() => String, { name: 'scanJobLogHistory' })
+  scanJobLogHistory(@Args('scanJobId', { type: () => ID }) scanJobId: string): Promise<string> {
+    return this.svc.getScanJobLogs(scanJobId);
+  }
+
   @Query(() => [ScanObject], { name: 'allScans' })
   async allScans(
     @CurrentUser() user: User,

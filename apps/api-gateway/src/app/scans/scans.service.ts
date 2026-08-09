@@ -8,7 +8,7 @@ import { CapabilityService, ACTIVE_RECON_HOST_NET, ACTIVE_MAIL_PROBE } from '@au
 import { type ScanJobPayload } from '@autoscanner/queues';
 import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
-import { OBJECT_STORAGE, type ObjectStorage } from '@autoscanner/storage';
+import { OBJECT_STORAGE, scanLogKey, type ObjectStorage } from '@autoscanner/storage';
 import {
   ENGAGEMENT_EVENTS_PUBLISHER,
   EngagementUpdateKind,
@@ -232,6 +232,23 @@ export class ScansService {
       expiresInSeconds: RAW_OUTPUT_PRESIGN_TTL_SECONDS,
     });
     return { url, key: job.rawOutputKey, expiresInSeconds: RAW_OUTPUT_PRESIGN_TTL_SECONDS };
+  }
+
+  /**
+   * Lit les logs combinés persistés d'un scan job depuis MinIO (bucket `logs`).
+   * Renvoie '' si aucun log n'a encore été écrit (job non démarré, ou clé absente).
+   */
+  async getScanJobLogs(scanJobId: string): Promise<string> {
+    try {
+      const { body } = await this.storage.getObject('logs', scanLogKey(scanJobId));
+      const parts: Buffer[] = [];
+      for await (const part of body) {
+        parts.push(Buffer.isBuffer(part) ? part : Buffer.from(part as string));
+      }
+      return Buffer.concat(parts).toString('utf8');
+    } catch {
+      return '';
+    }
   }
 
   async cancelScanJob(userId: string, jobId: string): Promise<ScanJob> {
