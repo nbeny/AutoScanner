@@ -7,8 +7,13 @@ ARG KALI_META=kali-linux-large
 
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      ${KALI_META} man-db jq coreutils gawk \
+      ${KALI_META} man-db jq coreutils gawk libcap2-bin util-linux \
  && rm -rf /var/lib/apt/lists/*
+
+# Un binaire setcap (ex. nmap -> cap_net_raw) ne peut pas être exec sous les caps
+# docker par défaut (EPERM), ce qui casse la capture de son --help. On strippe les
+# file-capabilities dans cette image jetable — `--help` n'en a pas besoin.
+RUN set -eux; for f in $(getcap -r /usr/bin /usr/sbin /usr/lib 2>/dev/null | cut -d' ' -f1); do setcap -r "$f" 2>/dev/null || true; done
 
 COPY capture.sh /usr/local/bin/capture.sh
 RUN chmod +x /usr/local/bin/capture.sh

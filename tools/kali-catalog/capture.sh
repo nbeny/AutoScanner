@@ -37,14 +37,19 @@ for meta in $(dpkg-query -W -f='${Package}\n' 'kali-tools-*' 2>/dev/null); do
       echo "$bin" | grep -qE "$EXCLUDE_RE" && continue
       help="$(emit_help "$bin" || true)"
       man_ok="false"; timeout "${HELP_TIMEOUT}" man "$bin" >/dev/null 2>&1 && man_ok="true"
+      man_text=""
+      if [ "$man_ok" = "true" ]; then
+        man_text="$(timeout "${HELP_TIMEOUT}" man "$bin" 2>/dev/null | col -bx | head -c "${HELP_MAX_BYTES}")"
+      fi
       jq -cn \
         --arg package "$pkg" --arg binary "$bin" --arg description "$desc" \
         --arg homepage "$homepage" --arg category "$category" \
-        --arg help "$help" --argjson man "$man_ok" \
+        --arg help "$help" --arg mantext "$man_text" --argjson man "$man_ok" \
         '{package:$package, binary:$binary, description:$description,
           homepage: ($homepage|select(.!="")//null),
           categories: [$category],
           helpTextRaw: ($help|select(.!="")//null),
+          manTextRaw: ($mantext|select(.!="")//null),
           manAvailable: $man}'
     done
   done
