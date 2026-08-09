@@ -24,4 +24,5 @@ export class ScannerCatalogEntryObject {
   @Field(() => String, { nullable: true }) requiresCredential?: string | null;
   @Field(() => String, { nullable: true }) kaliToolRef?: string | null;
   @Field(() => [ScannerFieldObject]) fields!: ScannerFieldObject[];
+  @Field(() => GraphQLJSON, { nullable: true }) presets?: unknown;
 }

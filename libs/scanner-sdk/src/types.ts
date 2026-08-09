@@ -109,6 +109,18 @@ export interface ScannerDockerSpec {
   defaultTimeoutMs: number;
 }
 
+/** Recette pré-remplie d'options pour un scanner (« commande couramment lancée »). */
+export interface ScannerPreset {
+  /** Identifiant stable, kebab-case (ex. 'quick-top-1000'). */
+  id: string;
+  /** Libellé court affiché sur la chip. */
+  name: string;
+  /** Explication de ce que fait cette recette (le « pourquoi »). */
+  description: string;
+  /** Options pré-remplies — clés du inputSchema et/ou `extraArgs`. */
+  options: Record<string, unknown>;
+}
+
 export interface ScannerDefinition<TInput = unknown, _TRawOutput = unknown> {
   name: string;
   displayName: string;
@@ -127,6 +139,8 @@ export interface ScannerDefinition<TInput = unknown, _TRawOutput = unknown> {
   build(input: TInput, target: string, ctx: BuildContext): BuildResult;
   outputs: ScannerOutput[];
   produces: ProducedEntity[];
+  /** Recettes d'options couramment utilisées, proposées dans l'UI. */
+  presets?: ScannerPreset[];
   /** If set, scan-worker resolves the operator's encrypted API key for this provider and injects it. */
   requiresCredential?:
     | 'SHODAN'

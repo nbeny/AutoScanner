@@ -30,6 +30,7 @@ export class ScannerCatalogService {
         requiresCredential: scanner.requiresCredential ?? null,
         kaliToolRef: this.resolveKaliToolRef(scanner.name),
         fields: describeScannerInput(scanner.inputSchema),
+        presets: scanner.presets ?? [],
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
