@@ -21,7 +21,7 @@ import {
   type JobBus,
   type MessageContext,
 } from '@autoscanner/messaging';
-import { ScannerRegistry } from '@autoscanner/scanner-sdk';
+import { injectExtraArgs, sanitizeExtraArgs, ScannerRegistry } from '@autoscanner/scanner-sdk';
 import { OBJECT_STORAGE, rawOutputKey, scanLogKey, type ObjectStorage } from '@autoscanner/storage';
 import { SECRET_BOX } from './secret-box.provider';
 import { ScanControlSubscriber } from './scan-control.subscriber';
@@ -268,6 +268,14 @@ export class ScanJobProcessor
         auth,
       });
 
+      const extraArgs = sanitizeExtraArgs(
+        (payload.input as Record<string, unknown> | undefined)?.['extraArgs'],
+      );
+      const finalCmd = injectExtraArgs(build.cmd, extraArgs);
+      if (extraArgs.length) {
+        this.logger.log(`scanJob=${payload.scanJobId} extraArgs=${JSON.stringify(extraArgs)}`);
+      }
+
       let extraEnv: Record<string, string> | undefined;
       if (scanner.requiresCredential) {
         const provider = scanner.requiresCredential;
@@ -299,7 +307,7 @@ export class ScanJobProcessor
 
       const runSpec: RunSpec = {
         image: scanner.docker.image,
-        cmd: build.cmd,
+        cmd: finalCmd,
         env: { ...build.env, ...extraEnv },
         binds: artifactHostDir
           ? [...(build.binds ?? []), { src: artifactHostDir, dst: '/output' }]
