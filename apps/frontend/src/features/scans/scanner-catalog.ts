@@ -96,6 +96,8 @@ export interface ScannerCatalogEntry {
   displayName: string;
   description: string;
   categories: string[];
+  /** Catégorie primaire (source de vérité OSINT/Recon), null si non fournie. */
+  primaryCategory?: string | null;
   requiresCredential: string | null;
   /** Underlying Kali binary (SP1 cross-link), null when the scanner maps to none. */
   kaliToolRef?: string | null;
@@ -342,4 +344,20 @@ export function acceptsTarget(scannerName: string, detected: TargetType | null):
     default:
       return has(detected);
   }
+}
+
+/** Catégories brutes qui, en position primaire, font basculer une entrée en OSINT. */
+export const OSINT_RAW_CATEGORIES: ReadonlySet<string> = new Set([
+  'osint',
+  'identity-osint',
+  'passive-recon',
+  'breach-intel',
+]);
+
+/** Une entrée est OSINT si sa catégorie primaire (primaryCategory sinon categories[0]) est OSINT. */
+export function isOsintEntry(
+  entry: Pick<ScannerCatalogEntry, 'primaryCategory' | 'categories'>,
+): boolean {
+  const primary = entry.primaryCategory ?? entry.categories[0] ?? null;
+  return primary !== null && OSINT_RAW_CATEGORIES.has(primary);
 }
