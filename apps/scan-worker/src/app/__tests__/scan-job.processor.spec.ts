@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import { join } from 'node:path';
-import { SecretBox } from '@autoscanner/common';
+import { KALI_TOOLBOX_IMAGE, SecretBox } from '@autoscanner/common';
 import type { PrismaService } from '@autoscanner/database';
 import type { DockerRunner, RunResult, RunSpec } from '@autoscanner/docker-runner';
 import type { LogStreamPublisher } from '@autoscanner/log-stream';
@@ -139,7 +139,8 @@ describe('ScanJobProcessor', () => {
 
     const result = await processor.process(job(payload));
 
-    expect(docker.pullIfMissing).toHaveBeenCalledWith('instrumentisto/nmap:7.98-r2');
+    // nmap is on the Kali-toolbox allowlist, so it runs in the shared image.
+    expect(docker.pullIfMissing).toHaveBeenCalledWith(KALI_TOOLBOX_IMAGE);
     expect(docker.run).toHaveBeenCalledTimes(1);
     expect(storage.ensureBucket).toHaveBeenCalledWith('raw-outputs');
     expect(storage.putObject).toHaveBeenCalledWith(

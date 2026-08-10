@@ -34,4 +34,11 @@ export class LogBuffer {
   snapshot(): string {
     return this.chunks.join('');
   }
+
+  /** Drop everything accumulated so far (e.g. to discard a failed first attempt). */
+  reset(): void {
+    this.chunks.length = 0;
+    this.bytes = 0;
+    this.truncated = false;
+  }
 }

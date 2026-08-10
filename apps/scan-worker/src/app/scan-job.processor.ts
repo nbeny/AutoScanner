@@ -25,6 +25,7 @@ import { injectExtraArgs, sanitizeExtraArgs, ScannerRegistry } from '@autoscanne
 import { OBJECT_STORAGE, rawOutputKey, scanLogKey, type ObjectStorage } from '@autoscanner/storage';
 import { SECRET_BOX } from './secret-box.provider';
 import { ScanControlSubscriber } from './scan-control.subscriber';
+import { isExecFailure, resolveScanImage } from './kali-routing';
 
 const PARSE_TOPIC = 'security.parse.requested';
 const SCANNER_TOPIC = 'security.scanner.requested';
@@ -303,10 +304,11 @@ export class ScanJobProcessor
         extraEnv = { [scanner.credentialEnvVar ?? `${provider}_API_KEY`]: decryptedKey };
       }
 
-      await this.docker.pullIfMissing(scanner.docker.image);
+      const imageChoice = resolveScanImage(scanner.name, scanner.docker.image);
+      await this.docker.pullIfMissing(imageChoice.image);
 
       const runSpec: RunSpec = {
-        image: scanner.docker.image,
+        image: imageChoice.image,
         cmd: finalCmd,
         env: { ...build.env, ...extraEnv },
         binds: artifactHostDir
@@ -377,6 +379,15 @@ export class ScanJobProcessor
         capturedBytes += bytes;
       };
 
+      // Discard everything captured so far — used before a Kali-toolbox fallback
+      // retry so only the fallback attempt's output is stored/streamed.
+      const resetCapture = (): void => {
+        capturedChunks.length = 0;
+        capturedBytes = 0;
+        oversized = false;
+        logBuffer.reset();
+      };
+
       this.scanControlSubscriber.register(payload.scanJobId, oversizeAbort);
       const flushTimer = setInterval(() => {
         void this.persistLogs(payload.scanJobId, logBuffer.snapshot());
@@ -396,6 +407,32 @@ export class ScanJobProcessor
             safePublish('stderr', chunk);
           },
         });
+
+        // Kali-toolbox couldn't exec the binary (126/127, e.g. nmap's file-caps).
+        // NOT a normal tool non-zero exit. Discard the failed attempt and retry
+        // once on the scanner's own image.
+        if (imageChoice.usesKali && imageChoice.fallbackImage && isExecFailure(result.exitCode)) {
+          this.logger.warn(
+            `scanJob=${payload.scanJobId} scanner=${scanner.name} exit=${result.exitCode} in kali-toolbox; retrying on own image ${imageChoice.fallbackImage}`,
+          );
+          resetCapture();
+          await this.docker.pullIfMissing(imageChoice.fallbackImage);
+          result = await this.docker.run({
+            ...runSpec,
+            image: imageChoice.fallbackImage,
+            abortSignal: oversizeAbort.signal,
+            onStdout: (chunk) => {
+              captureChunk('stdout', chunk);
+              logBuffer.append('stdout', chunk);
+              safePublish('stdout', chunk);
+            },
+            onStderr: (chunk) => {
+              captureChunk('stderr', chunk);
+              logBuffer.append('stderr', chunk);
+              safePublish('stderr', chunk);
+            },
+          });
+        }
       } catch (err) {
         this.logger.error(`scanJob=${payload.scanJobId} failed: ${(err as Error).message}`);
         await this.persistLogs(payload.scanJobId, logBuffer.snapshot());

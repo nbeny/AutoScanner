@@ -25,4 +25,15 @@ describe('LogBuffer', () => {
     b.append('stdout', 'ijkl');
     expect(out.match(/truncated/g)?.length ?? 0).toBeLessThanOrEqual(1);
   });
+
+  it('reset() vide le buffer et ré-autorise l’accumulation après troncature', () => {
+    const b = new LogBuffer(4);
+    b.append('stdout', 'abcd');
+    b.append('stdout', 'efgh'); // dépasse le cap → tronqué
+    b.reset();
+    expect(b.snapshot()).toBe('');
+    expect(b.byteLength).toBe(0);
+    b.append('stdout', 'xy');
+    expect(b.snapshot()).toBe('xy');
+  });
 });
