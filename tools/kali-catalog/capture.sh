@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 # tools/kali-catalog/capture.sh
-# Introspect installed Kali tool packages -> RawCapture JSONL on stdout.
-# Guardrails: no network (run the container with --network none), per-invocation
-# timeout, output cap, closed stdin. Best-effort: binaries without clean help
-# are emitted with helpTextRaw=null.
+# Introspect installed Kali tools -> RawCapture JSONL on stdout.
+#
+# Category source: kali-linux-large installs the tools but registers only the
+# `kali-tools-top10` metapackage, so enumerating via installed metapackages missed
+# everything else. Instead we build a package->category map by QUERYING every
+# `kali-tools-<cat>` metapackage's dependency list (no install needed — apt-cache
+# reads the local indices), then enumerate EVERY installed tool package and tag it.
+#
+# Guardrails: no network (run with --network none), per-invocation timeout, output
+# cap, closed stdin. Binaries without clean help emit helpTextRaw=null.
 set -uo pipefail
 
 HELP_TIMEOUT="${HELP_TIMEOUT:-5}"
@@ -22,35 +28,42 @@ emit_help() {
   return 1
 }
 
-# List installed kali-tools-* metapackages and, for each, its category + member tools.
-for meta in $(dpkg-query -W -f='${Package}\n' 'kali-tools-*' 2>/dev/null); do
+# 1) package -> category map, from every kali-tools-<cat> metapackage in the apt
+#    index (queried, NOT installed). First category a package appears in wins.
+declare -A PKGCAT
+for meta in $(apt-cache pkgnames kali-tools- 2>/dev/null); do
+  [ "$meta" = "kali-tools" ] && continue
   category="${meta#kali-tools-}"
-  # Packages depended on by this metapackage:
   for pkg in $(apt-cache depends "$meta" 2>/dev/null | awk '/Depends:/ {print $2}'); do
-    # Package metadata
-    desc="$(apt-cache show "$pkg" 2>/dev/null | awk -F': ' '/^Description(-en)?:/ {print $2; exit}')"
-    homepage="$(apt-cache show "$pkg" 2>/dev/null | awk -F': ' '/^Homepage:/ {print $2; exit}')"
-    # Executable binaries this package installs
-    for path in $(dpkg -L "$pkg" 2>/dev/null | grep -E '^/usr/(bin|sbin)/' ); do
-      [ -x "$path" ] || continue
-      bin="$(basename "$path")"
-      echo "$bin" | grep -qE "$EXCLUDE_RE" && continue
-      help="$(emit_help "$bin" || true)"
-      man_ok="false"; timeout "${HELP_TIMEOUT}" man "$bin" >/dev/null 2>&1 && man_ok="true"
-      man_text=""
-      if [ "$man_ok" = "true" ]; then
-        man_text="$(timeout "${HELP_TIMEOUT}" man "$bin" 2>/dev/null | col -bx | head -c "${HELP_MAX_BYTES}")"
-      fi
-      jq -cn \
-        --arg package "$pkg" --arg binary "$bin" --arg description "$desc" \
-        --arg homepage "$homepage" --arg category "$category" \
-        --arg help "$help" --arg mantext "$man_text" --argjson man "$man_ok" \
-        '{package:$package, binary:$binary, description:$description,
-          homepage: ($homepage|select(.!="")//null),
-          categories: [$category],
-          helpTextRaw: ($help|select(.!="")//null),
-          manTextRaw: ($mantext|select(.!="")//null),
-          manAvailable: $man}'
-    done
+    [ -z "${PKGCAT[$pkg]:-}" ] && PKGCAT[$pkg]="$category"
+  done
+done
+
+# 2) Emit each executable of every INSTALLED package that maps to a Kali category.
+for pkg in $(dpkg-query -W -f='${Package}\n' 2>/dev/null); do
+  category="${PKGCAT[$pkg]:-}"
+  [ -z "$category" ] && continue
+  desc="$(apt-cache show "$pkg" 2>/dev/null | awk -F': ' '/^Description(-en)?:/ {print $2; exit}')"
+  homepage="$(apt-cache show "$pkg" 2>/dev/null | awk -F': ' '/^Homepage:/ {print $2; exit}')"
+  for path in $(dpkg -L "$pkg" 2>/dev/null | grep -E '^/usr/(bin|sbin)/'); do
+    [ -x "$path" ] || continue
+    bin="$(basename "$path")"
+    echo "$bin" | grep -qE "$EXCLUDE_RE" && continue
+    help="$(emit_help "$bin" || true)"
+    man_ok="false"; timeout "${HELP_TIMEOUT}" man "$bin" >/dev/null 2>&1 && man_ok="true"
+    man_text=""
+    if [ "$man_ok" = "true" ]; then
+      man_text="$(timeout "${HELP_TIMEOUT}" man "$bin" 2>/dev/null | col -bx | head -c "${HELP_MAX_BYTES}")"
+    fi
+    jq -cn \
+      --arg package "$pkg" --arg binary "$bin" --arg description "$desc" \
+      --arg homepage "$homepage" --arg category "$category" \
+      --arg help "$help" --arg mantext "$man_text" --argjson man "$man_ok" \
+      '{package:$package, binary:$binary, description:$description,
+        homepage: ($homepage|select(.!="")//null),
+        categories: [$category],
+        helpTextRaw: ($help|select(.!="")//null),
+        manTextRaw: ($mantext|select(.!="")//null),
+        manAvailable: $man}'
   done
 done

@@ -15,6 +15,11 @@ RUN apt-get update \
 # file-capabilities dans cette image jetable — `--help` n'en a pas besoin.
 RUN set -eux; for f in $(getcap -r /usr/bin /usr/sbin /usr/lib 2>/dev/null | cut -d' ' -f1); do setcap -r "$f" 2>/dev/null || true; done
 
+# Restore apt indices (the install layer removed them) so capture.sh can query
+# `apt-cache pkgnames/depends kali-tools-*` at runtime to derive tool categories.
+# Separate layer: keeps the expensive kali-linux-large install layer cached.
+RUN apt-get update
+
 COPY capture.sh /usr/local/bin/capture.sh
 RUN chmod +x /usr/local/bin/capture.sh
 
