@@ -6,6 +6,8 @@ import type { ScannerCatalogEntry, ScannerCatalogField } from './scanner-catalog
 
 interface ScannerOptionsFormProps {
   entry: ScannerCatalogEntry | undefined;
+  /** Current target string — used only for the live command preview. */
+  target?: string;
   /** Receives the serialized options JSON ('' when there are no options set). */
   onChange: (optionsJson: string) => void;
   /** Lets a parent (e.g. the Kali doc panel) register a handler that appends a flag to extraArgs. */
@@ -86,7 +88,12 @@ function coerce(field: ScannerCatalogField, raw: unknown): unknown | undefined {
   }
 }
 
-export function ScannerOptionsForm({ entry, onChange, registerAddFlag }: ScannerOptionsFormProps) {
+export function ScannerOptionsForm({
+  entry,
+  target = '',
+  onChange,
+  registerAddFlag,
+}: ScannerOptionsFormProps) {
   const fields = useMemo(() => entry?.fields ?? [], [entry]);
 
   const [values, setValues] = useState<Record<string, unknown>>({});

@@ -172,6 +172,7 @@ export function ScanRunPage() {
             <>
               <ScannerOptionsForm
                 entry={selectedEntry}
+                target={target}
                 onChange={setOptionsJson}
                 registerAddFlag={(fn) => {
                   addFlagRef.current = fn;

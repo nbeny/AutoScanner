@@ -316,7 +316,7 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
 
       {mode === 'scanner' && showOptions ? (
         <div className="w-full basis-full border-t border-space-800 pt-3">
-          <ScannerOptionsForm entry={selectedEntry} onChange={setOptionsJson} />
+          <ScannerOptionsForm entry={selectedEntry} target={target} onChange={setOptionsJson} />
         </div>
       ) : null}
     </div>
