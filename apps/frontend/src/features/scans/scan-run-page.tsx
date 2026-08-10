@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { useLocation, useParams } from 'react-router-dom';
 import { RUN_SCAN_MUTATION, SCAN_QUERY, SCANNER_CATALOG_QUERY } from '../../lib/graphql/queries';
@@ -9,7 +9,6 @@ import { AssetsTable } from './assets-table';
 import { NewTemplateRunForm } from '../template-runs/new-template-run-form';
 import { ScannerSelect } from './scanner-select';
 import { ScannerOptionsForm } from './scanner-options-form';
-import { KaliToolDocPanel } from './kali-tool-doc-panel';
 import type { ScannerCatalogEntry } from './scanner-catalog';
 
 interface RunScanResult {
@@ -49,7 +48,6 @@ export function ScanRunPage() {
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [activeScanId, setActiveScanId] = useState<string | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
-  const addFlagRef = useRef<((f: string) => void) | null>(null);
 
   const { data: catalogData } = useQuery<{ scannerCatalog: ScannerCatalogEntry[] }>(
     SCANNER_CATALOG_QUERY,
@@ -170,14 +168,7 @@ export function ScanRunPage() {
             />
           ) : (
             <>
-              <ScannerOptionsForm
-                entry={selectedEntry}
-                target={target}
-                onChange={setOptionsJson}
-                registerAddFlag={(fn) => {
-                  addFlagRef.current = fn;
-                }}
-              />
+              <ScannerOptionsForm entry={selectedEntry} target={target} onChange={setOptionsJson} />
               {optionsJson ? (
                 <details className="text-xs text-slate-500">
                   <summary className="cursor-pointer">Aperçu JSON</summary>
@@ -186,13 +177,6 @@ export function ScanRunPage() {
               ) : null}
             </>
           )}
-
-          {selectedEntry?.kaliToolRef ? (
-            <KaliToolDocPanel
-              binary={selectedEntry.kaliToolRef}
-              onAddFlag={(f) => addFlagRef.current?.(f)}
-            />
-          ) : null}
         </div>
         <button
           type="submit"

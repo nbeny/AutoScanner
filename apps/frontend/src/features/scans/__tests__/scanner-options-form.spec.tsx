@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MockedProvider, type MockedResponse } from '@apollo/client/testing';
-import { SCANNER_USAGE_STATS_QUERY } from '../../../lib/graphql/queries';
+import {
+  KALI_TOOL_QUERY,
+  PREVIEW_SCAN_COMMAND_QUERY,
+  SCANNER_USAGE_STATS_QUERY,
+} from '../../../lib/graphql/queries';
 import { ScannerOptionsForm } from '../scanner-options-form';
 import type { ScannerCatalogEntry } from '../scanner-catalog';
 
@@ -139,5 +143,93 @@ describe('<ScannerOptionsForm />', () => {
     );
     expect(screen.getByLabelText('no-options')).toBeInTheDocument();
     expect(screen.getByLabelText('no-options').textContent).toMatch(/SHODAN/);
+  });
+});
+
+const nmapEntryWithKali: ScannerCatalogEntry = {
+  name: 'nmap',
+  displayName: 'nmap',
+  description: 'Network mapper',
+  categories: ['port-scan'],
+  primaryCategory: 'port-scan',
+  requiresCredential: null,
+  kaliToolRef: 'nmap',
+  fields: [
+    {
+      name: 'ports',
+      type: 'string',
+      required: false,
+      default: '1-1000',
+      min: null,
+      max: null,
+      enumValues: null,
+      description: 'Ports',
+    },
+  ],
+  presets: [],
+};
+
+const kaliMock: MockedResponse = {
+  request: { query: KALI_TOOL_QUERY, variables: { binary: 'nmap' } },
+  result: {
+    data: {
+      kaliTool: {
+        binary: 'nmap',
+        displayName: 'nmap',
+        description: 'Network mapper',
+        homepage: null,
+        helpTextRaw: null,
+        optionsSource: 'man',
+        manTextRaw: null,
+        options: [{ flag: '-sV', argHint: null, description: 'service/version' }],
+      },
+    },
+  },
+};
+
+const previewMock: MockedResponse = {
+  request: {
+    query: PREVIEW_SCAN_COMMAND_QUERY,
+    variables: { scannerName: 'nmap', target: 'scanme.example.com', optionsJson: '' },
+  },
+  result: {
+    data: {
+      previewScanCommand: { image: 'nmap:latest', argv: ['nmap', '-p', '1-1000'], note: null },
+    },
+  },
+};
+
+function renderComposer() {
+  return render(
+    <MockedProvider mocks={[usageStatsMock('nmap'), kaliMock, previewMock]} addTypename={false}>
+      <ScannerOptionsForm
+        entry={nmapEntryWithKali}
+        target="scanme.example.com"
+        onChange={() => undefined}
+      />
+    </MockedProvider>,
+  );
+}
+
+describe('<ScannerOptionsForm /> composer', () => {
+  it('collapses the typed field grid under "Options avancées" (closed by default)', () => {
+    renderComposer();
+    const advanced = screen.getByLabelText('advanced-options');
+    expect(advanced).toBeInTheDocument();
+    expect((advanced as HTMLDetailsElement).open).toBe(false);
+  });
+
+  it('shows the man-option palette and appends a clicked flag to raw args', async () => {
+    renderComposer();
+    await waitFor(() => expect(screen.getByLabelText('man-option--sV')).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText('man-option--sV'));
+    expect((screen.getByLabelText('extra-args') as HTMLInputElement).value).toContain('-sV');
+  });
+
+  it('renders the live command preview from the server', async () => {
+    renderComposer();
+    await waitFor(() =>
+      expect(screen.getByLabelText('command-preview').textContent).toContain('nmap -p 1-1000'),
+    );
   });
 });

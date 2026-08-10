@@ -3,6 +3,9 @@ import { useQuery } from '@apollo/client';
 import { EXTRA_ARGS_KEY } from '@autoscanner/scanner-sdk';
 import { SCANNER_USAGE_STATS_QUERY } from '../../lib/graphql/queries';
 import type { ScannerCatalogEntry, ScannerCatalogField } from './scanner-catalog';
+import { ManOptionPalette } from './man-option-palette';
+import { useScanCommandPreview } from './use-scan-command-preview';
+import { KaliToolDocPanel } from './kali-tool-doc-panel';
 
 interface ScannerOptionsFormProps {
   entry: ScannerCatalogEntry | undefined;
@@ -99,9 +102,16 @@ export function ScannerOptionsForm({
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [enabled, setEnabled] = useState<Record<string, boolean>>({});
   const [extraArgsText, setExtraArgsText] = useState('');
+  // Remember the serialized options so the live preview mirrors what we emit.
+  const [optionsJson, setOptionsJson] = useState('');
+
+  const appendFlag = (flag: string) => setExtraArgsText((t) => (t ? `${t} ${flag}` : flag));
+  const preview = useScanCommandPreview(entry?.name ?? '', target, optionsJson);
 
   useEffect(() => {
-    registerAddFlag?.((flag: string) => setExtraArgsText((t) => (t ? `${t} ${flag}` : flag)));
+    registerAddFlag?.(appendFlag);
+    // appendFlag is stable enough (only setExtraArgsText, which is stable);
+    // re-registering on every render is harmless and keeps the ref fresh.
   }, [registerAddFlag]);
 
   // Reset the form whenever the selected scanner changes.
@@ -131,7 +141,9 @@ export function ScannerOptionsForm({
       .map((s) => s.trim())
       .filter(Boolean);
     if (extra.length) options[EXTRA_ARGS_KEY] = extra;
-    onChange(Object.keys(options).length ? JSON.stringify(options) : '');
+    const serialized = Object.keys(options).length ? JSON.stringify(options) : '';
+    setOptionsJson(serialized);
+    onChange(serialized);
   }, [fields, values, enabled, extraArgsText, onChange]);
 
   const { data: usageData } = useQuery<{
@@ -168,6 +180,7 @@ export function ScannerOptionsForm({
         </p>
       ) : null}
 
+      {/* Presets — recettes prêtes à l'emploi, mises en avant. */}
       {entry.presets && entry.presets.length > 0 ? (
         <div className="flex flex-wrap gap-2" aria-label="scanner-presets">
           {entry.presets.map((p) => (
@@ -200,49 +213,12 @@ export function ScannerOptionsForm({
         </div>
       ) : null}
 
-      {fields.length === 0 ? (
-        <p className="text-xs text-slate-400" aria-label="no-options">
-          Cet outil n'a pas d'options configurables.
-          {entry.requiresCredential ? ` Nécessite une clé API (${entry.requiresCredential}).` : ''}
-        </p>
-      ) : (
-        fields.map((field) => {
-          const toggle = isToggle(field);
-          const active = !toggle || enabled[field.name];
-          const value = values[field.name];
+      {/* Palette d'options (man) — clique pour ajouter le flag aux arguments. */}
+      <ManOptionPalette binary={entry.kaliToolRef ?? null} onAddFlag={appendFlag} />
 
-          return (
-            <div key={field.name} className="space-y-1">
-              <div className="flex items-center gap-2">
-                {toggle ? (
-                  <input
-                    type="checkbox"
-                    aria-label={`toggle-${field.name}`}
-                    checked={Boolean(enabled[field.name])}
-                    onChange={(e) =>
-                      setEnabled((prev) => ({ ...prev, [field.name]: e.target.checked }))
-                    }
-                  />
-                ) : null}
-                <span className="text-xs font-medium text-slate-200">
-                  {field.name}
-                  {field.required ? <span className="text-red-400"> *</span> : null}
-                </span>
-                <span className="text-[10px] text-slate-500">{field.type}</span>
-              </div>
-
-              {field.description ? (
-                <p className="text-[11px] text-slate-500">{field.description}</p>
-              ) : null}
-
-              {active ? renderControl(field, value, (v) => setValue(field.name, v)) : null}
-            </div>
-          );
-        })
-      )}
-
+      {/* Arguments — alimenté par la palette, éditable à la main. */}
       <label className="block space-y-1">
-        <span className="text-xs font-medium text-slate-200">Arguments bruts</span>
+        <span className="text-xs font-medium text-slate-200">Arguments</span>
         <input
           type="text"
           aria-label="extra-args"
@@ -255,6 +231,70 @@ export function ScannerOptionsForm({
           Ajoutés tels quels à la commande. Un token = un argument (pas de guillemets).
         </span>
       </label>
+
+      {/* Aperçu de commande — la commande exacte qui sera lancée (côté serveur). */}
+      <div
+        aria-label="command-preview"
+        className="rounded bg-space-900 px-3 py-2 text-xs font-mono text-slate-300 overflow-x-auto"
+      >
+        <span className="text-neon-cyan">{preview.argv[0] ?? entry.name}</span>{' '}
+        {preview.argv.slice(1).join(' ')}
+        {preview.note ? <div className="mt-1 text-amber-400">{preview.note}</div> : null}
+      </div>
+
+      {/* Options avancées — la grille de champs typés, repliée par défaut. */}
+      <details aria-label="advanced-options" className="rounded border border-space-800 p-2">
+        <summary className="cursor-pointer text-xs text-slate-400">Options avancées</summary>
+        <div className="mt-2 space-y-3">
+          {fields.length === 0 ? (
+            <p className="text-xs text-slate-400" aria-label="no-options">
+              Cet outil n'a pas d'options configurables.
+              {entry.requiresCredential
+                ? ` Nécessite une clé API (${entry.requiresCredential}).`
+                : ''}
+            </p>
+          ) : (
+            fields.map((field) => {
+              const toggle = isToggle(field);
+              const active = !toggle || enabled[field.name];
+              const value = values[field.name];
+
+              return (
+                <div key={field.name} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    {toggle ? (
+                      <input
+                        type="checkbox"
+                        aria-label={`toggle-${field.name}`}
+                        checked={Boolean(enabled[field.name])}
+                        onChange={(e) =>
+                          setEnabled((prev) => ({ ...prev, [field.name]: e.target.checked }))
+                        }
+                      />
+                    ) : null}
+                    <span className="text-xs font-medium text-slate-200">
+                      {field.name}
+                      {field.required ? <span className="text-red-400"> *</span> : null}
+                    </span>
+                    <span className="text-[10px] text-slate-500">{field.type}</span>
+                  </div>
+
+                  {field.description ? (
+                    <p className="text-[11px] text-slate-500">{field.description}</p>
+                  ) : null}
+
+                  {active ? renderControl(field, value, (v) => setValue(field.name, v)) : null}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </details>
+
+      {/* Aide / man — déplacée ici pour que les DEUX appelants en profitent. */}
+      {entry.kaliToolRef ? (
+        <KaliToolDocPanel binary={entry.kaliToolRef} onAddFlag={appendFlag} />
+      ) : null}
     </div>
   );
 }
