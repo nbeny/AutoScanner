@@ -6,7 +6,9 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   moduleNameMapper: {
-    '^@autoscanner/scanners-nmap$': '<rootDir>/../../libs/scanners/nmap/src/index.ts',
+    // Scanner libs live at libs/scanners/<name> (nested), so map the flat
+    // package name @autoscanner/scanners-<name> onto it (covers scanners-all too).
+    '^@autoscanner/scanners-(.*)$': '<rootDir>/../../libs/scanners/$1/src/index.ts',
     '^@autoscanner/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
   },
   testMatch: ['**/*.spec.ts'],
