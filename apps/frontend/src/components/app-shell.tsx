@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom';
+import { useEnsureScope } from '../lib/use-ensure-scope';
 import { NavRail } from './nav-rail';
 import { Topbar } from './topbar';
 
@@ -8,6 +9,9 @@ export interface AppShellProps {
 }
 
 export function AppShell({ email, onLogout }: AppShellProps) {
+  // Single-operator: auto-resolve the sole engagement so nothing is scope-gated
+  // behind a manual picker.
+  const { engagement } = useEnsureScope();
   return (
     <div className="min-h-screen bg-space-radial text-slate-100">
       <div className="flex min-h-screen">
@@ -15,7 +19,7 @@ export function AppShell({ email, onLogout }: AppShellProps) {
           <NavRail />
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar email={email} onLogout={onLogout} />
+          <Topbar email={email} onLogout={onLogout} engagementName={engagement?.name} />
           <main className="min-w-0 flex-1">
             <Outlet />
           </main>
