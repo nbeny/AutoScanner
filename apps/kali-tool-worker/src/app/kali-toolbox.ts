@@ -1,6 +1,7 @@
 import type { RunSpec } from '@autoscanner/docker-runner';
+import { KALI_TOOLBOX_IMAGE } from '@autoscanner/common';
 
-export const KALI_TOOLBOX_IMAGE = 'autoscanner/kali-toolbox:1.0';
+export { KALI_TOOLBOX_IMAGE };
 export const KALI_TOOLBOX_MEMORY_MB = 2048;
 export const KALI_TOOLBOX_TIMEOUT_MS = 15 * 60 * 1000;
 export const KALI_MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
