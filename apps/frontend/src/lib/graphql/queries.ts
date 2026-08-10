@@ -1015,6 +1015,16 @@ export const SCANNER_CATALOG_QUERY = gql`
   }
 `;
 
+export const PREVIEW_SCAN_COMMAND_QUERY = gql`
+  query PreviewScanCommand($scannerName: String!, $target: String!, $optionsJson: String) {
+    previewScanCommand(scannerName: $scannerName, target: $target, optionsJson: $optionsJson) {
+      image
+      argv
+      note
+    }
+  }
+`;
+
 export const TOOL_ACTIVITY_QUERY = gql`
   query ToolActivity($engagementId: ID) {
     toolActivity(engagementId: $engagementId) {
