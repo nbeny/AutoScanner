@@ -13,6 +13,7 @@ import { ScansController } from './scans.controller';
 import { ScanJobFieldResolver, ScansResolver } from './scans.resolver';
 import { ScansService } from './scans.service';
 import { ScanControlPublisher, SCAN_CONTROL_REDIS } from './scan-control.publisher';
+import { PreviewScanCommandService } from './preview-scan-command.service';
 
 import './dto/scan-status.enum';
 import './dto/scan-log-chunk.object';
@@ -30,6 +31,7 @@ import './dto/scan-log-chunk.object';
   controllers: [ScansController],
   providers: [
     ScansService,
+    PreviewScanCommandService,
     ScansResolver,
     ScanJobFieldResolver,
     ScanControlPublisher,

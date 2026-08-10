@@ -25,8 +25,10 @@ import { ScansFilterInput } from './dto/scans-filter.input';
 import { LogStreamKind, ScanLogChunkObject } from './dto/scan-log-chunk.object';
 import { ScanJobObject } from './dto/scan-job.object';
 import { ScannerUsageStat } from './dto/scanner-usage.object';
+import { ScanCommandPreview } from './dto/scan-command-preview.object';
 import { ScanObject } from './dto/scan.object';
 import { ScansService } from './scans.service';
+import { PreviewScanCommandService } from './preview-scan-command.service';
 
 @Resolver(() => ScanObject)
 @UseGuards(JwtAuthGuard)
@@ -34,7 +36,17 @@ export class ScansResolver {
   constructor(
     private readonly svc: ScansService,
     @Inject(LOG_STREAM_SUBSCRIBER) private readonly logSubscriber: LogStreamSubscriber,
+    private readonly previewSvc: PreviewScanCommandService,
   ) {}
+
+  @Query(() => ScanCommandPreview, { name: 'previewScanCommand' })
+  previewScanCommand(
+    @Args('scannerName') scannerName: string,
+    @Args('target') target: string,
+    @Args('optionsJson', { type: () => String, nullable: true }) optionsJson?: string,
+  ): ScanCommandPreview {
+    return this.previewSvc.preview(scannerName, target, optionsJson);
+  }
 
   @Mutation(() => ScanObject)
   runScan(@CurrentUser() user: User, @Args('input') input: RunScanInput): Promise<ScanObject> {
