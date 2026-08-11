@@ -226,10 +226,6 @@ export class ScansService {
     return scan as Scan;
   }
 
-  async countFindingsForJob(scanJobId: string): Promise<number> {
-    return this.prisma.finding.count({ where: { scanJobId } });
-  }
-
   async getRawOutputPresignedUrl(
     userId: string,
     scanJobId: string,

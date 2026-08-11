@@ -1,9 +1,8 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { TicketProvider, TicketStatus } from '@prisma/client';
+import { TicketProvider } from '@prisma/client';
 
 registerEnumType(TicketProvider, { name: 'TicketProvider' });
-registerEnumType(TicketStatus, { name: 'TicketStatus' });
 
 @ObjectType('IntegrationCredential')
 export class IntegrationCredentialObject {
@@ -42,43 +41,4 @@ export class CreateIntegrationCredentialInput {
   @IsString()
   @IsNotEmpty()
   config!: string;
-}
-
-@ObjectType('Ticket')
-export class TicketObject {
-  @Field(() => ID)
-  id!: string;
-
-  @Field(() => TicketProvider)
-  provider!: TicketProvider;
-
-  @Field(() => TicketStatus)
-  status!: TicketStatus;
-
-  @Field()
-  title!: string;
-
-  @Field({ nullable: true })
-  externalId?: string;
-
-  @Field({ nullable: true })
-  externalUrl?: string;
-
-  @Field({ nullable: true })
-  errorMessage?: string;
-
-  @Field()
-  createdAt!: Date;
-}
-
-@InputType()
-export class CreateTicketInput {
-  @Field(() => ID)
-  @IsString()
-  @IsNotEmpty()
-  correlatedFindingId!: string;
-
-  @Field(() => TicketProvider)
-  @IsEnum(TicketProvider)
-  provider!: TicketProvider;
 }

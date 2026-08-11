@@ -146,10 +146,11 @@ export class ScansResolver {
 
 @Resolver(() => ScanJobObject)
 export class ScanJobFieldResolver {
-  constructor(private readonly scansService: ScansService) {}
-
+  // The platform no longer parses scanner output into findings/entities, but the
+  // GraphQL `ScanJob.findingCount` field is still selected by the frontend. Keep
+  // the field and return the constant 0 rather than querying a dropped table.
   @ResolveField(() => Int, { name: 'findingCount' })
-  async findingCount(@Parent() job: ScanJobObject): Promise<number> {
-    return this.scansService.countFindingsForJob(job.id);
+  findingCount(@Parent() _job: ScanJobObject): number {
+    return 0;
   }
 }

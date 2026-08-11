@@ -60,7 +60,7 @@ export class ReportsService {
         templateId: template.id,
         format: template.format,
         status: ReportStatus.PENDING,
-        filters: input.filters ? (input.filters as Prisma.InputJsonValue) : Prisma.JsonNull,
+        filters: Prisma.JsonNull,
         createdById: userId,
       },
       include: { template: true },
