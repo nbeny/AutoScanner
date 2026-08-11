@@ -12,13 +12,7 @@ const makeTemplate = (
   name,
   displayName: `Display ${name}`,
   description: `Description for ${name}`,
-  steps: [
-    {
-      scannerName: 'noop',
-      inputs: {},
-      target: { kind: 'context', path: 'target' },
-    },
-  ],
+  steps: [{ scannerName: 'noop', args: '-h' }],
   ...overrides,
 });
 
