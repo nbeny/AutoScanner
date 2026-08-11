@@ -3,6 +3,7 @@ import { describeScannerInput, primaryCategoryOf, ScannerRegistry } from '@autos
 
 import { ScannerCatalogEntryObject } from './dto/scanner-catalog.object';
 import { KaliCatalogService } from './kali-catalog.service';
+import { buildKaliExamples } from './kali-examples';
 import { SCANNER_KALI_OVERRIDES } from './kali/scanner-kali-map';
 
 /**
@@ -30,7 +31,7 @@ export class ScannerCatalogService {
         requiresCredential: scanner.requiresCredential ?? null,
         kaliToolRef: this.resolveKaliToolRef(scanner.name),
         fields: describeScannerInput(scanner.inputSchema),
-        presets: scanner.presets ?? [],
+        presets: this.presetsFor(scanner),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -38,5 +39,18 @@ export class ScannerCatalogService {
   private resolveKaliToolRef(scannerName: string): string | null {
     const binary = SCANNER_KALI_OVERRIDES[scannerName] ?? scannerName;
     return this.kali.findByBinary(binary) ? binary : null;
+  }
+
+  /**
+   * Presets for a scanner: an explicit `presets` list wins (future-proofing);
+   * otherwise SP2 editable run examples derived from the underlying Kali tool
+   * (curated seed > man/help EXAMPLES > generic fallback). Falls back to `[]`
+   * when the scanner has no matching Kali record.
+   */
+  private presetsFor(scanner: { name: string; presets?: unknown[] }): unknown[] {
+    if (scanner.presets?.length) return scanner.presets;
+    const binary = SCANNER_KALI_OVERRIDES[scanner.name] ?? scanner.name;
+    const record = this.kali.findByBinary(binary);
+    return record ? buildKaliExamples(record) : [];
   }
 }

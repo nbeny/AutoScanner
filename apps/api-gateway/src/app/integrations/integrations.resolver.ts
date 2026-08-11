@@ -7,9 +7,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { IntegrationsService } from './integrations.service';
 import {
   CreateIntegrationCredentialInput,
-  CreateTicketInput,
   IntegrationCredentialObject,
-  TicketObject,
 } from './dto/integration.dto';
 
 @Resolver()
@@ -28,13 +26,5 @@ export class IntegrationsResolver {
     @Args('input') input: CreateIntegrationCredentialInput,
   ): Promise<IntegrationCredentialObject> {
     return this.svc.createCredential(user.id, input) as Promise<IntegrationCredentialObject>;
-  }
-
-  @Mutation(() => TicketObject)
-  createTicket(
-    @CurrentUser() user: User,
-    @Args('input') input: CreateTicketInput,
-  ): Promise<TicketObject> {
-    return this.svc.createTicket(user.id, input) as Promise<TicketObject>;
   }
 }

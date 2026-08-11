@@ -108,11 +108,13 @@ import { GarakJsonlParser } from './garak-jsonl';
 import { H8mailJsonParser } from './h8mail-json';
 import { LeakixJsonParser } from './leakix-json';
 import { IntelxJsonParser } from './intelx-json';
+import { RawParser } from './raw';
 
 @Global()
 @Module({
   providers: [
     ParserRegistry,
+    RawParser,
     NmapXmlParser,
     SubfinderJsonParser,
     HttpxJsonParser,
@@ -224,6 +226,7 @@ import { IntelxJsonParser } from './intelx-json';
   ],
   exports: [
     ParserRegistry,
+    RawParser,
     NmapXmlParser,
     SubfinderJsonParser,
     HttpxJsonParser,
@@ -337,6 +340,7 @@ import { IntelxJsonParser } from './intelx-json';
 export class ParsersModule implements OnModuleInit {
   constructor(
     private readonly registry: ParserRegistry,
+    private readonly rawParser: RawParser,
     private readonly nmapXml: NmapXmlParser,
     private readonly subfinderJson: SubfinderJsonParser,
     private readonly httpxJson: HttpxJsonParser,
@@ -448,6 +452,7 @@ export class ParsersModule implements OnModuleInit {
   ) {}
 
   onModuleInit(): void {
+    this.registry.register(this.rawParser);
     this.registry.register(this.nmapXml);
     this.registry.register(this.subfinderJson);
     this.registry.register(this.httpxJson);

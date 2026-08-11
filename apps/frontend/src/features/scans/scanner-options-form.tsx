@@ -180,20 +180,24 @@ export function ScannerOptionsForm({
         </p>
       ) : null}
 
-      {/* Presets — recettes prêtes à l'emploi, mises en avant. */}
+      {/* Exemples de run — recettes prêtes à l'emploi qui pré-remplissent les
+          arguments, éditables avant lancement (source: seed > man/help > défaut). */}
       {entry.presets && entry.presets.length > 0 ? (
-        <div className="flex flex-wrap gap-2" aria-label="scanner-presets">
-          {entry.presets.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              title={p.description}
-              onClick={() => applyPreset(p.options)}
-              className="rounded-full border border-indigo-500/40 px-2 py-0.5 text-xs text-indigo-300 hover:bg-indigo-500/20"
-            >
-              {p.name}
-            </button>
-          ))}
+        <div className="space-y-1" aria-label="scanner-presets">
+          <span className="text-[10px] uppercase text-slate-500">Exemples de run</span>
+          <div className="flex flex-wrap gap-2">
+            {entry.presets.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                title={p.description}
+                onClick={() => applyPreset(p.options)}
+                className="rounded-full border border-indigo-500/40 px-2 py-0.5 text-xs text-indigo-300 hover:bg-indigo-500/20"
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
 

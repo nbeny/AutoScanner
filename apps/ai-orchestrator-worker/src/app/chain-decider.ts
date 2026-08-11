@@ -48,7 +48,11 @@ export class ChainDecider implements NextStepDecider {
     });
     const executed = new Set(executedRows.map((r) => r.stepId as string));
 
-    const world = await this.worldState.build(args.aiRunId, args.engagementId, args.host);
+    const world = await this.worldState.buildChainSnapshot(
+      args.aiRunId,
+      args.engagementId,
+      args.host,
+    );
     const entities = await this.entities.load(args.engagementId);
 
     const result = evaluate(chain, world, entities, executed);

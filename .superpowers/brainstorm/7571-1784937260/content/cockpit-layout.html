@@ -1,0 +1,83 @@
+<h2>Structure du cockpit</h2>
+<p class="subtitle">Ambiance Deep Space Neon conservée. Trois façons d'agencer tous les flux temps-réel. Clique celle qui te convient.</p>
+
+<style>
+  .wraplay{ display:flex; flex-direction:column; gap:20px; }
+  .lay{ cursor:pointer; border:2px solid transparent; border-radius:16px; padding:14px; background:radial-gradient(120% 120% at 0% 0%, #0b1020 0%, #05060d 70%); transition:transform .15s, border-color .15s; }
+  .lay:hover{ transform:translateY(-3px); }
+  .lay.selected{ border-color:#22d3ee; box-shadow:0 0 30px rgba(34,211,238,.2); }
+  .lay h3{ color:#22d3ee; margin:0 0 3px; font-size:15px; }
+  .lay .desc{ color:#9fb6d6; font-size:12px; margin:0 0 12px; }
+  .b{ border:1px solid rgba(80,160,255,.28); border-radius:8px; background:rgba(20,30,60,.4); color:#cfe3ff; font-size:11px; padding:8px 10px; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .b.hot{ border-color:rgba(34,211,238,.5); box-shadow:0 0 16px rgba(34,211,238,.12) inset; color:#7fe8f5; }
+  .b.warn{ border-color:rgba(244,63,94,.4); color:#fb7185; }
+  .lbl{ font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:#5f7characters; }
+  .rail{ width:46px; }
+  .flex{ display:flex; gap:8px; }
+  .col{ display:flex; flex-direction:column; gap:8px; }
+  .grow{ flex:1; }
+  @media (max-width:760px){ .hidesm{ display:none!important; } }
+</style>
+
+<div class="wraplay">
+
+  <!-- A: Bento Mission Control -->
+  <div class="lay selected" data-choice="bento" onclick="toggleSelect(this)">
+    <h3>A · Bento « Mission Control »</h3>
+    <p class="desc">Tout visible d'un coup d'œil. Barre de commande en haut (lancer / kill-switch / santé), puis grille modulaire de tuiles live.</p>
+    <div class="flex">
+      <div class="b rail hidesm">☰</div>
+      <div class="col grow">
+        <div class="b hot">⌘ Command bar — Quick-launch scan/template/AutoHunt · Kill-switch · pills santé queues</div>
+        <div class="flex">
+          <div class="b grow" style="min-height:90px">SCANNERS ACTIFS<br>(grande tuile, cartes live + progress)</div>
+          <div class="col" style="width:34%">
+            <div class="b" style="min-height:41px">STATS / graphiques</div>
+            <div class="b" style="min-height:41px">QUEUES & workers</div>
+          </div>
+        </div>
+        <div class="flex">
+          <div class="b grow">LOGS LIVE (console)</div>
+          <div class="b warn grow">FINDINGS EN FLUX</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B: Three-column ops -->
+  <div class="lay" data-choice="ops3" onclick="toggleSelect(this)">
+    <h3>B · Ops 3 colonnes « focus »</h3>
+    <p class="desc">Liste des scanners à gauche, détail du scanner sélectionné au centre (logs + progression + ses findings), santé/stats globales à droite.</p>
+    <div class="flex">
+      <div class="b rail hidesm">☰</div>
+      <div class="b col" style="width:22%; min-height:150px">SCANNERS<br>ACTIFS<br>(liste<br>sélectionnable)</div>
+      <div class="col grow">
+        <div class="b hot" style="min-height:30px">Détail scanner — cible, statut, Stop/Retry</div>
+        <div class="b grow" style="min-height:60px">LOGS LIVE du scanner sélectionné</div>
+        <div class="b warn" style="min-height:36px">Findings de ce scanner</div>
+      </div>
+      <div class="b col hidesm" style="width:24%; min-height:150px">SANTÉ<br>Queues/workers<br>+ stats globales<br>+ findings flux</div>
+    </div>
+  </div>
+
+  <!-- C: Stacked streams -->
+  <div class="lay" data-choice="streams" onclick="toggleSelect(this)">
+    <h3>C · Flux empilés « timeline »</h3>
+    <p class="desc">Bandeau KPI/santé en haut, puis lanes horizontales défilantes : scanners, findings, logs+queues. Orienté flux temps réel.</p>
+    <div class="flex">
+      <div class="b rail hidesm">☰</div>
+      <div class="col grow">
+        <div class="flex">
+          <div class="b hot grow">KPI · scans actifs · findings/min · profondeur queues · débit workers</div>
+        </div>
+        <div class="b" style="min-height:44px">▸ LANE SCANNERS — cartes live qui défilent horizontalement →</div>
+        <div class="b warn" style="min-height:44px">▸ LANE FINDINGS — sévérités qui tombent en direct →</div>
+        <div class="flex">
+          <div class="b grow">LOGS LIVE</div>
+          <div class="b grow">QUEUES & workers</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

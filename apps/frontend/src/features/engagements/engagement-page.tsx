@@ -1,49 +1,8 @@
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { EngagementAssetsTab, ScoredAssetsPanel } from './engagement-assets-tab';
-import { EngagementEndpointsTab } from './engagement-endpoints-tab';
-import { EngagementOsintTab } from './engagement-osint-tab';
-import { EngagementTlsTab } from './engagement-tls-tab';
-import { FindingsTable } from '../findings/findings-table';
-import { TriageWorkspace } from '../findings/triage/triage-workspace';
-import { EngagementSynthesisPage } from './synthesis/engagement-synthesis-page';
 import { SchedulesTab } from '../schedules/schedules-tab';
-import { useEngagementUpdates } from './use-engagement-updates';
-
-type TabKey =
-  | 'overview'
-  | 'assets'
-  | 'domains'
-  | 'subdomains'
-  | 'ips'
-  | 'technologies'
-  | 'endpoints'
-  | 'osint'
-  | 'tls'
-  | 'findings'
-  | 'triage'
-  | 'schedules';
-
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'assets', label: 'Assets' },
-  { key: 'domains', label: 'Domains' },
-  { key: 'subdomains', label: 'Subdomains' },
-  { key: 'ips', label: 'IPs' },
-  { key: 'technologies', label: 'Technologies' },
-  { key: 'endpoints', label: 'Endpoints' },
-  { key: 'osint', label: 'OSINT' },
-  { key: 'tls', label: 'TLS' },
-  { key: 'findings', label: 'Findings' },
-  { key: 'triage', label: 'Triage' },
-  { key: 'schedules', label: 'Schedules' },
-];
+import { useParams } from 'react-router-dom';
 
 export function EngagementPage() {
   const { engagementId } = useParams<{ engagementId: string }>();
-  const [tab, setTab] = useState<TabKey>('overview');
-
-  useEngagementUpdates(engagementId);
 
   if (!engagementId) return <p className="p-8">Missing engagement id.</p>;
 
@@ -54,47 +13,8 @@ export function EngagementPage() {
         <code className="text-xs text-slate-400">engagement {engagementId}</code>
       </header>
 
-      <nav className="flex gap-2 border-b border-slate-800" aria-label="engagement-tabs">
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              aria-current={active ? 'page' : undefined}
-              className={
-                'px-3 py-2 text-sm border-b-2 -mb-px transition-colors ' +
-                (active
-                  ? 'border-indigo-400 text-indigo-300'
-                  : 'border-transparent text-slate-400 hover:text-slate-200')
-              }
-            >
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
-
       <section>
-        {tab === 'overview' ? <EngagementSynthesisPage engagementId={engagementId} /> : null}
-        {tab === 'assets' ? <ScoredAssetsPanel engagementId={engagementId} /> : null}
-        {tab === 'domains' ? (
-          <EngagementAssetsTab engagementId={engagementId} kind="DOMAIN" />
-        ) : null}
-        {tab === 'subdomains' ? (
-          <EngagementAssetsTab engagementId={engagementId} kind="SUBDOMAIN" />
-        ) : null}
-        {tab === 'ips' ? <EngagementAssetsTab engagementId={engagementId} kind="IP" /> : null}
-        {tab === 'technologies' ? (
-          <EngagementAssetsTab engagementId={engagementId} kind="TECHNOLOGY" />
-        ) : null}
-        {tab === 'endpoints' ? <EngagementEndpointsTab engagementId={engagementId} /> : null}
-        {tab === 'osint' ? <EngagementOsintTab engagementId={engagementId} /> : null}
-        {tab === 'tls' ? <EngagementTlsTab engagementId={engagementId} /> : null}
-        {tab === 'findings' ? <FindingsTable engagementId={engagementId} /> : null}
-        {tab === 'triage' ? <TriageWorkspace engagementId={engagementId} /> : null}
-        {tab === 'schedules' ? <SchedulesTab engagementId={engagementId} /> : null}
+        <SchedulesTab engagementId={engagementId} />
       </section>
     </div>
   );

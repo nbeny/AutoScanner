@@ -103,6 +103,7 @@
       "@autoscanner/scanners-js-recon": ["libs/scanners/js-recon/src/index.ts"],
       "@autoscanner/scanners-jsluice": ["libs/scanners/jsluice/src/index.ts"],
       "@autoscanner/scanners-jwt-tool": ["libs/scanners/jwt-tool/src/index.ts"],
+      "@autoscanner/scanners-kali-generated": ["libs/scanners/kali-generated/src/index.ts"],
       "@autoscanner/scanners-katana": ["libs/scanners/katana/src/index.ts"],
       "@autoscanner/scanners-kerbrute": ["libs/scanners/kerbrute/src/index.ts"],
       "@autoscanner/scanners-kiterunner": ["libs/scanners/kiterunner/src/index.ts"],

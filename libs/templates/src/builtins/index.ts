@@ -1,96 +1,29 @@
 import type { TemplateDefinition } from '../types';
-import { AiLlmSurface } from './ai-llm-surface';
-import { OsintPassive } from './osint-passive';
-import { OsintPassiveDeep } from './osint-passive-deep';
-import { OsintMetaDeep } from './osint-meta-deep';
-import { IdentityOsint } from './identity-osint';
-import { ReconActive } from './recon-active';
-import { ReconActiveDeepV2 } from './recon-active-deep-v2';
-import { ReconPassive } from './recon-passive';
-import { ReconPassiveDeep } from './recon-passive-deep';
-import { ServiceRecon } from './service-recon';
-import { NetworkVuln } from './network-vuln';
-import { VulnActive } from './vuln-active';
-import { WebContent } from './web-content';
-import { WebDeep } from './web-deep';
-import { WebDeepActiveInjection } from './web-deep-active-injection';
-import { WebCrawlDeep } from './web-crawl-deep';
-import { WebEnrich } from './web-enrich';
-import { WebFingerprint } from './web-fingerprint';
-import { WebQuick } from './web-quick';
-import { WebAppAudit } from './web-app-audit';
-import { ActiveDirectoryRecon } from './active-directory-recon';
-import { K8sRecon } from './k8s-recon';
-import { CloudExposure } from './cloud-exposure';
-import { IpActiveAudit } from './ip-active-audit';
-import { IpPassiveIntel } from './ip-passive-intel';
-import { IpReconFull } from './ip-recon-full';
-import { WebApiDeep } from './web-api-deep';
-import { EmailSurfaceRecon } from './email-surface-recon';
+import { ReconPassif } from './recon-passif';
+import { ReconDomaine } from './recon-domaine';
+import { WebSurface } from './web-surface';
+import { WebContenu } from './web-contenu';
+import { Tls } from './tls';
+import { Reseau } from './reseau';
+import { SmbWindows } from './smb-windows';
+import { Snmp } from './snmp';
 
-export {
-  ActiveDirectoryRecon,
-  AiLlmSurface,
-  CloudExposure,
-  EmailSurfaceRecon,
-  IdentityOsint,
-  IpActiveAudit,
-  IpPassiveIntel,
-  IpReconFull,
-  K8sRecon,
-  NetworkVuln,
-  OsintMetaDeep,
-  OsintPassive,
-  OsintPassiveDeep,
-  ReconActive,
-  ReconActiveDeepV2,
-  ReconPassive,
-  ReconPassiveDeep,
-  ServiceRecon,
-  VulnActive,
-  WebApiDeep,
-  WebAppAudit,
-  WebContent,
-  WebCrawlDeep,
-  WebDeep,
-  WebDeepActiveInjection,
-  WebEnrich,
-  WebFingerprint,
-  WebQuick,
-};
+export { ReconPassif, ReconDomaine, WebSurface, WebContenu, Tls, Reseau, SmbWindows, Snmp };
 
 /**
- * Source unique de vérité pour les templates intégrés. Consommée par
+ * Source unique de vérité pour les templates intégrés (SP3a). Depuis SP1 chaque
+ * scanner est un outil Kali brut générique; un template est donc une *playlist*
+ * linéaire d'outils exécutés sur la cible racine avec des `args`. Consommée par
  * `TemplatesModule.onModuleInit` (registre runtime) et par `prisma/seed.ts`
- * (rangée `ScanTemplate` initiale en base).
+ * (rangées `ScanTemplate` initiales en base).
  */
 export const BUILTIN_TEMPLATES: readonly TemplateDefinition[] = [
-  ReconPassive,
-  ReconActive,
-  ReconPassiveDeep,
-  ReconActiveDeepV2,
-  WebQuick,
-  WebDeep,
-  WebDeepActiveInjection,
-  WebContent,
-  OsintPassive,
-  WebFingerprint,
-  OsintPassiveDeep,
-  OsintMetaDeep,
-  WebEnrich,
-  ServiceRecon,
-  VulnActive,
-  NetworkVuln,
-  WebAppAudit,
-  ActiveDirectoryRecon,
-  K8sRecon,
-  CloudExposure,
-  IpPassiveIntel,
-  IpActiveAudit,
-  IpReconFull,
-  IdentityOsint,
-  WebCrawlDeep,
-  WebApiDeep,
-  EmailSurfaceRecon,
-  AiLlmSurface,
+  ReconPassif,
+  ReconDomaine,
+  WebSurface,
+  WebContenu,
+  Tls,
+  Reseau,
+  SmbWindows,
+  Snmp,
 ];

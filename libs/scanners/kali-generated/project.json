@@ -1,0 +1,22 @@
+{
+  "name": "scanners-kali-generated",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/scanners/kali-generated/src",
+  "projectType": "library",
+  "tags": ["scope:scanner"],
+  "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/libs/scanners/kali-generated"],
+      "options": {
+        "jestConfig": "libs/scanners/kali-generated/jest.config.ts"
+      }
+    },
+    "type-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/scanners/kali-generated/tsconfig.lib.json"
+      }
+    }
+  }
+}

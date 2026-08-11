@@ -182,9 +182,6 @@ export function ScanDetailBody({ scanId }: ScanDetailBodyProps) {
                   >
                     {job.status}
                   </span>
-                  <span className="ml-auto text-xs text-slate-400">
-                    findings: <strong className="text-slate-200">{job.findingCount}</strong>
-                  </span>
                 </div>
 
                 {/* Per-job actions */}

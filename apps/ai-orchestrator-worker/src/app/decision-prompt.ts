@@ -28,13 +28,16 @@ PRINCIPLES:
 - Be EXHAUSTIVE: scan everything that plausibly applies to find every vulnerability. Do not stop early while unexplored, applicable scanners remain and budget allows.
 - Respect the stated budget. When the remaining scan or depth budget is exhausted, set "done": true and stop proposing scans.
 - Avoid redundant work: do not re-run a scanner already listed in scannersRun against the same target unless new information makes it worthwhile.
-- Choose scanners ONLY by their exact "name" from the provided catalog. Never invent scanner names. Provide inputs matching the scanner's listed input keys.
-- Target new scans at the most specific relevant asset discovered (a URL, host, or service) rather than always the root target.
+- Choose scanners ONLY by their exact "name" (the catalog lists a shortlist, but you may name ANY registered Kali binary by its exact name). Never invent scanner names.
+- Set "args" to the tool's CLI flags as a single string. The run target is auto-appended to the command, so you usually do NOT repeat it; if a tool needs the target mid-command, put the literal {{target}} where it belongs. Leave "args" as "" to run the tool with just the target.
+- Read the "recentOutputs" excerpts (raw stdout of prior scans) and let them drive your next choice.
+- Target new scans at the most specific relevant asset seen in prior output (a URL, host, or service) rather than always the root target.
 
 OUTPUT CONTRACT — respond with ONLY a single JSON object and nothing else (no markdown, no prose, no code fences):
-{"done": boolean, "rationale": string, "next": [{"scannerName": string, "target": string, "inputs": object, "why": string}]}
+{"done": boolean, "rationale": string, "next": [{"scannerName": string, "target": string, "args": string, "why": string}]}
 - "done": true when the engagement is complete or budget is exhausted; otherwise false.
 - "rationale": a brief explanation of your reasoning this round.
+- "args": the CLI flags string for the tool (may be "").
 - "next": the scanner(s) to run next (may be empty when done).`;
 }
 
@@ -48,8 +51,10 @@ export function buildUserPrompt(args: {
   budgetRemaining: { scans: number; depth: number };
 }): string {
   const { worldState, catalogText, budgetRemaining } = args;
-  return `Current world state (JSON):
-${JSON.stringify(worldState, null, 2)}
+  return `Target: ${worldState.target}
+Scanners already run: ${worldState.scannersRun.length ? worldState.scannersRun.join(', ') : '(none yet)'}
+
+${renderRecentOutputs(worldState.recentOutputs)}
 
 Available scanners (choose by exact name):
 ${catalogText}
@@ -59,6 +64,20 @@ Budget remaining:
 - depth: ${budgetRemaining.depth}
 
 Given this, what scanner(s) should run next? Return the JSON decision.`;
+}
+
+/** Render prior scans' raw stdout excerpts as readable, delimited blocks. */
+function renderRecentOutputs(
+  outputs: { scanner: string; target: string; excerpt: string }[],
+): string {
+  if (outputs.length === 0) {
+    return 'Recent scan output: (none yet — this is the first round)';
+  }
+  const blocks = outputs.map((o) => {
+    const body = o.excerpt.trim() || '(empty output)';
+    return `--- ${o.scanner} @ ${o.target} ---\n${body}`;
+  });
+  return `Recent scan output (raw stdout excerpts, truncated):\n${blocks.join('\n\n')}`;
 }
 
 /**

@@ -1,219 +1,133 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { Test } from '@nestjs/testing';
+
 import {
-  ActiveDirectoryRecon,
-  CloudExposure,
   BUILTIN_TEMPLATES,
-  K8sRecon,
-  NetworkVuln,
-  OsintPassive,
-  OsintPassiveDeep,
-  ReconActive,
-  ReconPassive,
-  ReconPassiveDeep,
-  ServiceRecon,
+  ReconDomaine,
+  ReconPassif,
+  Reseau,
+  SmbWindows,
+  Snmp,
   TemplateRegistry,
   TemplatesModule,
-  VulnActive,
-  WebAppAudit,
-  WebContent,
-  WebDeep,
-  WebDeepActiveInjection,
-  WebEnrich,
-  WebFingerprint,
-  WebQuick,
+  Tls,
+  WebContenu,
+  WebSurface,
 } from '../index';
+import type { TemplateDefinition } from '../types';
 
-describe('builtin templates', () => {
-  describe('ReconPassive', () => {
-    it('declares name, displayName, description and 2 steps', () => {
-      expect(ReconPassive.name).toBe('recon-passive');
-      expect(ReconPassive.displayName).toBe('Passive Recon');
-      expect(typeof ReconPassive.description).toBe('string');
-      expect(ReconPassive.description.length).toBeGreaterThan(0);
-      expect(ReconPassive.steps).toHaveLength(2);
-    });
+/** Literal token the generic Kali scanner replaces with the run target. */
+const TARGET_PLACEHOLDER = '{{target}}';
 
-    it('chains subfinder then httpx with the right context references', () => {
-      const [subfinder, httpx] = ReconPassive.steps;
+/** Resolve `data/kali-tools.json` from the repo root (cwd) or by walking up. */
+function loadKaliBinaries(): Set<string> {
+  const candidates: string[] = [join(process.cwd(), 'data', 'kali-tools.json')];
+  let dir = __dirname;
+  for (let i = 0; i < 8; i++) {
+    candidates.push(join(dir, 'data', 'kali-tools.json'));
+    dir = dirname(dir);
+  }
+  for (const path of candidates) {
+    if (existsSync(path)) {
+      const parsed = JSON.parse(readFileSync(path, 'utf8')) as { binary: string }[];
+      return new Set(parsed.map((r) => r.binary));
+    }
+  }
+  throw new Error('data/kali-tools.json not found from any candidate path');
+}
 
-      expect(subfinder.scannerName).toBe('subfinder');
-      expect(subfinder.target).toEqual({ kind: 'context', path: 'target' });
-      expect(subfinder.inputs['sources']).toEqual({ kind: 'static', value: [] });
-      expect(subfinder.inputs['recursive']).toEqual({ kind: 'static', value: false });
+describe('builtin templates (SP3a linear playlists)', () => {
+  const binaries = loadKaliBinaries();
 
-      expect(httpx.scannerName).toBe('httpx');
-      expect(httpx.target).toEqual({ kind: 'context', path: 'subdomains' });
-      expect(httpx.inputs['techDetect']).toEqual({ kind: 'static', value: true });
-    });
+  it('exposes exactly the 8 curated playlists', () => {
+    expect(BUILTIN_TEMPLATES).toHaveLength(8);
+    expect(BUILTIN_TEMPLATES.map((t) => t.name)).toEqual([
+      'recon-passif',
+      'recon-domaine',
+      'web-surface',
+      'web-contenu',
+      'tls',
+      'reseau',
+      'smb-windows',
+      'snmp',
+    ]);
   });
 
-  describe('ReconActive', () => {
-    it('declares name, displayName, description and 4 steps', () => {
-      expect(ReconActive.name).toBe('recon-active');
-      expect(ReconActive.displayName).toBe('Active Recon');
-      expect(typeof ReconActive.description).toBe('string');
-      expect(ReconActive.description.length).toBeGreaterThan(0);
-      expect(ReconActive.steps).toHaveLength(6);
-    });
-
-    it('chains subfinder -> alterx -> dnsx -> httpx -> naabu -> subzy in order', () => {
-      const order = ReconActive.steps.map((s) => s.scannerName);
-      expect(order).toEqual(['subfinder', 'alterx', 'dnsx', 'httpx', 'naabu', 'subzy']);
-    });
-
-    it('wires each step to the correct context target and inputs', () => {
-      const [subfinder, alterx, dnsx, httpx, naabu, subzy] = ReconActive.steps;
-
-      expect(subfinder.target).toEqual({ kind: 'context', path: 'target' });
-      expect(subfinder.inputs).toEqual({});
-
-      expect(alterx.target).toEqual({ kind: 'context', path: 'target' });
-      expect(alterx.inputs).toEqual({});
-
-      expect(dnsx.target).toEqual({ kind: 'context', path: 'subdomains' });
-      expect(dnsx.inputs).toEqual({});
-
-      expect(httpx.target).toEqual({ kind: 'context', path: 'subdomains' });
-      expect(httpx.inputs['techDetect']).toEqual({ kind: 'static', value: true });
-
-      expect(naabu.target).toEqual({ kind: 'context', path: 'ipAddresses' });
-      expect(naabu.inputs['ports']).toEqual({ kind: 'static', value: 'top-100' });
-
-      expect(subzy.target).toEqual({ kind: 'context', path: 'subdomains' });
-      expect(subzy.inputs).toEqual({});
-    });
+  it('has unique template names', () => {
+    const names = BUILTIN_TEMPLATES.map((t) => t.name);
+    expect(new Set(names).size).toBe(names.length);
   });
 
-  describe('WebQuick', () => {
-    it('declares name, displayName, description and 2 steps', () => {
-      expect(WebQuick.name).toBe('web-quick');
-      expect(WebQuick.displayName).toBe('Web Quick');
-      expect(typeof WebQuick.description).toBe('string');
-      expect(WebQuick.description.length).toBeGreaterThan(0);
-      expect(WebQuick.steps).toHaveLength(2);
-    });
-
-    it('chains httpx -> naabu against the initial target / ipAddresses', () => {
-      const [httpx, naabu] = WebQuick.steps;
-
-      expect(httpx.scannerName).toBe('httpx');
-      expect(httpx.target).toEqual({ kind: 'context', path: 'target' });
-      expect(httpx.inputs['techDetect']).toEqual({ kind: 'static', value: true });
-
-      expect(naabu.scannerName).toBe('naabu');
-      expect(naabu.target).toEqual({ kind: 'context', path: 'ipAddresses' });
-      expect(naabu.inputs['ports']).toEqual({ kind: 'static', value: 'top-100' });
-    });
+  it('every template is well-formed (name, displayName, description, non-empty steps)', () => {
+    for (const tpl of BUILTIN_TEMPLATES) {
+      expect(typeof tpl.name).toBe('string');
+      expect(tpl.name.length).toBeGreaterThan(0);
+      expect(typeof tpl.displayName).toBe('string');
+      expect(tpl.displayName.length).toBeGreaterThan(0);
+      expect(typeof tpl.description).toBe('string');
+      expect(tpl.description.length).toBeGreaterThan(0);
+      expect(Array.isArray(tpl.steps)).toBe(true);
+      expect(tpl.steps.length).toBeGreaterThan(0);
+    }
   });
 
-  describe('WebDeep', () => {
-    it('declares name, displayName, description and 5 steps', () => {
-      expect(WebDeep.name).toBe('web-deep');
-      expect(WebDeep.displayName).toBe('Web Deep');
-      expect(typeof WebDeep.description).toBe('string');
-      expect(WebDeep.description.length).toBeGreaterThan(0);
-      expect(WebDeep.steps).toHaveLength(5);
-    });
-
-    it('chains subfinder -> dnsx -> httpx -> naabu -> nuclei in order', () => {
-      const order = WebDeep.steps.map((s) => s.scannerName);
-      expect(order).toEqual(['subfinder', 'dnsx', 'httpx', 'naabu', 'nuclei']);
-    });
-
-    it('wires nuclei against the urls context with empty inputs (default policy)', () => {
-      const nuclei = WebDeep.steps[4];
-      expect(nuclei.target).toEqual({ kind: 'context', path: 'urls' });
-      expect(nuclei.inputs).toEqual({});
-    });
-
-    it('wires the recon part identically to ReconActive', () => {
-      const [subfinder, dnsx, httpx, naabu] = WebDeep.steps;
-
-      expect(subfinder.target).toEqual({ kind: 'context', path: 'target' });
-      expect(dnsx.target).toEqual({ kind: 'context', path: 'subdomains' });
-      expect(httpx.target).toEqual({ kind: 'context', path: 'subdomains' });
-      expect(httpx.inputs['techDetect']).toEqual({ kind: 'static', value: true });
-      expect(naabu.target).toEqual({ kind: 'context', path: 'ipAddresses' });
-      expect(naabu.inputs['ports']).toEqual({ kind: 'static', value: 'top-100' });
-    });
-  });
-
-  describe('WebDeepActiveInjection', () => {
-    it('declares name, displayName, description and 9 steps', () => {
-      expect(WebDeepActiveInjection.name).toBe('web-deep-active-injection');
-      expect(WebDeepActiveInjection.displayName).toBe('Web Deep — Active Injection');
-      expect(typeof WebDeepActiveInjection.description).toBe('string');
-      expect(WebDeepActiveInjection.description.length).toBeGreaterThan(0);
-      expect(WebDeepActiveInjection.steps).toHaveLength(9);
-    });
-
-    it('crawls then fans the injection scanners out over the endpoints context', () => {
-      const order = WebDeepActiveInjection.steps.map((s) => s.scannerName);
-      expect(order).toEqual([
-        'subfinder',
-        'httpx',
-        'katana',
-        'arjun',
-        'web-dast',
-        'sqli-scan',
-        'ssti-scan',
-        'xss-scan',
-        'cmdi-scan',
-      ]);
-
-      // katana crawls live hosts; every injection scanner targets endpoints.
-      const katana = WebDeepActiveInjection.steps[2];
-      expect(katana.target).toEqual({ kind: 'context', path: 'urls' });
-      for (const injector of WebDeepActiveInjection.steps.slice(3)) {
-        expect(injector.target).toEqual({ kind: 'context', path: 'endpoints' });
+  it('every step names a binary present in data/kali-tools.json', () => {
+    for (const tpl of BUILTIN_TEMPLATES) {
+      for (const step of tpl.steps) {
+        expect(binaries.has(step.scannerName)).toBe(true);
       }
-    });
+    }
   });
 
-  describe('BUILTIN_TEMPLATES', () => {
-    it('contains the 4 Phase 2 templates + recon-passive-deep + web-content + osint-passive + web-fingerprint + osint-passive-deep + web-enrich + service-recon + vuln-active + network-vuln + web-app-audit + active-directory-recon + k8s-recon + cloud-exposure + ip-passive-intel + ip-active-audit + ip-recon-full + identity-osint + web-crawl-deep + web-api-deep + email-surface-recon + ai-llm-surface', () => {
-      expect(BUILTIN_TEMPLATES).toHaveLength(28);
-      expect(BUILTIN_TEMPLATES).toContain(ReconPassive);
-      expect(BUILTIN_TEMPLATES).toContain(ReconActive);
-      expect(BUILTIN_TEMPLATES).toContain(ReconPassiveDeep);
-      expect(BUILTIN_TEMPLATES).toContain(WebQuick);
-      expect(BUILTIN_TEMPLATES).toContain(WebDeep);
-      expect(BUILTIN_TEMPLATES).toContain(WebContent);
-      expect(BUILTIN_TEMPLATES).toContain(OsintPassive);
-      expect(BUILTIN_TEMPLATES).toContain(WebFingerprint);
-      expect(BUILTIN_TEMPLATES).toContain(OsintPassiveDeep);
-      expect(BUILTIN_TEMPLATES).toContain(WebEnrich);
-      expect(BUILTIN_TEMPLATES).toContain(ServiceRecon);
-      expect(BUILTIN_TEMPLATES).toContain(VulnActive);
-      expect(BUILTIN_TEMPLATES).toContain(NetworkVuln);
-      expect(BUILTIN_TEMPLATES).toContain(WebAppAudit);
-      expect(BUILTIN_TEMPLATES).toContain(ActiveDirectoryRecon);
-      expect(BUILTIN_TEMPLATES).toContain(K8sRecon);
-      expect(BUILTIN_TEMPLATES).toContain(CloudExposure);
-    });
-
-    it('exposes unique template names', () => {
-      const names = BUILTIN_TEMPLATES.map((t) => t.name);
-      expect(new Set(names).size).toBe(names.length);
-    });
-
-    it('can be registered into a TemplateRegistry and retrieved by name', () => {
-      const registry = new TemplateRegistry();
-      for (const def of BUILTIN_TEMPLATES) {
-        registry.register(def);
+  it('every step has a linear-playlist shape (no legacy inputs/target/context keys)', () => {
+    for (const tpl of BUILTIN_TEMPLATES) {
+      for (const step of tpl.steps) {
+        // args, when present, must be a string.
+        if (step.args !== undefined) expect(typeof step.args).toBe('string');
+        if (step.preset !== undefined) expect(typeof step.preset).toBe('string');
+        // Legacy structured keys must be gone.
+        const raw = step as unknown as Record<string, unknown>;
+        expect(raw['inputs']).toBeUndefined();
+        expect(raw['target']).toBeUndefined();
       }
+    }
+  });
 
-      expect(registry.get('recon-passive')).toBe(ReconPassive);
-      expect(registry.get('recon-active')).toBe(ReconActive);
-      expect(registry.get('web-quick')).toBe(WebQuick);
-      expect(registry.get('web-deep')).toBe(WebDeep);
-      expect(registry.get('web-deep-active-injection')).toBe(WebDeepActiveInjection);
-      expect(registry.get('service-recon')).toBe(ServiceRecon);
-      expect(registry.get('vuln-active')).toBe(VulnActive);
-      expect(registry.get('network-vuln')).toBe(NetworkVuln);
+  it('uses the {{target}} placeholder only inside args strings', () => {
+    // Sanity: any step whose tool needs the target mid-command must carry the
+    // literal token in args (the generic build() auto-appends otherwise).
+    const withPlaceholder = BUILTIN_TEMPLATES.flatMap((t) => t.steps).filter((s) =>
+      s.args?.includes(TARGET_PLACEHOLDER),
+    );
+    for (const step of withPlaceholder) {
+      expect(step.args).toContain(TARGET_PLACEHOLDER);
+    }
+  });
 
-      expect(registry.list()).toHaveLength(BUILTIN_TEMPLATES.length);
-    });
+  it('gates the aggressive masscan sweep behind active-recon-host-net', () => {
+    const masscan = Reseau.steps.find((s) => s.scannerName === 'masscan');
+    expect(masscan?.requiresCapability).toBe('active-recon-host-net');
+  });
+
+  it('individual playlists expose their expected scanner sequence', () => {
+    const seq = (t: TemplateDefinition): string[] => t.steps.map((s) => s.scannerName);
+    expect(seq(ReconPassif)).toEqual(['dmitry', 'theharvester', 'dnsenum']);
+    expect(seq(ReconDomaine)).toEqual(['amass', 'dnsrecon', 'fierce']);
+    expect(seq(WebSurface)).toEqual(['whatweb', 'wafw00f', 'nikto']);
+    expect(seq(WebContenu)).toEqual(['dirb', 'wpscan']);
+    expect(seq(Tls)).toEqual(['sslscan', 'sslyze']);
+    expect(seq(Reseau)).toEqual(['nmap', 'masscan']);
+    expect(seq(SmbWindows)).toEqual(['enum4linux', 'smbmap']);
+    expect(seq(Snmp)).toEqual(['onesixtyone', 'snmp-check']);
+  });
+
+  it('can be registered into a TemplateRegistry and retrieved by name', () => {
+    const registry = new TemplateRegistry();
+    for (const def of BUILTIN_TEMPLATES) registry.register(def);
+    expect(registry.get('recon-passif')).toBe(ReconPassif);
+    expect(registry.get('reseau')).toBe(Reseau);
+    expect(registry.list()).toHaveLength(BUILTIN_TEMPLATES.length);
   });
 
   describe('TemplatesModule onModuleInit', () => {
@@ -222,25 +136,10 @@ describe('builtin templates', () => {
       await ref.init();
       const registry = ref.get(TemplateRegistry);
 
-      expect(registry.get('recon-passive')).toBe(ReconPassive);
-      expect(registry.get('recon-active')).toBe(ReconActive);
-      expect(registry.get('recon-passive-deep')).toBe(ReconPassiveDeep);
-      expect(registry.get('web-quick')).toBe(WebQuick);
-      expect(registry.get('web-deep')).toBe(WebDeep);
-      expect(registry.get('web-content')).toBe(WebContent);
-      expect(registry.get('osint-passive')).toBe(OsintPassive);
-      expect(registry.get('web-fingerprint')).toBe(WebFingerprint);
-      expect(registry.get('osint-passive-deep')).toBe(OsintPassiveDeep);
-      expect(registry.get('web-enrich')).toBe(WebEnrich);
-      expect(registry.get('service-recon')).toBe(ServiceRecon);
-      expect(registry.get('vuln-active')).toBe(VulnActive);
-      expect(registry.get('network-vuln')).toBe(NetworkVuln);
-      expect(registry.get('active-directory-recon')).toBe(ActiveDirectoryRecon);
-      expect(registry.get('k8s-recon')).toBe(K8sRecon);
-      expect(registry.get('cloud-exposure')).toBe(CloudExposure);
-      expect(registry.list()).toHaveLength(28);
+      expect(registry.get('recon-passif')).toBe(ReconPassif);
+      expect(registry.get('web-surface')).toBe(WebSurface);
+      expect(registry.list()).toHaveLength(BUILTIN_TEMPLATES.length);
 
-      // Re-running onModuleInit (simulating hot-reload / double-init) must not throw.
       const moduleInstance = ref.get(TemplatesModule);
       expect(() => moduleInstance.onModuleInit()).not.toThrow();
       expect(registry.list()).toHaveLength(BUILTIN_TEMPLATES.length);

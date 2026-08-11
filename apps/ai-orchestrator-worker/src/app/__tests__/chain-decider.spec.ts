@@ -35,7 +35,7 @@ function makeDeps(executedStepIds: string[]) {
     endpoint: { count: jest.fn().mockResolvedValue(0) },
     finding: { findMany: jest.fn().mockResolvedValue([]) },
   } as never;
-  const worldState = { build: jest.fn().mockResolvedValue(world) } as never;
+  const worldState = { buildChainSnapshot: jest.fn().mockResolvedValue(world) } as never;
   const loader = { load: jest.fn().mockResolvedValue(entities) } as never;
   return { prisma, worldState, loader };
 }
@@ -63,7 +63,7 @@ describe('ChainDecider', () => {
   it('emits a skip action when a gate fails', async () => {
     const noHttp: WorldState = { ...world, openPorts: [], services: [], urls: [] };
     const { prisma, worldState, loader } = makeDeps(['httpx']);
-    (worldState as { build: jest.Mock }).build.mockResolvedValue(noHttp);
+    (worldState as { buildChainSnapshot: jest.Mock }).buildChainSnapshot.mockResolvedValue(noHttp);
     const decider = new ChainDecider(prisma, registry, worldState, loader);
     const outcome = await decider.decide({
       aiRunId: 'r1',

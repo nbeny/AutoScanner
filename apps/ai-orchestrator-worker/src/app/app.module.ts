@@ -16,6 +16,7 @@ import {
 } from '@autoscanner/scan-dispatch';
 import { EngagementEventsModule } from '@autoscanner/engagement-events';
 import { ChainsModule } from '@autoscanner/chains';
+import { StorageModule } from '@autoscanner/storage';
 
 import { AiRunProcessor } from './ai-run.processor';
 import { AiRunEventsPublisher, AI_RUN_EVENTS_REDIS } from './ai-run-events.publisher';
@@ -61,6 +62,7 @@ const aiRunEventsRedis: Provider = {
     SecurityAgentsModule,
     EngagementEventsModule.forRoot(),
     ChainsModule,
+    StorageModule,
   ],
   providers: [
     scanDispatchRedisSubscriber,

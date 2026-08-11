@@ -1,53 +1,30 @@
-import type { PrismaService } from '@autoscanner/database';
 import type { TemplateStep } from '@autoscanner/templates';
 import { ContextBuilder, type TemplateRunLike } from '../context-builder.service';
 
 const run: TemplateRunLike = { id: 'run_1', engagementId: 'eng_1', target: 'example.com' };
 
-function makePrisma(overrides: Record<string, unknown> = {}): PrismaService {
-  return {
-    subdomain: { findMany: jest.fn().mockResolvedValue([]) },
-    ipAddress: { findMany: jest.fn().mockResolvedValue([]) },
-    endpoint: { findMany: jest.fn().mockResolvedValue([]) },
-    scopeRule: { findMany: jest.fn().mockResolvedValue([]) },
-    ...overrides,
-  } as unknown as PrismaService;
-}
+const step: TemplateStep = { scannerName: 'nmap', args: '-sV -Pn' };
 
-const endpointsStep: TemplateStep = {
-  scannerName: 'web-dast',
-  inputs: {},
-  target: { kind: 'context', path: 'endpoints' },
-};
+describe('ContextBuilder (SP3a linear playlists)', () => {
+  const builder = new ContextBuilder();
 
-describe('ContextBuilder — endpoints path', () => {
-  it('resolves endpoints to their canonicalUrl values', async () => {
-    const prisma = makePrisma({
-      endpoint: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([
-            { canonicalUrl: 'https://example.com/search?q=1' },
-            { canonicalUrl: 'https://example.com/api/users?id=2' },
-          ]),
-      },
-    });
-    const builder = new ContextBuilder(prisma);
-
-    const targets = await builder.buildTargets(endpointsStep, run, 4);
-
-    expect(targets).toEqual([
-      'https://example.com/search?q=1',
-      'https://example.com/api/users?id=2',
-    ]);
-    expect(prisma.endpoint.findMany as jest.Mock).toHaveBeenCalledWith({
-      where: { engagementId: 'eng_1' },
-    });
+  it('resolves every step to the run root target', async () => {
+    await expect(builder.buildTargets(step, run, 0)).resolves.toEqual(['example.com']);
   });
 
-  it('falls back to the root target (D3) when no endpoints exist and stepIndex > 0', async () => {
-    const builder = new ContextBuilder(makePrisma());
-    const targets = await builder.buildTargets(endpointsStep, run, 4);
-    expect(targets).toEqual(['example.com']);
+  it('ignores stepIndex — later steps still target the root', async () => {
+    await expect(builder.buildTargets(step, run, 5)).resolves.toEqual(['example.com']);
+  });
+
+  it('ignores {{target}}-token args and preset — target is always the run root', async () => {
+    const withToken: TemplateStep = { scannerName: 'nikto', args: '-host {{target}}' };
+    const withPreset: TemplateStep = { scannerName: 'amass', preset: 'fast' };
+    await expect(builder.buildTargets(withToken, run, 2)).resolves.toEqual(['example.com']);
+    await expect(builder.buildTargets(withPreset, run, 3)).resolves.toEqual(['example.com']);
+  });
+
+  it('returns the exact target string for a different run', async () => {
+    const other: TemplateRunLike = { id: 'r2', engagementId: 'e2', target: '10.0.0.5' };
+    await expect(builder.buildTargets(step, other, 1)).resolves.toEqual(['10.0.0.5']);
   });
 });

@@ -18,25 +18,14 @@ import { CloudCredentialsApiModule } from './cloud-credentials/cloud-credentials
 import { CapabilitiesModule } from './capabilities/capabilities.module';
 import { EngagementAuthModule } from './engagement-auth/engagement-auth.module';
 import { AiRunsModule } from './ai-runs/ai-runs.module';
-import { AssetsModule } from './assets/assets.module';
-import { KaliRunsModule } from './kali-runs/kali-runs.module';
 import { ChainsModule } from './chains/chains.module';
 import { AuthModule } from './auth/auth.module';
-import { CorrelatedFindingsModule } from './correlated-findings/correlated-findings.module';
-import { DnsRecordsModule } from './dns-records/dns-records.module';
-import { EndpointsModule } from './endpoints/endpoints.module';
 import { EngagementEventsModule } from './engagement-events/engagement-events.module';
 import { EngagementsModule } from './engagements/engagements.module';
-import { FindingsModule } from './findings/findings.module';
 import { HealthModule } from './health/health.module';
-import { InsightModule } from './insight/insight.module';
-import { OsintModule } from './osint/osint.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IntegrationsModule } from './integrations/integrations.module';
-import { CopilotModule } from './copilot/copilot.module';
-import { AttackPathsModule } from './attack-paths/attack-paths.module';
-import { TlsModule } from './tls/tls.module';
 import { ReportsModule } from './reports/reports.module';
 import { QueueHealthModule } from './queue-health/queue-health.module';
 import { ScansModule } from './scans/scans.module';
@@ -101,28 +90,17 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     CloudCredentialsApiModule,
     CapabilitiesModule,
     EngagementAuthModule,
-    AssetsModule,
     AuthModule,
-    CorrelatedFindingsModule,
-    DnsRecordsModule,
-    EndpointsModule,
     EngagementEventsModule,
     EngagementsModule,
-    FindingsModule,
     HealthModule,
-    InsightModule,
     MetricsModule,
     NotificationsModule,
     IntegrationsModule,
-    CopilotModule,
-    AttackPathsModule,
-    OsintModule,
     ReportsModule,
-    TlsModule,
     QueueHealthModule,
     ScansModule,
     AiRunsModule,
-    KaliRunsModule,
     ChainsModule,
     SchedulesModule,
     TemplatesModule,

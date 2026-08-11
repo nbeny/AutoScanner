@@ -27,6 +27,11 @@ export enum ScannerCategory {
   AI_LLM = 'ai-llm',
   BREACH_INTEL = 'breach-intel',
   IMPORT_ONLY = 'import-only',
+  EXPLOITATION = 'exploitation',
+  POST_EXPLOITATION = 'post-exploitation',
+  FORENSICS = 'forensics',
+  REVERSE_ENGINEERING = 'reverse-engineering',
+  MISC = 'misc',
 }
 
 export type RawOutputFormat =

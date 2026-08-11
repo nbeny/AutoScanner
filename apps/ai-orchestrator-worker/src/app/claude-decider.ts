@@ -54,7 +54,7 @@ export class ClaudeDecider implements NextStepDecider {
       kind: 'run',
       scannerName: p.scannerName,
       target: p.target,
-      inputs: p.inputs,
+      inputs: { args: p.args, ...(p.preset ? { preset: p.preset } : {}) },
       rationale: p.why,
     }));
 
@@ -83,30 +83,34 @@ export class ClaudeDecider implements NextStepDecider {
     return resp.text.trim() || this.fallbackAudit(findings);
   }
 
+  /**
+   * Deterministic methodology used when Claude is empty/quota-limited. Without
+   * parsed entities to branch on (post-SP1), it walks a fixed recon → web →
+   * vuln sequence keyed only on which scanners have already run, so the run
+   * always makes forward progress and terminates. Each step emits a raw `args`
+   * string, matching the generic Kali scanner contract.
+   */
   private fallbackDecision(world: WorldState): ValidatedDecision {
     const has = (n: string): boolean => this.registry.has(n);
-    if (world.scannersRun.length === 0 && has('nmap')) {
-      return {
-        done: false,
-        rationale: 'degraded: baseline recon',
-        next: [{ scannerName: 'nmap', target: world.target, inputs: {}, why: 'baseline recon' }],
-      };
-    }
-    if (world.openPorts.length > 0 && world.technologies.length === 0 && has('httpx')) {
-      return {
-        done: false,
-        rationale: 'degraded: fingerprint',
-        next: [{ scannerName: 'httpx', target: world.target, inputs: {}, why: 'fingerprint' }],
-      };
-    }
-    if (world.urls.length > 0 && has('nuclei')) {
-      return {
-        done: false,
-        rationale: 'degraded: vuln',
-        next: [{ scannerName: 'nuclei', target: world.urls[0], inputs: {}, why: 'vuln scan' }],
-      };
-    }
-    return { done: true, rationale: 'degraded: nothing further', next: [] };
+    const ran = new Set(world.scannersRun);
+    const step = (scannerName: string, args: string, why: string): ValidatedDecision | null =>
+      has(scannerName) && !ran.has(scannerName)
+        ? {
+            done: false,
+            rationale: `degraded: ${why}`,
+            next: [{ scannerName, target: world.target, args, why }],
+          }
+        : null;
+
+    return (
+      step('nmap', '-sV -Pn', 'baseline recon') ??
+      step('whatweb', '', 'web fingerprint') ??
+      step('nikto', '-host {{target}}', 'web vuln scan') ?? {
+        done: true,
+        rationale: 'degraded: nothing further',
+        next: [],
+      }
+    );
   }
 
   /** Minimal Markdown audit used when Claude returns no audit text. */

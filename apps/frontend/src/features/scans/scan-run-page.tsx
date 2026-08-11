@@ -5,7 +5,6 @@ import { RUN_SCAN_MUTATION, SCAN_QUERY, SCANNER_CATALOG_QUERY } from '../../lib/
 import { useAuth } from '../../lib/auth-context';
 import { rawOutputUrl } from '../../lib/api-rest';
 import { LiveLogsPane } from './live-logs-pane';
-import { AssetsTable } from './assets-table';
 import { NewTemplateRunForm } from '../template-runs/new-template-run-form';
 import { ScannerSelect } from './scanner-select';
 import { ScannerOptionsForm } from './scanner-options-form';
@@ -214,10 +213,6 @@ export function ScanRunPage() {
           <LiveLogsPane scanJobId={activeJobId} />
         </section>
       ) : null}
-
-      <section>
-        <AssetsTable engagementId={engagementId} />
-      </section>
     </div>
   );
 }

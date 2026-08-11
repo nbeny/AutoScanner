@@ -68,16 +68,8 @@ const TEMPLATE: TemplateDefinition = {
   displayName: 'Test Recon',
   description: 'unit-test',
   steps: [
-    {
-      scannerName: 'subfinder',
-      inputs: {},
-      target: { kind: 'context', path: 'target' },
-    },
-    {
-      scannerName: 'httpx',
-      inputs: {},
-      target: { kind: 'context', path: 'subdomains' },
-    },
+    { scannerName: 'dmitry', args: '-winsepfb' },
+    { scannerName: 'theharvester', args: '-d {{target}} -b all' },
   ],
 };
 
@@ -150,14 +142,14 @@ describe('TemplateRunProcessor', () => {
       1,
       expect.objectContaining({
         stepIndex: 0,
-        step: expect.objectContaining({ scannerName: 'subfinder' }),
+        step: expect.objectContaining({ scannerName: 'dmitry' }),
       }),
     );
     expect(executor.runStep).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
         stepIndex: 1,
-        step: expect.objectContaining({ scannerName: 'httpx' }),
+        step: expect.objectContaining({ scannerName: 'theharvester' }),
       }),
     );
 

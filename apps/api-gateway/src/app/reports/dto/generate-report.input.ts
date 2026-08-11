@@ -1,8 +1,5 @@
 import { Field, ID, InputType } from '@nestjs/graphql';
-import { Type } from 'class-transformer';
-import { IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
-
-import { ReportFiltersInput } from './report-filters.input';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 @InputType()
 export class GenerateReportInput {
@@ -20,10 +17,4 @@ export class GenerateReportInput {
   @MinLength(1)
   @MaxLength(100)
   templateSlug!: string;
-
-  @Field(() => ReportFiltersInput, { nullable: true })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ReportFiltersInput)
-  filters?: ReportFiltersInput;
 }
