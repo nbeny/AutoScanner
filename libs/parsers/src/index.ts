@@ -92,4 +92,5 @@ export * from './trivy-json';
 export * from './oralyzer-text';
 export * from './smuggler-text';
 export * from './testssl-json';
+export * from './raw';
 export * from './parsers.module';
