@@ -2,34 +2,44 @@ import { buildSystemPrompt, buildUserPrompt, buildAuditPrompt } from '../decisio
 import type { WorldState } from '../world-state.service';
 
 describe('decision-prompt', () => {
-  it('system prompt mentions JSON and the schema keys', () => {
+  it('system prompt mentions JSON, the schema keys, and the args contract', () => {
     const sys = buildSystemPrompt();
     expect(sys.length).toBeGreaterThan(0);
     expect(sys).toContain('JSON');
     expect(sys).toContain('"done"');
     expect(sys).toContain('"next"');
+    // New contract: scans carry an args string, not structured inputs.
+    expect(sys).toContain('"args"');
+    expect(sys).toContain('{{target}}');
   });
 
-  it('user prompt embeds world state, catalog, budget, and the ask', () => {
+  it('user prompt embeds target, scannersRun, raw output excerpts, catalog, budget', () => {
     const worldState: WorldState = {
       target: 'example.com',
-      openPorts: [{ port: 443, protocol: 'TCP' }],
-      services: [],
-      technologies: [],
-      urls: [],
-      endpoints: [],
-      findings: [],
       scannersRun: ['nmap'],
+      recentOutputs: [{ scanner: 'nmap', target: 'example.com', excerpt: '443/tcp open https' }],
     };
     const prompt = buildUserPrompt({
       worldState,
-      catalogText: 'nmap [port-scan] produces:{Port} inputs:{ports}',
+      catalogText: 'nmap — Network exploration and port scanner.',
       budgetRemaining: { scans: 10, depth: 4 },
     });
     expect(prompt).toContain('example.com');
-    expect(prompt).toContain('nmap [port-scan]');
+    expect(prompt).toContain('nmap');
+    // The raw excerpt is rendered into the prompt.
+    expect(prompt).toContain('443/tcp open https');
     expect(prompt).toContain('scans: 10');
     expect(prompt).toContain('Return the JSON decision');
+  });
+
+  it('user prompt notes when no output exists yet', () => {
+    const worldState: WorldState = { target: 'example.com', scannersRun: [], recentOutputs: [] };
+    const prompt = buildUserPrompt({
+      worldState,
+      catalogText: 'x',
+      budgetRemaining: { scans: 10, depth: 4 },
+    });
+    expect(prompt).toContain('none yet');
   });
 
   it('audit prompt asks for a markdown report from findings and decisions', () => {

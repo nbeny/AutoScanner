@@ -3,13 +3,8 @@ import { ScannerRegistry } from '@autoscanner/scanner-sdk';
 
 const world = {
   target: 'example.com',
-  openPorts: [],
-  services: [],
-  technologies: [],
-  urls: [],
-  endpoints: [],
-  findings: [],
   scannersRun: [],
+  recentOutputs: [],
 };
 
 function makeRegistry(): ScannerRegistry {
@@ -40,12 +35,12 @@ describe('ClaudeDecider', () => {
         text: JSON.stringify({
           done: false,
           rationale: 'go',
-          next: [{ scannerName: 'nmap', target: 'example.com', inputs: {}, why: 'recon' }],
+          next: [{ scannerName: 'nmap', target: 'example.com', args: '-sV', why: 'recon' }],
         }),
         safeJson: (_fallback: unknown) => ({
           done: false,
           rationale: 'go',
-          next: [{ scannerName: 'nmap', target: 'example.com', inputs: {}, why: 'recon' }],
+          next: [{ scannerName: 'nmap', target: 'example.com', args: '-sV', why: 'recon' }],
         }),
       }),
     } as never;

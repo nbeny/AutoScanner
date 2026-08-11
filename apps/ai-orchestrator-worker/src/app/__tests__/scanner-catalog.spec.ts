@@ -1,52 +1,88 @@
-import { ScannerRegistry } from '@autoscanner/scanner-sdk';
+import { z } from 'zod';
+import { ScannerRegistry, ScannerCategory, type ScannerDefinition } from '@autoscanner/scanner-sdk';
 import { NmapScanner } from '@autoscanner/scanners-nmap';
-import { PwncatScanner } from '@autoscanner/scanners-pwncat';
 
-import { buildScannerCatalog, catalogToPromptText } from '../scanner-catalog';
+import { buildScannerCatalog, catalogToPromptText, type CatalogEntry } from '../scanner-catalog';
+
+function makeRegistry(): ScannerRegistry {
+  const registry = new ScannerRegistry();
+  registry.register(NmapScanner);
+  return registry;
+}
+
+/** A minimal generic Kali-style scanner def for cap/format tests. */
+function fakeTool(name: string, category: ScannerCategory, description: string): ScannerDefinition {
+  return {
+    name,
+    displayName: name,
+    category: [category],
+    primaryCategory: category,
+    description,
+    inputSchema: z.object({ args: z.string().optional() }),
+    docker: {
+      image: 'x',
+      network: 'bridge',
+      capabilities: [],
+      readonlyRootfs: true,
+      memoryLimitMb: 128,
+      cpuQuota: 1,
+      defaultTimeoutMs: 1000,
+    },
+    build: () => ({ cmd: [name] }),
+    outputs: [{ format: 'TEXT', capture: 'stdout', parser: 'raw' }],
+    produces: [],
+  };
+}
 
 describe('buildScannerCatalog', () => {
-  function makeRegistry(): ScannerRegistry {
-    const registry = new ScannerRegistry();
-    registry.register(NmapScanner);
-    return registry;
-  }
-
-  it('maps a real scanner into a catalog entry with its produced entities', () => {
+  it('maps a real scanner into a catalog entry with description + primaryCategory', () => {
     const catalog = buildScannerCatalog(makeRegistry());
     const nmap = catalog.find((e) => e.name === 'nmap');
 
     expect(nmap).toBeDefined();
-    // Truth per libs/scanners/nmap: produces Asset, Port, Service, Technology.
-    expect(nmap?.produces).toEqual(expect.arrayContaining(['Port']));
     expect(nmap?.displayName).toBe('Nmap');
+    expect(nmap?.description).toContain('port');
+    expect(nmap?.primaryCategory).toBe(ScannerCategory.PORT_SCAN);
   });
 
-  it('extracts input keys from a ZodObject schema', () => {
-    const catalog = buildScannerCatalog(makeRegistry());
-    const nmap = catalog.find((e) => e.name === 'nmap');
-    // NmapInput is a z.object with these keys.
-    expect(nmap?.inputs).toEqual(
-      expect.arrayContaining(['ports', 'serviceDetection', 'timingTemplate']),
-    );
-  });
-
-  it('renders a non-empty prompt text containing the scanner name', () => {
+  it('renders a compact `name — description` line for each shown scanner', () => {
     const text = catalogToPromptText(buildScannerCatalog(makeRegistry()));
-    expect(text.length).toBeGreaterThan(0);
-    expect(text).toContain('nmap');
-    expect(text).toContain('produces:{');
+    expect(text).toContain('nmap — ');
+  });
+});
+
+describe('catalogToPromptText capping', () => {
+  it('caps to the limit and appends a "+N more" note', () => {
+    const entries: CatalogEntry[] = Array.from({ length: 200 }, (_, i) =>
+      buildScannerCatalog(
+        (() => {
+          const r = new ScannerRegistry();
+          r.register(fakeTool(`tool${i}`, ScannerCategory.WEB_ENUM, `web tool ${i}`));
+          return r;
+        })(),
+      ),
+    ).flat();
+
+    const text = catalogToPromptText(entries, 60);
+    const lines = text.split('\n');
+    // 60 shown lines + 1 "+N more" note.
+    expect(lines).toHaveLength(61);
+    expect(text).toContain('+140 more tools available');
   });
 
-  it('exposes the experimental pwncat scanner to the AI (catalog + prompt text)', () => {
-    const registry = new ScannerRegistry();
-    registry.register(PwncatScanner);
+  it('does not append the note when everything fits under the limit', () => {
+    const r = new ScannerRegistry();
+    r.register(fakeTool('only', ScannerCategory.VULN_SCAN, 'only tool'));
+    const text = catalogToPromptText(buildScannerCatalog(r), 60);
+    expect(text).not.toContain('more tools available');
+    expect(text).toBe('only — only tool');
+  });
 
-    const catalog = buildScannerCatalog(registry);
-    const pwncat = catalog.find((e) => e.name === 'pwncat');
-    expect(pwncat).toBeDefined();
-    expect(pwncat?.produces).toEqual(expect.arrayContaining(['Finding']));
-
-    const text = catalogToPromptText(catalog);
-    expect(text).toContain('pwncat');
+  it('sorts recon/web/vuln scanners ahead of misc ones', () => {
+    const r = new ScannerRegistry();
+    r.register(fakeTool('miscy', ScannerCategory.MISC, 'misc tool'));
+    r.register(fakeTool('reconny', ScannerCategory.PASSIVE_RECON, 'recon tool'));
+    const text = catalogToPromptText(buildScannerCatalog(r), 60);
+    expect(text.indexOf('reconny')).toBeLessThan(text.indexOf('miscy'));
   });
 });
