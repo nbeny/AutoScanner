@@ -13,7 +13,6 @@ export const NAV_ITEMS: NavRailItem[] = [
   { to: '/audit', label: 'Audit', icon: '❖' },
   { to: '/tools', label: 'Outils', icon: '⚙' },
   { to: '/hunt', label: 'AutoHunt', icon: '⚡' },
-  { to: '/runner', label: 'Runner', icon: '❯' },
   { to: '/settings', label: 'Settings', icon: '⋯' },
 ];
 

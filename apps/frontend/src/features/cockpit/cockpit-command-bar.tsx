@@ -3,7 +3,6 @@ import { useMutation, useQuery } from '@apollo/client';
 import { HealthPill, type HealthPillData } from './health-pill';
 import type { CockpitFocus } from './scanner-focus-panel';
 import { ScannerOptionsForm } from '../scans/scanner-options-form';
-import { KaliToolLauncher } from './kali-tool-launcher';
 import {
   RUN_SCAN_MUTATION,
   RUN_TEMPLATE_MUTATION,
@@ -62,7 +61,7 @@ export interface CockpitCommandBarProps {
   onLaunched?: (focus: CockpitFocus) => void;
 }
 
-type LaunchMode = 'scanner' | 'template' | 'kali';
+type LaunchMode = 'scanner' | 'template';
 
 export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCommandBarProps) {
   const [mode, setMode] = useState<LaunchMode>('scanner');
@@ -189,7 +188,7 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
     >
       {/* Mode toggle: single scanner vs multi-step chain */}
       <div className="flex rounded-md border border-space-800 bg-space-900 p-0.5 text-xs">
-        {(['scanner', 'template', 'kali'] as const).map((m) => (
+        {(['scanner', 'template'] as const).map((m) => (
           <button
             key={m}
             type="button"
@@ -200,20 +199,18 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
               mode === m ? 'bg-neon-cyan/20 text-neon-cyan' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            {m === 'scanner' ? 'Scanner' : m === 'template' ? 'Chaîne' : 'Kali'}
+            {m === 'scanner' ? 'Scanner' : 'Chaîne'}
           </button>
         ))}
       </div>
 
-      {mode !== 'kali' ? (
-        <input
-          aria-label="quick-target"
-          value={target}
-          onChange={(e) => setTarget(e.target.value)}
-          placeholder="IP / domaine / URL"
-          className={`w-56 ${inputClass}`}
-        />
-      ) : null}
+      <input
+        aria-label="quick-target"
+        value={target}
+        onChange={(e) => setTarget(e.target.value)}
+        placeholder="IP / domaine / URL"
+        className={`w-56 ${inputClass}`}
+      />
 
       {mode === 'scanner' ? (
         <>
@@ -274,16 +271,14 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
         </select>
       ) : null}
 
-      {mode !== 'kali' ? (
-        <button
-          type="button"
-          onClick={() => void launch()}
-          disabled={!scoped || !target || launching}
-          className="rounded-md bg-neon-cyan/20 px-3 py-1 text-sm text-neon-cyan hover:bg-neon-cyan/30 disabled:opacity-40"
-        >
-          Run
-        </button>
-      ) : null}
+      <button
+        type="button"
+        onClick={() => void launch()}
+        disabled={!scoped || !target || launching}
+        className="rounded-md bg-neon-cyan/20 px-3 py-1 text-sm text-neon-cyan hover:bg-neon-cyan/30 disabled:opacity-40"
+      >
+        Run
+      </button>
 
       {mode === 'scanner' && detected && !showAll ? (
         <span className="text-xs text-slate-500">
@@ -322,19 +317,6 @@ export function CockpitCommandBar({ engagementId, pills, onLaunched }: CockpitCo
       {mode === 'scanner' && showOptions ? (
         <div className="w-full basis-full border-t border-space-800 pt-3">
           <ScannerOptionsForm entry={selectedEntry} target={target} onChange={setOptionsJson} />
-        </div>
-      ) : null}
-
-      {mode === 'kali' ? (
-        <div className="w-full basis-full border-t border-space-800 pt-3">
-          <KaliToolLauncher
-            engagementId={engagementId}
-            group="RECON"
-            onLaunched={(id) => {
-              setNotice(`Outil Kali lancé (run ${id}).`);
-              onLaunched?.({ scanId: id, jobId: id, scannerName: 'kali', target: '' });
-            }}
-          />
         </div>
       ) : null}
     </div>

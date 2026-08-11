@@ -15,7 +15,6 @@ import { EmailsPanel } from './emails-panel';
 import { SpoofabilityPanel } from './spoofability-panel';
 import { PhishingExposurePanel } from './phishing-exposure-panel';
 import { OsintGraphPanel } from './osint-graph-panel';
-import { KaliToolLauncher } from '../cockpit/kali-tool-launcher';
 import type { InvestigationFocus } from './seed-match';
 
 const sameFocus = (a: InvestigationFocus, b: InvestigationFocus) =>
@@ -72,20 +71,6 @@ export function OsintCockpitPage() {
           {flash}
         </p>
       ) : null}
-
-      <details
-        aria-label="osint-kali-panel"
-        className="rounded-xl border border-space-800 bg-space-900/40 px-4 py-2"
-      >
-        <summary className="cursor-pointer text-sm text-neon-magenta">Outils Kali (OSINT)</summary>
-        <div className="mt-3">
-          <KaliToolLauncher
-            engagementId={scope}
-            group="OSINT"
-            onLaunched={(id) => setFlash(`Outil Kali lancé (run ${id}).`)}
-          />
-        </div>
-      </details>
 
       <InvestigationChips investigations={investigations} focus={focus} onFocus={setFocus} />
 
