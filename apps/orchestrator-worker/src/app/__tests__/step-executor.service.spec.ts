@@ -26,7 +26,7 @@ function makeRun(overrides: Partial<TemplateRun> = {}): TemplateRun {
   return {
     id: 'run_1',
     templateId: 'tpl_1',
-    templateName: 'recon-passive',
+    templateName: 'recon-passif',
     engagementId: 'eng_1',
     target: 'example.com',
     status: 'RUNNING',
@@ -43,12 +43,6 @@ function makeRun(overrides: Partial<TemplateRun> = {}): TemplateRun {
 
 function makePrisma(): jest.Mocked<PrismaService> {
   const prisma = {
-    subdomain: {
-      findMany: jest.fn().mockResolvedValue([]),
-    },
-    ipAddress: {
-      findMany: jest.fn().mockResolvedValue([]),
-    },
     scan: {
       create: jest
         .fn()
@@ -68,9 +62,6 @@ function makePrisma(): jest.Mocked<PrismaService> {
       findUnique: jest.fn().mockResolvedValue(null),
     },
     // C2: dispatchOne wraps scan+scanJob creation in a single $transaction.
-    // The mock just invokes the callback with `prisma` itself as the tx
-    // client so `tx.scan.create` / `tx.scanJob.create` route to the same
-    // jest.fn() instances asserted by the existing specs.
     $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown>) => cb(prisma)),
   } as unknown as jest.Mocked<PrismaService>;
   return prisma;
@@ -100,136 +91,35 @@ function makeScanBus(): { publish: jest.Mock } {
   };
 }
 
+/**
+ * A stub ContextBuilder that returns a fixed target list, used to exercise the
+ * StepExecutor's fan-out machinery (Promise.all, shared listener, sibling
+ * abort). In production SP3a the real ContextBuilder always returns a single
+ * `[run.target]`, but the machinery must still be race-safe if it ever fans out.
+ */
+function makeContextBuilder(targets: string[]): ContextBuilder {
+  return { buildTargets: jest.fn().mockResolvedValue(targets) } as unknown as ContextBuilder;
+}
+
 function build(
   prisma: jest.Mocked<PrismaService>,
   registry: ScannerRegistry,
   bus: { publish: jest.Mock },
   redis: jest.Mocked<OrchestratorRedisSubscriber>,
   pollIntervalMs = 5_000,
+  ctxBuilder: ContextBuilder = new ContextBuilder(),
 ): StepExecutor {
-  const ctxBuilder = new ContextBuilder(prisma);
   return new StepExecutor(prisma, registry, bus, redis, ctxBuilder, { pollIntervalMs });
 }
 
-describe('StepExecutor target resolution (via ContextBuilder)', () => {
-  it('kind=context path=target -> [templateRun.target] (root domain)', async () => {
-    const prisma = makePrisma();
-    const ctx = new ContextBuilder(prisma);
+describe('ContextBuilder integration — target resolution (SP3a)', () => {
+  it('resolves every step to the run root target', async () => {
+    const ctx = new ContextBuilder();
     const run = makeRun({ target: 'acme.com' });
-    const step: TemplateStep = {
-      scannerName: 'subfinder',
-      inputs: {},
-      target: { kind: 'context', path: 'target' },
-    };
+    const step: TemplateStep = { scannerName: 'nmap', args: '-sV -Pn' };
 
-    const targets = await ctx.buildTargets(step, run, 0);
-
-    expect(targets).toEqual(['acme.com']);
-    expect(prisma.subdomain.findMany).not.toHaveBeenCalled();
-  });
-
-  it('kind=context path=subdomains -> canonicalValues from prisma.subdomain', async () => {
-    const prisma = makePrisma();
-    (prisma.subdomain.findMany as jest.Mock).mockResolvedValueOnce([
-      { canonicalValue: 'api.acme.com' },
-      { canonicalValue: 'mail.acme.com' },
-    ]);
-    const ctx = new ContextBuilder(prisma);
-    const step: TemplateStep = {
-      scannerName: 'httpx',
-      inputs: {},
-      target: { kind: 'context', path: 'subdomains' },
-    };
-
-    const targets = await ctx.buildTargets(step, makeRun({ engagementId: 'eng_xyz' }), 1);
-
-    expect(prisma.subdomain.findMany).toHaveBeenCalledWith({
-      where: { engagementId: 'eng_xyz' },
-    });
-    expect(targets).toEqual(['api.acme.com', 'mail.acme.com']);
-  });
-
-  it('kind=context path=urls -> host strings of Subdomain rows with httpStatus IS NOT NULL', async () => {
-    const prisma = makePrisma();
-    (prisma.subdomain.findMany as jest.Mock).mockResolvedValueOnce([
-      { canonicalValue: 'www.acme.com', httpStatus: 200 },
-    ]);
-    const ctx = new ContextBuilder(prisma);
-    const step: TemplateStep = {
-      scannerName: 'somewhere',
-      inputs: {},
-      target: { kind: 'context', path: 'urls' },
-    };
-
-    const targets = await ctx.buildTargets(step, makeRun({ engagementId: 'eng_x' }), 2);
-
-    expect(prisma.subdomain.findMany).toHaveBeenCalledWith({
-      where: { engagementId: 'eng_x', httpStatus: { not: null } },
-    });
-    expect(targets).toEqual(['www.acme.com']);
-  });
-
-  it('kind=context path=ipAddresses -> addresses from prisma.ipAddress', async () => {
-    const prisma = makePrisma();
-    (prisma.ipAddress.findMany as jest.Mock).mockResolvedValueOnce([
-      { address: '10.0.0.1' },
-      { address: '10.0.0.2' },
-    ]);
-    const ctx = new ContextBuilder(prisma);
-    const step: TemplateStep = {
-      scannerName: 'nmap',
-      inputs: {},
-      target: { kind: 'context', path: 'ipAddresses' },
-    };
-
-    const targets = await ctx.buildTargets(step, makeRun({ engagementId: 'eng_q' }), 1);
-
-    expect(prisma.ipAddress.findMany).toHaveBeenCalledWith({
-      where: { engagementId: 'eng_q' },
-    });
-    expect(targets).toEqual(['10.0.0.1', '10.0.0.2']);
-  });
-
-  it('D3 fallback: empty resolved list AND stepIndex > 0 -> [templateRun.target]', async () => {
-    const prisma = makePrisma();
-    (prisma.subdomain.findMany as jest.Mock).mockResolvedValueOnce([]);
-    const ctx = new ContextBuilder(prisma);
-    const step: TemplateStep = {
-      scannerName: 'httpx',
-      inputs: {},
-      target: { kind: 'context', path: 'subdomains' },
-    };
-
-    const targets = await ctx.buildTargets(step, makeRun({ target: 'fallback.example.com' }), 2);
-
-    expect(targets).toEqual(['fallback.example.com']);
-  });
-
-  it('D3 NOT applied on step 0: empty list at stepIndex=0 stays empty', async () => {
-    const prisma = makePrisma();
-    (prisma.subdomain.findMany as jest.Mock).mockResolvedValueOnce([]);
-    const ctx = new ContextBuilder(prisma);
-    const step: TemplateStep = {
-      scannerName: 'httpx',
-      inputs: {},
-      target: { kind: 'context', path: 'subdomains' },
-    };
-
-    const targets = await ctx.buildTargets(step, makeRun({ target: 'whatever.com' }), 0);
-
-    expect(targets).toEqual([]);
-  });
-
-  it('rejects kind=static for step.target (Phase 2 out-of-scope)', async () => {
-    const prisma = makePrisma();
-    const ctx = new ContextBuilder(prisma);
-    const step: TemplateStep = {
-      scannerName: 'foo',
-      inputs: {},
-      target: { kind: 'static', value: 'x' },
-    };
-
-    await expect(ctx.buildTargets(step, makeRun(), 0)).rejects.toThrow(/static.*step\.target/i);
+    await expect(ctx.buildTargets(step, run, 0)).resolves.toEqual(['acme.com']);
+    await expect(ctx.buildTargets(step, run, 4)).resolves.toEqual(['acme.com']);
   });
 });
 
@@ -241,9 +131,8 @@ describe('StepExecutor.runStep — completion polling', () => {
     jest.useRealTimers();
   });
 
-  it('polling resolves when scanJob.status flips to COMPLETED on 2nd poll', async () => {
+  it('publishes child input { args } and target = run root, resolving on COMPLETED', async () => {
     const prisma = makePrisma();
-    (prisma.subdomain.findMany as jest.Mock).mockResolvedValueOnce([]);
     const findUnique = prisma.scanJob.findUnique as jest.Mock;
     findUnique.mockResolvedValueOnce({ status: 'RUNNING' });
     findUnique.mockResolvedValueOnce({ status: 'COMPLETED' });
@@ -253,75 +142,92 @@ describe('StepExecutor.runStep — completion polling', () => {
     const redis = makeRedis();
     const exec = build(prisma, registry, bus, redis, 5_000);
 
-    const run = makeRun();
-    const step: TemplateStep = {
-      scannerName: 'subfinder',
-      inputs: {},
-      target: { kind: 'context', path: 'target' },
-    };
+    const run = makeRun({ target: 'acme.com' });
+    const step: TemplateStep = { scannerName: 'nmap', args: '-sV -Pn' };
 
     const promise = exec.runStep({ templateRun: run, step, stepIndex: 0 });
 
-    // microtask flush: subscribe -> tx (scan.create + scanJob.create) ->
-    // bus.publish -> schedule first poll. More awaits than pre-refactor
-    // because subscribe is now awaited *before* row creation (C1).
     await flushMicrotasks(10);
-
-    // First poll @ t=5s -> still RUNNING
-    await jest.advanceTimersByTimeAsync(5_000);
-    // Second poll @ t=10s -> COMPLETED
-    await jest.advanceTimersByTimeAsync(5_000);
+    await jest.advanceTimersByTimeAsync(5_000); // still RUNNING
+    await jest.advanceTimersByTimeAsync(5_000); // COMPLETED
 
     await expect(promise).resolves.toBeUndefined();
     expect(bus.publish).toHaveBeenCalledTimes(1);
-    // The scanJobId is generated by StepExecutor (randomUUID); we only
-    // care that whatever the published payload uses matches the id passed to
-    // ScanJob.create (so the scan-worker can find the row).
-    const enqueuedId = (bus.publish.mock.calls[0][2] as { scanJobId: string }).scanJobId;
+
+    // Child input carries ONLY the generic Kali scanner keys ({ args }); no
+    // legacy structured option keys.
+    const payload = bus.publish.mock.calls[0][2] as {
+      scanJobId: string;
+      scannerName: string;
+      target: string;
+      input: Record<string, unknown>;
+    };
+    expect(payload.scannerName).toBe('nmap');
+    expect(payload.target).toBe('acme.com');
+    expect(payload.input).toEqual({ args: '-sV -Pn' });
+
+    // The scanJobId is generated by StepExecutor (randomUUID); it must match the
+    // id used to create the ScanJob row so the scan-worker can find it.
     const createdId = (
       (prisma.scanJob.create as jest.Mock).mock.calls[0][0] as { data: { id: string } }
     ).data.id;
-    expect(enqueuedId).toBe(createdId);
-    expect(enqueuedId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(bus.publish).toHaveBeenCalledWith(
-      'security.scanner.requested',
-      expect.any(String),
-      expect.objectContaining({
-        scannerName: 'subfinder',
-        target: 'example.com',
-        engagementId: 'eng_1',
-      }),
-    );
+    expect(payload.scanJobId).toBe(createdId);
+    expect(payload.scanJobId).toMatch(/^[0-9a-f-]{36}$/);
+
+    // ScanJob row records the same target + input.
+    const jobData = (prisma.scanJob.create as jest.Mock).mock.calls[0][0].data as {
+      target: string;
+      input: Record<string, unknown>;
+    };
+    expect(jobData.target).toBe('acme.com');
+    expect(jobData.input).toEqual({ args: '-sV -Pn' });
+
     expect(redis.subscribe).toHaveBeenCalled();
     expect(redis.unsubscribe).toHaveBeenCalled();
+  });
+
+  it('omits args/preset when the step has neither (empty input object)', async () => {
+    const prisma = makePrisma();
+    (prisma.scanJob.findUnique as jest.Mock).mockResolvedValue({ status: 'COMPLETED' });
+
+    const bus = makeScanBus();
+    const exec = build(prisma, makeScannerRegistry(60_000), bus, makeRedis(), 5_000);
+
+    const step: TemplateStep = { scannerName: 'whatweb' };
+    const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 });
+    await flushMicrotasks(10);
+    await jest.advanceTimersByTimeAsync(5_000);
+    await promise;
+
+    expect(bus.publish.mock.calls[0][2].input).toEqual({});
+  });
+
+  it('includes preset when set', async () => {
+    const prisma = makePrisma();
+    (prisma.scanJob.findUnique as jest.Mock).mockResolvedValue({ status: 'COMPLETED' });
+
+    const bus = makeScanBus();
+    const exec = build(prisma, makeScannerRegistry(60_000), bus, makeRedis(), 5_000);
+
+    const step: TemplateStep = { scannerName: 'amass', args: 'enum -passive', preset: 'fast' };
+    const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 1 });
+    await flushMicrotasks(10);
+    await jest.advanceTimersByTimeAsync(5_000);
+    await promise;
+
+    expect(bus.publish.mock.calls[0][2].input).toEqual({ args: 'enum -passive', preset: 'fast' });
   });
 
   it('polling rejects with StepFailedError when status flips to FAILED', async () => {
     const prisma = makePrisma();
     const findUnique = prisma.scanJob.findUnique as jest.Mock;
     findUnique.mockResolvedValueOnce({ status: 'RUNNING' });
-    findUnique.mockResolvedValueOnce({
-      status: 'FAILED',
-      errorMessage: 'docker boom',
-    });
+    findUnique.mockResolvedValueOnce({ status: 'FAILED', errorMessage: 'docker boom' });
 
-    const exec = build(
-      makePrisma_(prisma),
-      makeScannerRegistry(60_000),
-      makeScanBus(),
-      makeRedis(),
-      5_000,
-    );
+    const exec = build(prisma, makeScannerRegistry(60_000), makeScanBus(), makeRedis(), 5_000);
 
-    const run = makeRun();
-    const step: TemplateStep = {
-      scannerName: 'subfinder',
-      inputs: {},
-      target: { kind: 'context', path: 'target' },
-    };
-
-    const promise = exec.runStep({ templateRun: run, step, stepIndex: 0 });
-    // Make rejection observable to avoid unhandled promise rejection warnings
+    const step: TemplateStep = { scannerName: 'nmap', args: '-sV' };
+    const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 });
     const observed = promise.catch((err: unknown) => err);
 
     await flushMicrotasks(10);
@@ -335,25 +241,15 @@ describe('StepExecutor.runStep — completion polling', () => {
 
   it('polling rejects with StepTimeoutError when status never flips (timeout = defaultTimeoutMs + 60s)', async () => {
     const prisma = makePrisma();
-    // Always RUNNING — never flips.
-    (prisma.scanJob.findUnique as jest.Mock).mockResolvedValue({
-      status: 'RUNNING',
-    });
+    (prisma.scanJob.findUnique as jest.Mock).mockResolvedValue({ status: 'RUNNING' });
 
     const registry = makeScannerRegistry(60_000); // step timeout = 60_000 + 60_000 = 120_000
     const exec = build(prisma, registry, makeScanBus(), makeRedis(), 5_000);
 
-    const run = makeRun();
-    const step: TemplateStep = {
-      scannerName: 'subfinder',
-      inputs: {},
-      target: { kind: 'context', path: 'target' },
-    };
-
-    const promise = exec.runStep({ templateRun: run, step, stepIndex: 0 });
+    const step: TemplateStep = { scannerName: 'nmap', args: '-sV' };
+    const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 });
     const observed = promise.catch((err: unknown) => err);
 
-    // flush microtasks then run past the 120s budget
     await flushMicrotasks(10);
     await jest.advanceTimersByTimeAsync(120_000 + 1);
 
@@ -362,7 +258,7 @@ describe('StepExecutor.runStep — completion polling', () => {
   });
 });
 
-describe('StepExecutor.runStep — multi-target enqueue', () => {
+describe('StepExecutor.runStep — fan-out machinery (stubbed multi-target)', () => {
   beforeEach(() => {
     jest.useFakeTimers();
   });
@@ -372,27 +268,16 @@ describe('StepExecutor.runStep — multi-target enqueue', () => {
 
   it('enqueues N ScanJobs (one per target) and waits for all to complete', async () => {
     const prisma = makePrisma();
-    (prisma.subdomain.findMany as jest.Mock).mockResolvedValueOnce([
-      { canonicalValue: 'a.acme.com' },
-      { canonicalValue: 'b.acme.com' },
-    ]);
-
-    // Both jobs report COMPLETED on first poll (id-agnostic — we now
-    // generate ids via randomUUID, not via the mock).
     (prisma.scanJob.findUnique as jest.Mock).mockImplementation(
       ({ where }: { where: { id: string } }) =>
         Promise.resolve({ id: where.id, status: 'COMPLETED' }),
     );
 
     const bus = makeScanBus();
-    const exec = build(prisma, makeScannerRegistry(60_000), bus, makeRedis(), 5_000);
+    const ctx = makeContextBuilder(['a.acme.com', 'b.acme.com']);
+    const exec = build(prisma, makeScannerRegistry(60_000), bus, makeRedis(), 5_000, ctx);
 
-    const step: TemplateStep = {
-      scannerName: 'httpx',
-      inputs: { techDetect: { kind: 'static', value: true } },
-      target: { kind: 'context', path: 'subdomains' },
-    };
-
+    const step: TemplateStep = { scannerName: 'httpx', args: '-td' };
     const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 1 });
 
     await flushMicrotasks(15);
@@ -404,41 +289,28 @@ describe('StepExecutor.runStep — multi-target enqueue', () => {
       1,
       'security.scanner.requested',
       expect.any(String),
-      expect.objectContaining({ target: 'a.acme.com', input: { techDetect: true } }),
+      expect.objectContaining({ target: 'a.acme.com', input: { args: '-td' } }),
     );
     expect(bus.publish).toHaveBeenNthCalledWith(
       2,
       'security.scanner.requested',
       expect.any(String),
-      expect.objectContaining({ target: 'b.acme.com', input: { techDetect: true } }),
+      expect.objectContaining({ target: 'b.acme.com', input: { args: '-td' } }),
     );
   });
 
   it('binds the redis `message` listener at most once regardless of fan-out', async () => {
-    // Pre-refactor this attached one listener per in-flight ScanJob, which on
-    // a wide fan-out (naabu over a /24) tripped Node's default 10-listener
-    // cap and required `setMaxListeners(0)` as a band-aid. Pin the new
-    // single-listener contract so a future refactor can't silently regress it.
     const prisma = makePrisma();
-    (prisma.subdomain.findMany as jest.Mock).mockResolvedValueOnce([
-      { canonicalValue: 'a.acme.com' },
-      { canonicalValue: 'b.acme.com' },
-      { canonicalValue: 'c.acme.com' },
-    ]);
     (prisma.scanJob.findUnique as jest.Mock).mockImplementation(
       ({ where }: { where: { id: string } }) =>
         Promise.resolve({ id: where.id, status: 'COMPLETED' }),
     );
 
     const redis = makeRedis();
-    const exec = build(prisma, makeScannerRegistry(60_000), makeScanBus(), redis, 5_000);
+    const ctx = makeContextBuilder(['a.acme.com', 'b.acme.com', 'c.acme.com']);
+    const exec = build(prisma, makeScannerRegistry(60_000), makeScanBus(), redis, 5_000, ctx);
 
-    const step: TemplateStep = {
-      scannerName: 'httpx',
-      inputs: {},
-      target: { kind: 'context', path: 'subdomains' },
-    };
-
+    const step: TemplateStep = { scannerName: 'httpx' };
     const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 });
     await flushMicrotasks(15);
     await jest.advanceTimersByTimeAsync(5_000);
@@ -448,38 +320,55 @@ describe('StepExecutor.runStep — multi-target enqueue', () => {
       ([event]) => event === 'message',
     );
     expect(messageListenerCalls).toHaveLength(1);
-    // Subscribes are still per-channel (one per ScanJob) — that's expected.
     expect(redis.subscribe).toHaveBeenCalledTimes(3);
   });
 
-  it('extracts only static inputs from step.inputs (context inputs are skipped in Phase 2)', async () => {
+  // I1: when one parallel target rejects, the surviving target's pollTimer +
+  // budgetTimer must tear down via the shared AbortSignal instead of running
+  // out the full step budget.
+  it("I1: sibling rejection triggers AbortSignal that clears the surviving target's timers", async () => {
     const prisma = makePrisma();
-    (prisma.scanJob.findUnique as jest.Mock).mockResolvedValue({
-      status: 'COMPLETED',
-    });
 
-    const bus = makeScanBus();
-    const exec = build(prisma, makeScannerRegistry(60_000), bus, makeRedis(), 5_000);
-
-    const step: TemplateStep = {
-      scannerName: 'subfinder',
-      inputs: {
-        sources: { kind: 'static', value: [] },
-        recursive: { kind: 'static', value: false },
-        // a context input — must be skipped (Phase 2 out-of-scope)
-        seedFrom: { kind: 'context', path: 'subdomains' },
+    const failedIds = new Set<string>();
+    let firstCreate = true;
+    (prisma.scanJob.create as jest.Mock).mockImplementation(
+      ({ data }: { data: Record<string, unknown> }) => {
+        if (firstCreate) {
+          failedIds.add(data.id as string);
+          firstCreate = false;
+        }
+        return Promise.resolve({ status: 'PENDING', ...data });
       },
-      target: { kind: 'context', path: 'target' },
-    };
+    );
+    (prisma.scanJob.findUnique as jest.Mock).mockImplementation(
+      ({ where }: { where: { id: string } }) =>
+        failedIds.has(where.id)
+          ? Promise.resolve({ id: where.id, status: 'FAILED', errorMessage: 'boom' })
+          : Promise.resolve({ id: where.id, status: 'RUNNING' }),
+    );
 
-    const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 });
-    await flushMicrotasks(10);
+    const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+
+    const ctx = makeContextBuilder(['a.acme.com', 'b.acme.com']);
+    const exec = build(prisma, makeScannerRegistry(60_000), makeScanBus(), makeRedis(), 5_000, ctx);
+
+    const step: TemplateStep = { scannerName: 'httpx' };
+    const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 1 });
+    const observed = promise.catch((err: unknown) => err);
+
+    await flushMicrotasks(20);
     await jest.advanceTimersByTimeAsync(5_000);
-    await promise;
+    await flushMicrotasks(10);
 
-    const call = bus.publish.mock.calls[0];
-    expect(call[2].input).toEqual({ sources: [], recursive: false });
-    expect((call[2].input as Record<string, unknown>).seedFrom).toBeUndefined();
+    const err = await observed;
+    expect(err).toBeInstanceOf(StepFailedError);
+
+    expect(clearIntervalSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+    clearIntervalSpy.mockRestore();
+    clearTimeoutSpy.mockRestore();
   });
 });
 
@@ -492,8 +381,7 @@ describe('StepExecutor — code-review follow-ups (Task 10)', () => {
   });
 
   // C1: subscribe must happen BEFORE scanJob.create so any future publisher
-  // emitting between create and subscribe is not lost (the channel name
-  // depends on the ScanJob id, which is why we pre-generate it).
+  // emitting between create and subscribe is not lost.
   it('C1: redis.subscribe is called before scanJob.create (no subscribe-after-create race)', async () => {
     const prisma = makePrisma();
     (prisma.scanJob.findUnique as jest.Mock).mockResolvedValue({ status: 'COMPLETED' });
@@ -525,30 +413,21 @@ describe('StepExecutor — code-review follow-ups (Task 10)', () => {
     });
 
     const exec = build(prisma, makeScannerRegistry(60_000), bus, redis, 5_000);
-    const step: TemplateStep = {
-      scannerName: 'subfinder',
-      inputs: {},
-      target: { kind: 'context', path: 'target' },
-    };
+    const step: TemplateStep = { scannerName: 'nmap', args: '-sV' };
 
     const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 });
     await flushMicrotasks(15);
     await jest.advanceTimersByTimeAsync(5_000);
     await promise;
 
-    // Strict ordering: subscribe -> scan.create -> scanJob.create -> bus.publish.
     expect(order).toEqual(['redis.subscribe', 'scan.create', 'scanJob.create', 'bus.publish']);
   });
 
-  // C2: scan.create and scanJob.create must run inside the same $transaction
-  // so a ScanJob insert failure (constraint, connection) doesn't leak an
-  // orphan Scan row.
+  // C2: scan.create and scanJob.create must run inside the same $transaction.
   it('C2: scan.create and scanJob.create happen inside a single $transaction call', async () => {
     const prisma = makePrisma();
     (prisma.scanJob.findUnique as jest.Mock).mockResolvedValue({ status: 'COMPLETED' });
 
-    // Capture the callback handed to $transaction so we can assert both
-    // creates run inside it (and only inside it).
     const $transaction = prisma.$transaction as jest.Mock;
     let creationsInsideTx = 0;
     $transaction.mockImplementationOnce(async (cb: (tx: unknown) => Promise<unknown>) => {
@@ -567,17 +446,12 @@ describe('StepExecutor — code-review follow-ups (Task 10)', () => {
         },
       };
       const result = await cb(txProxy);
-      // Both creations must have happened by the time the cb resolves.
       expect(creationsInsideTx).toBe(2);
       return result;
     });
 
     const exec = build(prisma, makeScannerRegistry(60_000), makeScanBus(), makeRedis(), 5_000);
-    const step: TemplateStep = {
-      scannerName: 'subfinder',
-      inputs: {},
-      target: { kind: 'context', path: 'target' },
-    };
+    const step: TemplateStep = { scannerName: 'nmap', args: '-sV' };
 
     const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 });
     await flushMicrotasks(15);
@@ -586,78 +460,11 @@ describe('StepExecutor — code-review follow-ups (Task 10)', () => {
 
     expect($transaction).toHaveBeenCalledTimes(1);
     expect($transaction).toHaveBeenCalledWith(expect.any(Function));
-    // The outer prisma.scan.create / prisma.scanJob.create must NOT have
-    // been called — only the tx-scoped variants.
     expect(prisma.scan.create).not.toHaveBeenCalled();
     expect(prisma.scanJob.create).not.toHaveBeenCalled();
   });
 
-  // I1: when one parallel target rejects, the surviving target's pollTimer +
-  // budgetTimer must tear down via the shared AbortSignal instead of running
-  // out the full step budget.
-  it("I1: sibling rejection triggers AbortSignal that clears the surviving target's timers", async () => {
-    const prisma = makePrisma();
-    (prisma.subdomain.findMany as jest.Mock).mockResolvedValueOnce([
-      { canonicalValue: 'a.acme.com' },
-      { canonicalValue: 'b.acme.com' },
-    ]);
-
-    // Target A returns FAILED on first poll; Target B stays RUNNING forever
-    // (it should be aborted, not run to the 120s budget).
-    const failedIds = new Set<string>();
-    let firstCreate = true;
-    (prisma.scanJob.create as jest.Mock).mockImplementation(
-      ({ data }: { data: Record<string, unknown> }) => {
-        if (firstCreate) {
-          failedIds.add(data.id as string);
-          firstCreate = false;
-        }
-        return Promise.resolve({ status: 'PENDING', ...data });
-      },
-    );
-    (prisma.scanJob.findUnique as jest.Mock).mockImplementation(
-      ({ where }: { where: { id: string } }) =>
-        failedIds.has(where.id)
-          ? Promise.resolve({ id: where.id, status: 'FAILED', errorMessage: 'boom' })
-          : Promise.resolve({ id: where.id, status: 'RUNNING' }),
-    );
-
-    const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
-    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
-
-    const exec = build(prisma, makeScannerRegistry(60_000), makeScanBus(), makeRedis(), 5_000);
-    const step: TemplateStep = {
-      scannerName: 'httpx',
-      inputs: {},
-      target: { kind: 'context', path: 'subdomains' },
-    };
-
-    const promise = exec.runStep({ templateRun: makeRun(), step, stepIndex: 1 });
-    const observed = promise.catch((err: unknown) => err);
-
-    await flushMicrotasks(20);
-    // First poll @ t=5s — Target A flips to FAILED, AbortController fires,
-    // Target B's timers must be torn down.
-    await jest.advanceTimersByTimeAsync(5_000);
-    await flushMicrotasks(10);
-
-    const err = await observed;
-    expect(err).toBeInstanceOf(StepFailedError);
-
-    // Both targets installed a pollTimer + a budgetTimer. After the sibling
-    // failure, BOTH targets' timers must be cleared (the rejecting target
-    // clears via finishErr; the surviving target clears via the abort
-    // listener). So clearInterval should be called >= 2 times, ditto
-    // clearTimeout.
-    expect(clearIntervalSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
-
-    clearIntervalSpy.mockRestore();
-    clearTimeoutSpy.mockRestore();
-  });
-
-  // I2: SIGTERM must close the Redis subscriber connection cleanly. The
-  // OnModuleDestroy hook must call redis.quit().
+  // I2: SIGTERM must close the Redis subscriber connection cleanly.
   it('I2: onModuleDestroy() calls redis.quit() on the subscriber', async () => {
     const prisma = makePrisma();
     const redis = makeRedis();
@@ -670,14 +477,8 @@ describe('StepExecutor — code-review follow-ups (Task 10)', () => {
 });
 
 describe('StepExecutor.runStep — enqueue failure reconciliation', () => {
-  // No fake timers: the enqueue throw happens before any polling timer is
-  // installed, so we can let the natural promise chain unwind.
-
   it('marks Scan + ScanJob FAILED and re-throws when the publish throws', async () => {
     const prisma = makePrisma();
-    // makePrisma omits update mocks since the happy path doesn't need them.
-    // Reach in and attach jest.fn()s for both surfaces so the reconciliation
-    // path has somewhere to land.
     (prisma.scan as unknown as { update: jest.Mock }).update = jest
       .fn()
       .mockResolvedValue({ id: 'scan_1', status: 'FAILED' });
@@ -692,17 +493,12 @@ describe('StepExecutor.runStep — enqueue failure reconciliation', () => {
     const redis = makeRedis();
     const exec = build(prisma, makeScannerRegistry(60_000), bus, redis, 5_000);
 
-    const step: TemplateStep = {
-      scannerName: 'subfinder',
-      inputs: {},
-      target: { kind: 'context', path: 'target' },
-    };
+    const step: TemplateStep = { scannerName: 'nmap', args: '-sV' };
 
     await expect(exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 })).rejects.toBe(
       enqueueError,
     );
 
-    // Both row updates must have landed before the throw was re-raised.
     const scanUpdate = (prisma.scan as unknown as { update: jest.Mock }).update;
     const scanJobUpdate = (prisma.scanJob as unknown as { update: jest.Mock }).update;
     expect(scanUpdate).toHaveBeenCalledWith({
@@ -714,12 +510,7 @@ describe('StepExecutor.runStep — enqueue failure reconciliation', () => {
       where: { id: scanJobId },
       data: { status: 'FAILED', errorMessage: 'enqueue failed: redis is down' },
     });
-    // Subscriber must be torn down so we don't leak the redis listener.
     expect(redis.unsubscribe).toHaveBeenCalled();
-    // No `redis.off` assertion: the executor uses a single shared `message`
-    // listener and unregisters per-channel handlers via an internal Map, so
-    // there's no per-dispatch `off()` call to observe. `unsubscribe()` is the
-    // observable teardown signal.
   });
 
   it('still re-throws the original enqueue error when the FAILED-status updates themselves fail', async () => {
@@ -736,18 +527,11 @@ describe('StepExecutor.runStep — enqueue failure reconciliation', () => {
 
     const exec = build(prisma, makeScannerRegistry(60_000), bus, makeRedis(), 5_000);
 
-    // Spy on the executor's logger so we can verify both masked-update
-    // warns fire — without that signal, an operator hit by Redis-down +
-    // DB-flake at once would only see the BullMQ error.
     const warnSpy = jest
       .spyOn((exec as unknown as { logger: { warn: (msg: string) => void } }).logger, 'warn')
       .mockImplementation(() => undefined);
 
-    const step: TemplateStep = {
-      scannerName: 'subfinder',
-      inputs: {},
-      target: { kind: 'context', path: 'target' },
-    };
+    const step: TemplateStep = { scannerName: 'nmap', args: '-sV' };
 
     await expect(exec.runStep({ templateRun: makeRun(), step, stepIndex: 0 })).rejects.toThrow(
       /redis is down/,
@@ -761,12 +545,6 @@ describe('StepExecutor.runStep — enqueue failure reconciliation', () => {
     );
   });
 });
-
-// helper local to this file: clones a prisma mock returned by makePrisma so
-// we can install additional mock impls without affecting earlier specs.
-function makePrisma_(p: jest.Mocked<PrismaService>): jest.Mocked<PrismaService> {
-  return p;
-}
 
 /**
  * Flushes N microtask ticks. The dispatchOne pipeline (subscribe -> $transaction

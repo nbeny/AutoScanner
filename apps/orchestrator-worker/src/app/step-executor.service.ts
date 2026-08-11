@@ -6,7 +6,7 @@ import { PrismaService } from '@autoscanner/database';
 import { type ScanJobPayload } from '@autoscanner/queues';
 import { JOB_BUS, type JobBus } from '@autoscanner/messaging';
 import { ScannerRegistry } from '@autoscanner/scanner-sdk';
-import type { ContextRef, TemplateStep } from '@autoscanner/templates';
+import type { TemplateStep } from '@autoscanner/templates';
 
 import { ContextBuilder, type TemplateRunLike } from './context-builder.service';
 import {
@@ -170,14 +170,14 @@ export class StepExecutor implements OnModuleDestroy {
 
     if (targets.length === 0) {
       this.logger.warn(
-        `Step ${stepIndex} (${step.scannerName}): no targets resolved and D3 fallback inapplicable — skipping`,
+        `Step ${stepIndex} (${step.scannerName}): no target resolved (empty run target) — skipping`,
       );
       return;
     }
 
     const scannerDef = this.registry.get(step.scannerName);
     const budgetMs = scannerDef.docker.defaultTimeoutMs + STEP_TIMEOUT_GRACE_MS;
-    const inputs = this.extractStaticInputs(step.inputs);
+    const inputs = this.buildStepInput(step);
 
     this.logger.log(
       `Step ${stepIndex} (${step.scannerName}): enqueuing ${targets.length} ScanJob(s) ` +
@@ -347,15 +347,16 @@ export class StepExecutor implements OnModuleDestroy {
     });
   }
 
-  private extractStaticInputs(inputs: Record<string, ContextRef>): Record<string, unknown> {
-    const result: Record<string, unknown> = {};
-    for (const [key, ref] of Object.entries(inputs)) {
-      if (ref.kind === 'static') {
-        result[key] = ref.value;
-      }
-      // Phase 2: `kind=context` inputs are ignored — Phase 3+ territory.
-    }
-    return result;
+  /**
+   * SP3a: a step's child ScanJob input is the generic Kali scanner input
+   * `{ args?, preset? }` with undefined keys omitted. The run root target is
+   * carried separately (see {@link ContextBuilder}), not in the input object.
+   */
+  private buildStepInput(step: TemplateStep): Record<string, unknown> {
+    const input: Record<string, unknown> = {};
+    if (step.args !== undefined) input.args = step.args;
+    if (step.preset !== undefined) input.preset = step.preset;
+    return input;
   }
 
   /**
