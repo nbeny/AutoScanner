@@ -1,7 +1,11 @@
 import { ScannerCategory } from '../types';
 
-describe('ScannerCategory', () => {
-  it('includes the AI_LLM category with the ai-llm value', () => {
-    expect(ScannerCategory.AI_LLM).toBe('ai-llm');
+describe('ScannerCategory Kali taxonomy additions', () => {
+  it('exposes the new categories needed to map the Kali dataset', () => {
+    expect(ScannerCategory.EXPLOITATION).toBe('exploitation');
+    expect(ScannerCategory.POST_EXPLOITATION).toBe('post-exploitation');
+    expect(ScannerCategory.FORENSICS).toBe('forensics');
+    expect(ScannerCategory.REVERSE_ENGINEERING).toBe('reverse-engineering');
+    expect(ScannerCategory.MISC).toBe('misc');
   });
 });
