@@ -33,6 +33,5 @@ describe('<CockpitPage />', () => {
     expect(screen.getByLabelText('active-scanners')).toBeInTheDocument();
     expect(screen.getByLabelText('focus-empty')).toBeInTheDocument();
     expect(screen.getByLabelText('queues-workers')).toBeInTheDocument();
-    expect(screen.getByLabelText('findings-flux')).toBeInTheDocument();
   });
 });

@@ -12,9 +12,6 @@ describe('<NavRail />', () => {
     );
     const links: Array<[string, string]> = [
       ['Recon', '/'],
-      ['OSINT', '/osint'],
-      ['Cibles', '/targets'],
-      ['Audit', '/audit'],
       ['Outils', '/tools'],
       ['AutoHunt', '/hunt'],
       ['Settings', '/settings'],

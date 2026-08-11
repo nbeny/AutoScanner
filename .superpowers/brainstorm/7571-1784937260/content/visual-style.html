@@ -1,0 +1,87 @@
+<h2>Direction esthétique du cockpit</h2>
+<p class="subtitle">Même contenu (un scanner live + sparkline + sévérités), trois ambiances « futuristes ». Clique celle qui te parle — on pourra mixer.</p>
+
+<style>
+  .styletiles { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  @media (max-width:900px){ .styletiles{ grid-template-columns:1fr; } }
+  .stile { border-radius:16px; overflow:hidden; cursor:pointer; border:2px solid transparent; transition:transform .15s, border-color .15s; }
+  .stile:hover{ transform:translateY(-4px); }
+  .stile.selected{ border-color:#fff; }
+  .stile h3{ margin:0; font-size:15px; }
+  .stile .cap{ padding:12px 14px; }
+  .stile .cap p{ margin:4px 0 0; font-size:12px; opacity:.7; }
+  .panel{ padding:16px; height:230px; display:flex; flex-direction:column; gap:12px; font-family:ui-sans-serif,system-ui; }
+  .row{ display:flex; align-items:center; justify-content:space-between; }
+  .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .spark{ display:flex; align-items:flex-end; gap:3px; height:34px; }
+  .spark i{ width:6px; border-radius:2px; display:block; }
+  .chip{ font-size:10px; padding:2px 7px; border-radius:20px; font-weight:600; }
+  .mono{ font-family:ui-monospace,Menlo,monospace; }
+
+  /* A — Deep Space Neon */
+  .neon{ background:radial-gradient(120% 120% at 0% 0%, #0b1020 0%, #05060d 60%); color:#cfe3ff; }
+  .neon .card{ background:rgba(20,30,60,.5); border:1px solid rgba(80,160,255,.25); border-radius:12px; padding:10px 12px; box-shadow:0 0 24px rgba(40,120,255,.15) inset; }
+  .neon .dot{ background:#22d3ee; box-shadow:0 0 10px #22d3ee; }
+  .neon .spark i{ background:linear-gradient(#22d3ee,#6366f1); box-shadow:0 0 6px rgba(99,102,241,.6); }
+  .neon .chip{ background:rgba(244,63,94,.15); color:#fb7185; border:1px solid rgba(244,63,94,.4); }
+  .neon .accent{ color:#22d3ee; }
+
+  /* B — Tactical NOC */
+  .noc{ background:#0a0e0a; color:#c7f0c7; font-family:ui-monospace,Menlo,monospace; }
+  .noc .card{ background:#0f150f; border:1px solid #1f3a1f; border-radius:4px; padding:10px 12px; }
+  .noc .dot{ background:#84cc16; box-shadow:0 0 8px #84cc16; }
+  .noc .spark i{ background:#84cc16; }
+  .noc .chip{ background:transparent; color:#f59e0b; border:1px solid #f59e0b; border-radius:2px; }
+  .noc .accent{ color:#f59e0b; }
+  .noc h3, .noc .cap{ font-family:ui-monospace,Menlo,monospace; }
+
+  /* C — Aurora Glass */
+  .aurora{ background:linear-gradient(135deg,#12172b 0%, #1b1033 55%, #0e1b2e 100%); color:#e8ecff; position:relative; }
+  .aurora:before{ content:""; position:absolute; inset:0; background:radial-gradient(60% 50% at 80% 10%, rgba(168,85,247,.25), transparent), radial-gradient(50% 40% at 10% 90%, rgba(56,189,248,.22), transparent); }
+  .aurora .card{ position:relative; background:rgba(255,255,255,.06); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:10px 12px; }
+  .aurora .dot{ background:#a855f7; box-shadow:0 0 10px #a855f7; }
+  .aurora .spark i{ background:linear-gradient(#38bdf8,#a855f7); }
+  .aurora .chip{ background:rgba(255,255,255,.1); color:#fca5a5; border:1px solid rgba(252,165,165,.35); }
+  .aurora .accent{ color:#c4b5fd; }
+</style>
+
+<div class="styletiles">
+  <!-- A -->
+  <div class="stile selected" data-choice="neon" onclick="toggleSelect(this)">
+    <div class="panel neon">
+      <div class="row"><span class="mono" style="font-size:12px">httpx · 10.0.4.12</span><span><span class="dot"></span> <span class="accent mono" style="font-size:11px">RUNNING 00:42</span></span></div>
+      <div class="card">
+        <div class="row"><span style="font-size:12px">nuclei</span><span class="mono accent" style="font-size:11px">▓▓▓▓▓░░ 71%</span></div>
+        <div class="spark" style="margin-top:8px"><i style="height:40%"></i><i style="height:60%"></i><i style="height:35%"></i><i style="height:80%"></i><i style="height:55%"></i><i style="height:95%"></i><i style="height:70%"></i></div>
+      </div>
+      <div class="row"><span class="chip">CRITICAL ×3</span><span class="mono" style="font-size:11px;opacity:.6">queue 12</span></div>
+    </div>
+    <div class="cap neon" style="background:#05060d"><h3 class="accent">A · Deep Space Neon</h3><p>Noir profond, néons cyan/violet, glow, glassmorphism léger.</p></div>
+  </div>
+
+  <!-- B -->
+  <div class="stile" data-choice="noc" onclick="toggleSelect(this)">
+    <div class="panel noc">
+      <div class="row"><span style="font-size:12px">httpx · 10.0.4.12</span><span><span class="dot"></span> <span class="accent" style="font-size:11px">RUNNING 00:42</span></span></div>
+      <div class="card">
+        <div class="row"><span style="font-size:12px">nuclei</span><span class="accent" style="font-size:11px">[#####--] 71%</span></div>
+        <div class="spark" style="margin-top:8px"><i style="height:40%"></i><i style="height:60%"></i><i style="height:35%"></i><i style="height:80%"></i><i style="height:55%"></i><i style="height:95%"></i><i style="height:70%"></i></div>
+      </div>
+      <div class="row"><span class="chip">CRIT x3</span><span style="font-size:11px;opacity:.6">queue:12</span></div>
+    </div>
+    <div class="cap noc" style="background:#050805"><h3 class="accent">B · Tactical NOC</h3><p>Salle d'op, monospace, vert/ambre terminal, très dense.</p></div>
+  </div>
+
+  <!-- C -->
+  <div class="stile" data-choice="aurora" onclick="toggleSelect(this)">
+    <div class="panel aurora">
+      <div class="row"><span class="mono" style="font-size:12px">httpx · 10.0.4.12</span><span><span class="dot"></span> <span class="accent" style="font-size:11px">RUNNING 00:42</span></span></div>
+      <div class="card">
+        <div class="row"><span style="font-size:12px">nuclei</span><span class="accent mono" style="font-size:11px">71%</span></div>
+        <div class="spark" style="margin-top:8px"><i style="height:40%"></i><i style="height:60%"></i><i style="height:35%"></i><i style="height:80%"></i><i style="height:55%"></i><i style="height:95%"></i><i style="height:70%"></i></div>
+      </div>
+      <div class="row"><span class="chip">CRITICAL ×3</span><span class="mono" style="font-size:11px;opacity:.6">queue 12</span></div>
+    </div>
+    <div class="cap aurora" style="background:#0e1226"><h3 class="accent">C · Aurora Glass</h3><p>Premium, dégradés aurora, verre dépoli, accents pastel.</p></div>
+  </div>
+</div>

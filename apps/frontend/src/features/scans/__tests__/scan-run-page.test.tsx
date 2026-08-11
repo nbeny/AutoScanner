@@ -5,7 +5,6 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { AuthProvider } from '../../../lib/auth-context';
 import type { AuthSession, AuthStorage } from '../../../lib/auth';
 import {
-  ASSETS_QUERY,
   RUN_SCAN_MUTATION,
   SCAN_QUERY,
   SCAN_TEMPLATES_QUERY,
@@ -31,11 +30,6 @@ const session: AuthSession = {
   accessToken: 'a',
   refreshToken: 'r',
   email: 'op@example.com',
-};
-
-const emptyAssetsMock = {
-  request: { query: ASSETS_QUERY, variables: { engagementId: 'eng_1' } },
-  result: { data: { assets: [] } },
 };
 
 // nmap is the default scanner; empty fields keep the options form quiet so the
@@ -91,8 +85,8 @@ function renderPage(mocks: Parameters<typeof MockedProvider>[0]['mocks']) {
 
 describe('<ScanRunPage />', () => {
   it('rejects invalid options JSON locally and does not call the mutation', async () => {
-    renderPage([emptyAssetsMock, scanTemplatesMock, scannerCatalogMock]);
-    await screen.findByText(/no assets yet/i);
+    renderPage([scanTemplatesMock, scannerCatalogMock]);
+    await screen.findByRole('form', { name: 'run-scan' });
 
     // Switch to manual JSON mode, then enter broken JSON.
     fireEvent.click(screen.getByLabelText(/éditer le json manuellement/i));
@@ -149,8 +143,8 @@ describe('<ScanRunPage />', () => {
       },
     };
 
-    renderPage([emptyAssetsMock, scanTemplatesMock, scannerCatalogMock, runMock, scanPollMock]);
-    await screen.findByText(/no assets yet/i);
+    renderPage([scanTemplatesMock, scannerCatalogMock, runMock, scanPollMock]);
+    await screen.findByRole('form', { name: 'run-scan' });
 
     // Both forms have a "Target" input — pick the one inside the run-scan form.
     const runScanForm = screen.getByRole('form', { name: 'run-scan' });

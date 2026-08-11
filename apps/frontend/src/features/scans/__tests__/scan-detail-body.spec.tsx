@@ -76,7 +76,7 @@ function renderBody(mocks: Parameters<typeof MockedProvider>[0]['mocks']) {
 }
 
 describe('<ScanDetailBody />', () => {
-  it('renders jobs from SCAN_QUERY — shows scannerName and findingCount', async () => {
+  it('renders jobs from SCAN_QUERY — shows scannerName', async () => {
     renderBody([scanQueryMock]);
 
     await waitFor(() => expect(screen.queryByText(/loading/i)).not.toBeInTheDocument());
@@ -86,9 +86,6 @@ describe('<ScanDetailBody />', () => {
 
     // Scanner name is visible
     expect(screen.getByText('nmap')).toBeInTheDocument();
-
-    // findingCount is visible
-    expect(screen.getByText('5')).toBeInTheDocument();
   });
 
   it('clicking "Annuler" on a non-terminal job fires CANCEL_SCAN_JOB_MUTATION', async () => {

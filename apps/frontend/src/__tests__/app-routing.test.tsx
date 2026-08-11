@@ -74,18 +74,8 @@ describe('app routing (target IA)', () => {
     expect(screen.getByLabelText('cockpit-command-bar')).toBeInTheDocument();
   });
 
-  it('renders the Audit page at /audit and redirects /vulnerabilities to it', () => {
-    renderAt('/vulnerabilities', session);
-    expect(screen.getByLabelText('audit-page')).toBeInTheDocument();
-  });
-
-  it('renders the IP Library at /targets', () => {
-    renderAt('/targets', session);
-    expect(screen.getByLabelText('targets-library')).toBeInTheDocument();
-  });
-
-  it('renders the OSINT cockpit at /osint', () => {
+  it('sends removed routes (e.g. /osint) to the Cockpit fallback', () => {
     renderAt('/osint', session);
-    expect(screen.getByLabelText('osint-command-bar')).toBeInTheDocument();
+    expect(screen.getByLabelText('cockpit-command-bar')).toBeInTheDocument();
   });
 });

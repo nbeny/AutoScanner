@@ -6,8 +6,6 @@ import { ScansList } from '../scans/scans-list';
 import { ActiveScannersList } from './active-scanners-list';
 import { ScannerFocusPanel, type CockpitFocus } from './scanner-focus-panel';
 import { QueuesWorkersPanel, type QueueHealth } from './queues-workers-panel';
-import { SeveritySparklinePanel } from './severity-sparkline-panel';
-import { FindingsFluxFeed } from './findings-flux-feed';
 import { CockpitCommandBar } from './cockpit-command-bar';
 import type { HealthPillData } from './health-pill';
 import { useActiveScanners, type CockpitJob } from './use-active-scanners';
@@ -59,8 +57,6 @@ export function CockpitPage() {
         </div>
         <div className="space-y-4">
           <QueuesWorkersPanel queues={data?.queueHealth ?? []} />
-          <SeveritySparklinePanel engagementId={scope} />
-          <FindingsFluxFeed engagementId={scope} />
         </div>
       </div>
 
