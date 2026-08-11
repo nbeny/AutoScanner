@@ -1,0 +1,18 @@
+[
+  {
+    "package": "nmap",
+    "binary": "nmap",
+    "displayName": "nmap",
+    "description": "Network mapper",
+    "categories": ["information-gathering"],
+    "kaliRelease": "2025.1"
+  },
+  {
+    "package": "whois",
+    "binary": "whois",
+    "displayName": "whois",
+    "description": "WHOIS lookup",
+    "categories": ["information-gathering"],
+    "kaliRelease": "2025.1"
+  }
+]
