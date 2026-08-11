@@ -4,6 +4,28 @@ import { ScannerCategory } from '@autoscanner/scanner-sdk';
 
 import { ScannerCatalogService } from '../scanner-catalog.service';
 import { KaliCatalogService } from '../kali-catalog.service';
+import type { KaliToolRecord } from '../kali/types';
+
+function makeRecord(binary: string, overrides: Partial<KaliToolRecord> = {}): KaliToolRecord {
+  return {
+    package: binary,
+    binary,
+    displayName: binary,
+    description: '',
+    homepage: null,
+    categories: [],
+    helpTextRaw: null,
+    options: [],
+    parseConfidence: 'none',
+    manAvailable: false,
+    manTextRaw: null,
+    optionsSource: 'none',
+    source: 'kali-docker',
+    kaliRelease: 'seed',
+    capturedAt: 't',
+    ...overrides,
+  };
+}
 
 function makeDef(name: string, overrides: Partial<ScannerDefinition> = {}): ScannerDefinition {
   return {
@@ -59,38 +81,7 @@ describe('ScannerCatalogService', () => {
     registry.register(makeDef('smb-enum')); // override -> enum4linux-ng (in dataset)
     registry.register(makeDef('shodan', { inputSchema: z.object({}) })); // not a Kali binary
 
-    const kali = new KaliCatalogService([
-      {
-        package: 'nmap',
-        binary: 'nmap',
-        displayName: 'nmap',
-        description: '',
-        homepage: null,
-        categories: [],
-        helpTextRaw: null,
-        options: [],
-        parseConfidence: 'none',
-        manAvailable: false,
-        source: 'kali-docker',
-        kaliRelease: 'seed',
-        capturedAt: 't',
-      },
-      {
-        package: 'enum4linux-ng',
-        binary: 'enum4linux-ng',
-        displayName: 'enum4linux-ng',
-        description: '',
-        homepage: null,
-        categories: [],
-        helpTextRaw: null,
-        options: [],
-        parseConfidence: 'none',
-        manAvailable: false,
-        source: 'kali-docker',
-        kaliRelease: 'seed',
-        capturedAt: 't',
-      },
-    ]);
+    const kali = new KaliCatalogService([makeRecord('nmap'), makeRecord('enum4linux-ng')]);
 
     const catalog = new ScannerCatalogService(registry, kali).catalog();
     const byName = (n: string) => catalog.find((c) => c.name === n)!;
@@ -111,7 +102,7 @@ describe('ScannerCatalogService', () => {
     expect(entries.every((e) => typeof e.primaryCategory === 'string')).toBe(true);
   });
 
-  it('expose presets (tableau, vide par défaut)', () => {
+  it('expose presets (tableau, vide sans record Kali)', () => {
     const registry = new ScannerRegistry();
     registry.register(makeDef('nmap'));
 
@@ -119,5 +110,50 @@ describe('ScannerCatalogService', () => {
     const service = new ScannerCatalogService(registry, kali);
     const entries = service.catalog();
     expect(entries.every((e) => Array.isArray(e.presets))).toBe(true);
+    // No Kali record => no examples to derive.
+    expect(entries.find((e) => e.name === 'nmap')!.presets).toEqual([]);
+  });
+
+  it('émet des exemples de run éditables (seed pour nmap, fallback pour un outil obscur)', () => {
+    const registry = new ScannerRegistry();
+    registry.register(makeDef('nmap'));
+    registry.register(makeDef('zzz-obscure'));
+
+    const kali = new KaliCatalogService([makeRecord('nmap'), makeRecord('zzz-obscure')]);
+    const entries = new ScannerCatalogService(registry, kali).catalog();
+
+    const nmapPresets = entries.find((e) => e.name === 'nmap')!.presets as Array<{
+      id: string;
+      name: string;
+      options: { args: string };
+    }>;
+    expect(nmapPresets.length).toBeGreaterThan(0);
+    // Seed case: first example prefills args (flags only, target auto-appended).
+    expect(nmapPresets[0].options.args).toBe('-T4 --top-ports 1000');
+    expect(nmapPresets.every((p) => typeof p.options.args === 'string')).toBe(true);
+
+    const obscurePresets = entries.find((e) => e.name === 'zzz-obscure')!.presets as Array<{
+      name: string;
+      options: { args: string };
+    }>;
+    // Fallback case: a single generic "Défaut" example with empty args.
+    expect(obscurePresets).toHaveLength(1);
+    expect(obscurePresets[0].name).toBe('Défaut');
+    expect(obscurePresets[0].options.args).toBe('');
+  });
+
+  it('respecte un scanner.presets explicite plutôt que les exemples Kali', () => {
+    const registry = new ScannerRegistry();
+    registry.register(
+      makeDef('nmap', {
+        presets: [{ id: 'custom', name: 'Custom', description: 'x', options: { ports: '80' } }],
+      }),
+    );
+
+    const kali = new KaliCatalogService([makeRecord('nmap')]);
+    const entries = new ScannerCatalogService(registry, kali).catalog();
+    const presets = entries.find((e) => e.name === 'nmap')!.presets as Array<{ id: string }>;
+    expect(presets).toHaveLength(1);
+    expect(presets[0].id).toBe('custom');
   });
 });
