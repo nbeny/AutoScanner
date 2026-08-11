@@ -20,7 +20,6 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
-    "recompute:risk-scores": "tsx prisma/scripts/recompute-risk-scores.ts",
     "reconcile:scan-statuses": "tsx prisma/scripts/reconcile-scan-statuses.ts",
     "dev:up": "docker compose -f docker/docker-compose.dev.yml up -d",
     "dev:up:mongo": "docker compose -f docker/docker-compose.dev.yml --profile mongo up -d",
