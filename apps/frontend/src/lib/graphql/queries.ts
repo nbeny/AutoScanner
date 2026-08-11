@@ -492,31 +492,6 @@ export const TOOL_ACTIVITY_QUERY = gql`
   }
 `;
 
-export const COVERAGE_MATRIX_QUERY = gql`
-  query CoverageMatrix($engagementId: ID) {
-    coverageMatrix(engagementId: $engagementId) {
-      assetType
-      scannerName
-      observationCount
-      assetCount
-      lastObservedAt
-    }
-  }
-`;
-
-export const ASSET_COVERAGE_QUERY = gql`
-  query AssetCoverage($engagementId: ID, $assetType: String) {
-    assetCoverage(engagementId: $engagementId, assetType: $assetType) {
-      assetId
-      assetValue
-      assetType
-      scannerName
-      observationCount
-      lastObservedAt
-    }
-  }
-`;
-
 export const TOOL_DETAIL_QUERY = gql`
   query ToolDetail($engagementId: ID, $scannerName: String!) {
     toolDetail(engagementId: $engagementId, scannerName: $scannerName) {
