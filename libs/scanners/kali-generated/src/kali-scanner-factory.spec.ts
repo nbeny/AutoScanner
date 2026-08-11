@@ -67,3 +67,20 @@ describe('buildKaliScanners', () => {
     expect(defs).toHaveLength(1);
   });
 });
+
+describe('buildKaliScanners over the committed dataset', () => {
+  it('produces a unique-named def per binary (hundreds of tools)', () => {
+    const path = require('node:path').join(process.cwd(), 'data', 'kali-tools.json');
+    const fs = require('node:fs');
+    if (!fs.existsSync(path)) return; // dataset optional in CI
+    const rows = JSON.parse(fs.readFileSync(path, 'utf8'));
+    const defs = buildKaliScanners(rows);
+    const names = new Set(defs.map((d) => d.name));
+    expect(names.size).toBe(defs.length); // no duplicate names
+    expect(defs.length).toBeGreaterThan(100);
+    for (const d of defs) {
+      expect(d.docker.image).toContain('kali-toolbox');
+      expect(d.category.length).toBeGreaterThan(0);
+    }
+  });
+});
